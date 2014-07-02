@@ -82,11 +82,12 @@ public class MemStorage implements Storage {
   MemStorage(
       final SchedulerStore.Mutable schedulerStore,
       final JobStore.Mutable jobStore,
-      final TaskStore.Mutable taskStore,
+      @Delegated final TaskStore.Mutable taskStore,
       @Delegated final LockStore.Mutable lockStore,
       @Delegated final Storage delegated,
       @Delegated final QuotaStore.Mutable quotaStore,
       final AttributeStore.Mutable attributeStore) {
+
     this.delegatedStore = delegated;
     storeProvider = new MutableStoreProvider() {
       @Override

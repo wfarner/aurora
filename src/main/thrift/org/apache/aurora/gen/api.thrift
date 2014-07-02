@@ -647,6 +647,7 @@ service AuroraAdmin extends AuroraSchedulerManager {
   // Start a storage snapshot and block until it completes.
   Response snapshot(1: SessionKey session)
 
+  // TODO(wfarner): Replace this with a way to directly modify tasks through the database with SQL.
   // Forcibly rewrites the stored definition of user configurations.  This is intended to be used
   // in a controlled setting, primarily to migrate pieces of configurations that are opaque to the
   // scheduler (e.g. executorConfig).
