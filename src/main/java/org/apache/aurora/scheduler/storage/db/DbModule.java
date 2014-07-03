@@ -49,6 +49,7 @@ import static com.google.inject.name.Names.named;
  *        <ul>
  *          <li>{@link org.apache.aurora.scheduler.storage.LockStore.Mutable}</li>
  *          <li>{@link org.apache.aurora.scheduler.storage.QuotaStore.Mutable}</li>
+ *          <li>{@link org.apache.aurora.scheduler.storage.TaskStore.Mutable}</li>
  *        </ul>
  *     </li>
  *   </ul>

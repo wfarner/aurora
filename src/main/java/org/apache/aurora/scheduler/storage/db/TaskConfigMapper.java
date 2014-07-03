@@ -13,23 +13,14 @@
  */
 package org.apache.aurora.scheduler.storage.db;
 
-import java.util.List;
-import java.util.Set;
-
-import org.apache.aurora.gen.ScheduledTask;
-import org.apache.aurora.gen.TaskQuery;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
 
 /**
  *
  */
-interface TaskMapper {
+interface TaskConfigMapper {
 
-  void insert(IScheduledTask task);
+  long insert(ITaskConfig config);
 
-  List<ScheduledTask> select(TaskQuery query);
-
-  void truncate();
-
-  void deleteTasks(Set<String> taskIds);
+  void delete(long configId);
 }

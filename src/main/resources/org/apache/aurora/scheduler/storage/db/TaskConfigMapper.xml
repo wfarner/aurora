@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ -->
+
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.apache.aurora.scheduler.storage.db.TaskMapper">
+
+  <select id="select" resultType="long">
+    <!-- need to join against child tables, how do we do this for multi-row references? -->
+    SELECT from task_configs
+    WHERE
+  </select>
+
+  <insert id="insert">
+    INSERT INTO task_configs (
+      job_key_id,
+      creator_user,
+      service,
+      num_cpus,
+      ram_mb,
+      disk_mb,
+      priority,
+      max_task_failures,
+      production,
+      contact_email,
+      executor_name,
+      executor_data,
+    ) VALUES (
+      (
+        SELECT ID
+        FROM job_keys
+        WHERE role = #{key.job.role}
+          AND environment = #{key.job.environment}
+          AND name = #{key.job.name}
+      ),
+      #{owner.user},
+      #{isService},
+      #{numCpus},
+      #{ramMb},
+      #{diskMb},
+      #{priority},
+      #{maxTaskFailures},
+      #{production},
+      #{contactEmail},
+      #{executorName},
+      #{executorData},
+    )
+  </insert>
+
+  <delete id="delete">
+    DELETE FROM task_configs
+    WHERE id = #{id}
+  </delete>
+</mapper>

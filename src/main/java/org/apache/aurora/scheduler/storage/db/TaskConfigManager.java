@@ -13,23 +13,15 @@
  */
 package org.apache.aurora.scheduler.storage.db;
 
-import java.util.List;
-import java.util.Set;
-
-import org.apache.aurora.gen.ScheduledTask;
-import org.apache.aurora.gen.TaskQuery;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import com.google.inject.Inject;
 
 /**
  *
  */
-interface TaskMapper {
+class TaskConfigManager {
 
-  void insert(IScheduledTask task);
+  @Inject
+  TaskConfigManager(JobKeyMapper jobKeyMapper, TaskMapper taskMapper) {
 
-  List<ScheduledTask> select(TaskQuery query);
-
-  void truncate();
-
-  void deleteTasks(Set<String> taskIds);
+  }
 }

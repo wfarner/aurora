@@ -78,9 +78,15 @@ class DbTaskStore implements TaskStore.Mutable {
   @Timed("db_storage_fetch_tasks")
   @Override
   public void saveTasks(Set<IScheduledTask> tasks) {
+    if (tasks.isEmpty()) {
+      return;
+    }
+
+    deleteTasks(Tasks.ids(tasks));
+
     for (IScheduledTask task : tasks) {
       // TODO(wfarner): Need to merge nested objects.
-      taskMapper.merge(task);
+      taskMapper.insert(task);
     }
   }
 
@@ -129,6 +135,8 @@ class DbTaskStore implements TaskStore.Mutable {
   }
 
   private FluentIterable<IScheduledTask> matches(Query.Builder query) {
-    return null;
+    // TODO(wfarner): Probably need to set empty collection fields to null to avoid empty "IN ()".
+    return FluentIterable.from(taskMapper.select(query.get()))
+        .transform(IScheduledTask.FROM_BUILDER);
   }
 }

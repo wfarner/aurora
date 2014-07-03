@@ -44,6 +44,10 @@ CREATE TABLE quotas(
   UNIQUE(role)
 );
 
+/**
+ * NOTE: This table is truncated by TaskMapper, which will cause a conflict when the table is shared
+ * with the forthcoming jobs table.  See note in TaskMapper about this before migrating MemJobStore.
+ */
 CREATE TABLE task_configs(
   id INT IDENTITY,
   job_key_id INT NOT NULL REFERENCES job_keys(id),
@@ -55,14 +59,28 @@ CREATE TABLE task_configs(
   priority INTEGER NOT NULL,
   max_task_failures INTEGER NOT NULL,
   production BOOLEAN NOT NULL,
-  contact_email VARCHAR NOT NULL
+  contact_email VARCHAR NOT NULL,
   executor_name VARCHAR NOT NULL,
-  executor_data VARCHAR NOT NULL
+  executor_data VARCHAR NOT NULL,
+
+  UNIQUE(
+    job_key_id,
+    creator_user,
+    service,
+    num_cpus,
+    ram_mb,
+    disk_mb,
+    priority,
+    max_task_failures,
+    production,
+    contact_email,
+    executor_name,
+    executor_data)
 );
 
 CREATE TABLE task_constraints(
   id INT IDENTITY,
-  task_config_id INT NOT NULL REFERENCES task_configs(id),
+  task_config_id INT NOT NULL REFERENCES task_configs(id) ON DELETE CASCADE,
   name VARCHAR NOT NULL,
 
   UNIQUE(task_config_id, name)
@@ -70,7 +88,7 @@ CREATE TABLE task_constraints(
 
 CREATE TABLE value_constraints(
   id INT IDENTITY,
-  constraint_id INT NOT NULL REFERENCES task_constraints(id),
+  constraint_id INT NOT NULL REFERENCES task_constraints(id) ON DELETE CASCADE,
   negated BOOLEAN NOT NULL,
 
   UNIQUE(constraint_id)
@@ -78,7 +96,7 @@ CREATE TABLE value_constraints(
 
 CREATE TABLE value_constraint_values(
   id INT IDENTITY,
-  value_constraint_id INT NOT NULL REFERENCES value_constraints(id),
+  value_constraint_id INT NOT NULL REFERENCES value_constraints(id) ON DELETE CASCADE,
   value VARCHAR NOT NULL,
 
   UNIQUE(value_constraint_id, value)
@@ -86,7 +104,7 @@ CREATE TABLE value_constraint_values(
 
 CREATE TABLE limit_constraints(
   id INT IDENTITY,
-  constraint_id INT NOT NULL REFERENCES task_constraints(id),
+  constraint_id INT NOT NULL REFERENCES task_constraints(id) ON DELETE CASCADE,
   value INTEGER NOT NULL,
 
   UNIQUE(constraint_id)
@@ -94,7 +112,7 @@ CREATE TABLE limit_constraints(
 
 CREATE TABLE task_config_requested_ports(
   id INT IDENTITY,
-  task_config_id INT NOT NULL REFERENCES task_configs(id),
+  task_config_id INT NOT NULL REFERENCES task_configs(id) ON DELETE CASCADE,
   port_name VARCHAR NOT NULL,
 
   UNIQUE(task_config_id, port_name)
@@ -102,7 +120,7 @@ CREATE TABLE task_config_requested_ports(
 
 CREATE TABLE task_config_task_links(
   id INT IDENTITY,
-  task_config_id INT NOT NULL REFERENCES task_configs(id),
+  task_config_id INT NOT NULL REFERENCES task_configs(id) ON DELETE CASCADE,
   name VARCHAR NOT NULL,
   value VARCHAR NOT NULL,
 
@@ -111,7 +129,7 @@ CREATE TABLE task_config_task_links(
 
 CREATE TABLE task_config_metadata(
   id INT IDENTITY,
-  task_config_id INT NOT NULL REFERENCES task_configs(id),
+  task_config_id INT NOT NULL REFERENCES task_configs(id) ON DELETE CASCADE,
   name VARCHAR NOT NULL,
   value VARCHAR NOT NULL,
 
@@ -134,15 +152,16 @@ CREATE TABLE tasks(
   status INT NOT NULL REFERENCES task_states(id),
   failure_count INTEGER NOT NULL,
   ancestor_task_id VARCHAR NULL,
+  task_config_id INT NOT NULL REFERENCES task_configs(id) ON DELETE CASCADE,
 
   UNIQUE(task_id)
 );
 
-CREATE TAABLE task_events(
+CREATE TABLE task_events(
   id INT IDENTITY,
-  task_id INT NOT NULL REFERENCES tasks(id),
+  task_id INT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
   timestamp_ms BIGINT NOT NULL,
   status INT NOT NULL REFERENCES task_states(id),
   message VARCHAR NULL,
-  scheduler_host VARCHAR NULL
+  scheduler_host VARCHAR NULL,
 );
