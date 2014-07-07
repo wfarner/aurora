@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.aurora.scheduler.storage.mem;
+package org.apache.aurora.scheduler.storage.db;
 
 import java.util.Map;
 import java.util.Set;
@@ -23,6 +23,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.twitter.common.inject.Bindings;
 
 import org.apache.aurora.gen.AssignedTask;
 import org.apache.aurora.gen.ExecutorConfig;
@@ -34,6 +37,8 @@ import org.apache.aurora.gen.TaskQuery;
 import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.base.Query;
 import org.apache.aurora.scheduler.base.Tasks;
+import org.apache.aurora.scheduler.storage.Storage;
+import org.apache.aurora.scheduler.storage.TaskStore;
 import org.apache.aurora.scheduler.storage.TaskStore.Mutable.TaskMutation;
 import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
 import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
@@ -45,18 +50,21 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-public class MemTaskStoreTest {
+public class DbTaskStoreTest {
 
   private static final IScheduledTask TASK_A = makeTask("a");
   private static final IScheduledTask TASK_B = makeTask("b");
   private static final IScheduledTask TASK_C = makeTask("c");
   private static final IScheduledTask TASK_D = makeTask("d");
 
-  private MemTaskStore store;
+  private TaskStore.Mutable store;
 
   @Before
   public void setUp() {
-    store = new MemTaskStore();
+    Injector injector = Guice.createInjector(new DbModule(Bindings.KeyFactory.PLAIN));
+    Storage storage = injector.getInstance(DbStorage.class);
+    storage.prepare();
+    store = injector.getInstance(TaskStore.Mutable.class);
   }
 
   @Test

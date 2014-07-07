@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ -->
+
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.apache.aurora.scheduler.storage.db.TaskMapper">
+
+  <insert id="insert">
+
+  </insert>
+
+  <select id="select" resultType="org.apache.aurora.gen.ScheduledTask">
+    SELECT * FROM tasks
+    <where>
+      <if test="owner != null">
+        <if test="owner.role != null">
+          AND job_key.role = #{owner.role}
+        </if>
+      </if>
+      <if test="environment != null">
+        AND job_key.environment = #{environment}
+      </if>
+      <if test="jobName != null">
+        AND job_key.name = #{jobName}
+      </if>
+      <if test="taskIds != null">
+        AND task_id in (
+        <foreach item="task_id" collection="taskIds" separator=",">
+          #{task_id}
+        </foreach>
+        )
+      </if>
+      <if test="statuses != null">
+
+      </if>
+      <if test="instanceIds != null">
+        AND instance_id in (
+        <foreach item="instance_id" collection="instanceIds" separator=",">
+          #{instance_id}
+        </foreach>
+        )
+      </if>
+      <if test="slaveHosts != null">
+        AND slave_host in (
+        <foreach item="host" collection="slaveHosts" separator=",">
+          #{host}
+        </foreach>
+        )
+      </if>
+      <if test="jobKeys != null">
+
+      </if>
+    </where>
+  </select>
+
+  <delete id="truncate">
+    <!--
+    This assumes cascading deletes will clean up all references.  Also, once the job store is
+    migrated, there will be a clash between deletes on the two that needs to be resolved.  At that
+    point it probably makes sense to remove all of the store-specific truncate verbs and usae a
+    single control.
+     -->
+    DELETE FROM task_configs
+  </delete>
+
+  <!-- TODO(wfarner): How do we delete task configs that no longer have any references? -->
+  <delete id="deleteTasks">
+    DELETE FROM tasks WHERE task_id IN (
+    <foreach item="task_id" collection="id" separator=",">
+      #{task_id}
+    </foreach>
+    )
+  </delete>
+</mapper>

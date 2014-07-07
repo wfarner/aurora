@@ -24,7 +24,6 @@ import org.apache.aurora.scheduler.storage.JobStore;
 import org.apache.aurora.scheduler.storage.SchedulerStore;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.Volatile;
-import org.apache.aurora.scheduler.storage.TaskStore;
 
 import static java.util.Objects.requireNonNull;
 
@@ -73,7 +72,6 @@ public final class MemStorageModule extends PrivateModule {
 
     bindStore(SchedulerStore.Mutable.class, MemSchedulerStore.class);
     bindStore(JobStore.Mutable.class, MemJobStore.class);
-    bindStore(TaskStore.Mutable.class, MemTaskStore.class);
     bindStore(AttributeStore.Mutable.class, MemAttributeStore.class);
   }
 }

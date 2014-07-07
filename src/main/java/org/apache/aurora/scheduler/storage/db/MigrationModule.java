@@ -18,6 +18,7 @@ import com.twitter.common.inject.Bindings.KeyFactory;
 
 import org.apache.aurora.scheduler.storage.LockStore;
 import org.apache.aurora.scheduler.storage.QuotaStore;
+import org.apache.aurora.scheduler.storage.TaskStore;
 
 import static java.util.Objects.requireNonNull;
 
@@ -50,5 +51,6 @@ public class MigrationModule extends AbstractModule {
   protected void configure() {
     link(LockStore.Mutable.class);
     link(QuotaStore.Mutable.class);
+    link(TaskStore.Mutable.class);
   }
 }
