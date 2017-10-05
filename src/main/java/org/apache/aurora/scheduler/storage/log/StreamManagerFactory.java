@@ -18,6 +18,6 @@ import org.apache.aurora.scheduler.log.Log;
 /**
 * Creates a StreamManager from an open stream.
 */
-interface StreamManagerFactory {
+public interface StreamManagerFactory {
   StreamManager create(Log.Stream stream);
 }

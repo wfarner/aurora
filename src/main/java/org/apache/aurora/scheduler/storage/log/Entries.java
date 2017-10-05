@@ -86,7 +86,7 @@ public final class Entries {
    * @return The deserialized entry.
    * @throws CodingException If the entry could not be deserialized.
    */
-  static LogEntry thriftBinaryDecode(byte[] contents) throws CodingException {
+  public static LogEntry thriftBinaryDecode(byte[] contents) throws CodingException {
     return ThriftBinaryCodec.decodeNonNull(LogEntry.class, contents);
   }
 }

@@ -21,7 +21,9 @@ import com.google.common.collect.Lists;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.Module;
 import com.google.inject.TypeLiteral;
+import com.google.inject.util.Modules;
 
 import org.apache.aurora.common.application.ShutdownRegistry;
 import org.apache.aurora.common.application.ShutdownRegistry.ShutdownRegistryImpl;
@@ -48,7 +50,6 @@ import org.apache.aurora.scheduler.storage.Storage.NonVolatileStorage;
 import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
 import org.apache.aurora.scheduler.storage.Storage.Volatile;
 import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
-import org.apache.aurora.scheduler.storage.log.LogStorageModule.Options;
 import org.apache.aurora.scheduler.storage.mem.MemStorageModule;
 import org.apache.aurora.scheduler.testing.FakeStatsProvider;
 import org.junit.Before;
@@ -65,21 +66,34 @@ public class NonVolatileStorageTest extends TearDownTestCase {
   @Before
   public void setUp() {
     log = new FakeLog();
-    resetStorage();
     addTearDown(teardown::run);
+  }
+
+  protected Module getStreamModule() {
+    StreamManagerModule.Options streamOptions = new StreamManagerModule.Options();
+    streamOptions.maxLogEntrySize = new DataAmount(1, Data.GB);
+
+    return Modules.combine(
+        new AbstractModule() {
+          @Override
+          protected void configure() {
+            bind(Log.class).toInstance(log);
+          }
+        },
+        new StreamManagerModule(streamOptions));
   }
 
   private void resetStorage() {
     teardown.run();
 
-    Options options = new Options();
-    options.maxLogEntrySize = new DataAmount(1, Data.GB);
-    options.snapshotInterval = new TimeAmount(1, Time.DAYS);
+    LogStorageModule.Options logOptions = new LogStorageModule.Options();
+    logOptions.snapshotInterval = new TimeAmount(1, Time.DAYS);
 
     ShutdownRegistryImpl shutdownRegistry = new ShutdownRegistryImpl();
     Injector injector = Guice.createInjector(
         new MemStorageModule(Bindings.annotatedKeyFactory(Volatile.class)),
-        new LogStorageModule(options),
+        new LogStorageModule(logOptions),
+        getStreamModule(),
         new TierModule(new TierModule.Options()),
         new AbstractModule() {
           @Override
@@ -89,7 +103,6 @@ public class NonVolatileStorageTest extends TearDownTestCase {
             bind(EventSink.class).toInstance(e -> { });
             bind(ShutdownRegistry.class).toInstance(shutdownRegistry);
             bind(StatsProvider.class).toInstance(new FakeStatsProvider());
-            bind(Log.class).toInstance(log);
             bind(new TypeLiteral<SnapshotStore<Snapshot>>() { }).to(SnapshotStoreImpl.class);
           }
         }
@@ -106,6 +119,8 @@ public class NonVolatileStorageTest extends TearDownTestCase {
 
   @Test
   public void testDurability() {
+    resetStorage();
+
     List<Pair<Quiet, Consumer<StoreProvider>>> transactions = Lists.newArrayList();
 
     IResourceAggregate quota = ResourceTestUtil.aggregate(2.0, 2048, 1024);

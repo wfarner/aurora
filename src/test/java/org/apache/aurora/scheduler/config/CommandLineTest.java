@@ -172,7 +172,7 @@ public class CommandLineTest {
     expected.state.taskAssignerModules = ImmutableList.of(NoopModule.class);
     expected.logStorage.shutdownGracePeriod = TEST_TIME;
     expected.logStorage.snapshotInterval = TEST_TIME;
-    expected.logStorage.maxLogEntrySize = TEST_DATA;
+    expected.streamManager.maxLogEntrySize = TEST_DATA;
     expected.backup.backupInterval = TEST_TIME;
     expected.backup.maxSavedBackups = 42;
     expected.backup.backupDir = new File("testing");

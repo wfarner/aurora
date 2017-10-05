@@ -22,7 +22,6 @@ import com.google.common.base.Preconditions;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
 import org.apache.zookeeper.server.ServerCnxnFactory;
 import org.apache.zookeeper.server.ZooKeeperServer;
-import org.apache.zookeeper.server.ZooKeeperServer.BasicDataTreeBuilder;
 import org.apache.zookeeper.server.persistence.FileTxnSnapLog;
 
 /**
@@ -51,7 +50,7 @@ public class ZooKeeperTestServer {
     zooKeeperServer =
         new ZooKeeperServer(
             new FileTxnSnapLog(dataDir, snapDir),
-            new BasicDataTreeBuilder()) {
+            2000) {
 
           // TODO(John Sirois): Introduce a builder to configure the in-process server if and when
           // some folks need JMX for in-process tests.

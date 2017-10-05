@@ -13,28 +13,27 @@
  */
 package org.apache.aurora.scheduler.storage.log;
 
-import org.apache.aurora.codec.ThriftBinaryCodec;
+import org.apache.aurora.codec.ThriftBinaryCodec.CodingException;
 import org.apache.aurora.gen.storage.Op;
-import org.apache.aurora.scheduler.log.Log;
 
 /**
  * Manages a single log stream append transaction.  Local storage ops can be added to the
  * transaction and then later committed as an atomic unit.
  */
-interface StreamTransaction {
+public interface StreamTransaction {
   /**
    * Appends any ops that have been added to this transaction to the log stream in a single
    * atomic record.
    *
-   * @return The position of the log entry committed in this transaction, if any.
    * @throws CodingException If there was a problem encoding a log entry for commit.
    */
-  Log.Position commit() throws ThriftBinaryCodec.CodingException;
+  void commit() throws CodingException;
 
   /**
    * Adds a local storage operation to this transaction.
    *
    * @param op The local storage op to add.
+   * @return This transaction, for chained calling.
    */
-  void add(Op op);
+  StreamTransaction add(Op op);
 }

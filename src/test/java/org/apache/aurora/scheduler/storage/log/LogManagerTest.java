@@ -69,8 +69,6 @@ import static org.easymock.EasyMock.expect;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
 
 public class LogManagerTest extends EasyMockTest {
 
@@ -160,8 +158,7 @@ public class LogManagerTest extends EasyMockTest {
   public void testTransactionEmpty() throws CodingException {
     control.replay();
 
-    Position position = createNoMessagesStreamManager().startTransaction().commit();
-    assertNull(position);
+    createNoMessagesStreamManager().startTransaction().commit();
   }
 
   @Test(expected = IllegalStateException.class)
@@ -254,7 +251,7 @@ public class LogManagerTest extends EasyMockTest {
     streamTransaction.add(Op.removeTasks(removeTasks2));
     streamTransaction.add(Op.removeTasks(removeTasks3));
 
-    assertEquals(position1, streamTransaction.commit());
+    streamTransaction.commit();
   }
 
   @Test
@@ -282,8 +279,7 @@ public class LogManagerTest extends EasyMockTest {
     transaction.add(saveFrameworkId);
     transaction.add(deleteJob);
 
-    Position position = transaction.commit();
-    assertSame(position1, position);
+    transaction.commit();
   }
 
   static class Message {
@@ -334,8 +330,7 @@ public class LogManagerTest extends EasyMockTest {
     StreamTransaction transaction = streamManager.startTransaction();
     transaction.add(saveFrameworkId);
 
-    Position position = transaction.commit();
-    assertSame(position1, position);
+    transaction.commit();
   }
 
   @Test
@@ -379,13 +374,12 @@ public class LogManagerTest extends EasyMockTest {
       }
 
       @Override
-      public Iterator<Entry> readAll() throws InvalidPositionException, StreamAccessException {
+      public Iterator<Entry> readAll() throws StreamAccessException {
         throw new UnsupportedOperationException();
       }
 
       @Override
-      public void truncateBefore(Position position)
-          throws InvalidPositionException, StreamAccessException {
+      public void truncateBefore(Position position) throws StreamAccessException {
         throw new UnsupportedOperationException();
       }
     };

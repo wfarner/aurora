@@ -48,6 +48,7 @@ import org.apache.aurora.scheduler.stats.AsyncStatsModule;
 import org.apache.aurora.scheduler.stats.StatsModule;
 import org.apache.aurora.scheduler.storage.backup.BackupModule;
 import org.apache.aurora.scheduler.storage.log.LogStorageModule;
+import org.apache.aurora.scheduler.storage.log.StreamManagerModule;
 import org.apache.aurora.scheduler.thrift.aop.AopModule;
 import org.apache.aurora.scheduler.updater.UpdaterModule;
 
@@ -64,6 +65,7 @@ public class CliOptions {
   public final UpdaterModule.Options updater = new UpdaterModule.Options();
   public final StateModule.Options state = new StateModule.Options();
   public final LogStorageModule.Options logStorage = new LogStorageModule.Options();
+  public final StreamManagerModule.Options streamManager = new StreamManagerModule.Options();
   public final BackupModule.Options backup = new BackupModule.Options();
   public final AopModule.Options aop = new AopModule.Options();
   public final PruningModule.Options pruning = new PruningModule.Options();

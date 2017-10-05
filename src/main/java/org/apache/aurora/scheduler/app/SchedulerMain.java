@@ -65,6 +65,7 @@ import org.apache.aurora.scheduler.storage.backup.BackupModule;
 import org.apache.aurora.scheduler.storage.entities.IServerInfo;
 import org.apache.aurora.scheduler.storage.log.LogStorageModule;
 import org.apache.aurora.scheduler.storage.log.SnapshotStoreImpl;
+import org.apache.aurora.scheduler.storage.log.StreamManagerModule;
 import org.apache.aurora.scheduler.storage.mem.MemStorageModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -270,16 +271,14 @@ public class SchedulerMain {
   public static void main(String... args) {
     CliOptions options = CommandLine.parseOptions(args);
 
-    List<Module> modules = ImmutableList.<Module>builder()
-        .add(
-            new CommandLineDriverSettingsModule(options.driver, options.main.allowGpuResource),
-            new LibMesosLoadingModule(options.main.driverImpl),
-            new MesosLogStreamModule(options.mesosLog, FlaggedZooKeeperConfig.create(options.zk)),
-            new LogStorageModule(options.logStorage),
-            new TierModule(options.tiers),
-            new WebhookModule(options.webhook)
-        )
-        .build();
+    List<Module> modules = ImmutableList.of(
+        new CommandLineDriverSettingsModule(options.driver, options.main.allowGpuResource),
+        new LibMesosLoadingModule(options.main.driverImpl),
+        new MesosLogStreamModule(options.mesosLog, FlaggedZooKeeperConfig.create(options.zk)),
+        new StreamManagerModule(options.streamManager),
+        new LogStorageModule(options.logStorage),
+        new TierModule(options.tiers),
+        new WebhookModule(options.webhook));
     flagConfiguredMain(options, Modules.combine(modules));
   }
 }

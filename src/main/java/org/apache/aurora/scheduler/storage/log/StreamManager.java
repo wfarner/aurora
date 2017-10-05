@@ -20,7 +20,6 @@ import org.apache.aurora.gen.storage.Snapshot;
 import org.apache.aurora.scheduler.log.Log;
 
 import static org.apache.aurora.codec.ThriftBinaryCodec.CodingException;
-import static org.apache.aurora.scheduler.log.Log.Stream.InvalidPositionException;
 import static org.apache.aurora.scheduler.log.Log.Stream.StreamAccessException;
 
 /**
@@ -37,18 +36,15 @@ public interface StreamManager {
    *
    * @param reader A reader that will be handed log entries decoded from the stream.
    * @throws CodingException if there was a problem decoding a log entry from the stream.
-   * @throws InvalidPositionException if the given position is not found in the log.
    * @throws StreamAccessException if there is a problem reading from the log.
    */
-  void readFromBeginning(Consumer<LogEntry> reader)
-      throws CodingException, InvalidPositionException, StreamAccessException;
+  void readFromBeginning(Consumer<LogEntry> reader) throws CodingException, StreamAccessException;
 
   /**
    * Truncates all entries in the log stream occuring before the given position.  The entry at the
    * given position becomes the first entry in the stream when this call completes.
    *
    * @param position The last position to keep in the stream.
-   * @throws InvalidPositionException if the specified position does not exist in this log.
    * @throws StreamAccessException if the stream could not be truncated.
    */
   void truncateBefore(Log.Position position);
@@ -68,9 +64,7 @@ public interface StreamManager {
    *
    * @param snapshot The snapshot to add.
    * @throws CodingException if the was a problem encoding the snapshot into a log entry.
-   * @throws InvalidPositionException if there was a problem truncating before the snapshot.
    * @throws StreamAccessException if there was a problem appending the snapshot to the log.
    */
-  void snapshot(Snapshot snapshot)
-      throws CodingException, InvalidPositionException, StreamAccessException;
+  void snapshot(Snapshot snapshot) throws CodingException, StreamAccessException;
 }
