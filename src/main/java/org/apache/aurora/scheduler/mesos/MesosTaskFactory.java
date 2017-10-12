@@ -62,7 +62,7 @@ import org.slf4j.LoggerFactory;
 
 import static java.util.Objects.requireNonNull;
 
-import static org.apache.aurora.gen.apiConstants.TASK_FILESYSTEM_MOUNT_POINT;
+import static org.apache.aurora.gen.Api_Constants.TASK_FILESYSTEM_MOUNT_POINT;
 
 /**
  * A factory to create mesos task objects.
@@ -207,7 +207,7 @@ public interface MesosTaskFactory {
 
         taskBuilder.setExecutor(executorInfoBuilder.build());
       } else if (config.getContainer().hasDocker()) {
-        IDockerContainer dockerContainer = config.getContainer().getDocker();
+        DockerContainer dockerContainer = config.getContainer().getDocker();
         if (config.hasExecutorConfig()) {
           ExecutorInfo.Builder execBuilder = configureTaskForExecutor(task, acceptedOffer)
               .setContainer(getDockerContainerInfo(
@@ -236,19 +236,19 @@ public interface MesosTaskFactory {
       requireNonNull(mesosContainer);
 
       if (mesosContainer.hasImage()) {
-        IImage image = mesosContainer.getImage();
+        Image image = mesosContainer.getImage();
 
         Protos.Image.Builder imageBuilder = Protos.Image.newBuilder();
 
         if (image.hasAppc()) {
-          IAppcImage appcImage = image.getAppc();
+          AppcImage appcImage = image.getAppc();
 
           imageBuilder.setType(Protos.Image.Type.APPC);
           imageBuilder.setAppc(Protos.Image.Appc.newBuilder()
               .setName(appcImage.getName())
               .setId(appcImage.getImageId()));
         } else if (image.hasDocker()) {
-          IDockerImage dockerImage = image.getDocker();
+          DockerImage dockerImage = image.getDocker();
 
           imageBuilder.setType(Protos.Image.Type.DOCKER);
           imageBuilder.setDocker(Protos.Image.Docker.newBuilder()
@@ -285,7 +285,7 @@ public interface MesosTaskFactory {
     }
 
     private ContainerInfo getDockerContainerInfo(
-        IDockerContainer config,
+        DockerContainer config,
         Optional<String> executorName) {
 
       Iterable<Protos.Parameter> parameters = Iterables.transform(config.getParameters(),

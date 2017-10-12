@@ -59,13 +59,6 @@ import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
 import org.apache.aurora.scheduler.storage.Storage.NonVolatileStorage;
 import org.apache.aurora.scheduler.storage.TaskStore;
-import org.apache.aurora.gen.HostAttributes;
-import org.apache.aurora.gen.JobInstanceUpdateEvent;
-import org.apache.aurora.gen.JobKey;
-import org.apache.aurora.gen.JobUpdateEvent;
-import org.apache.aurora.gen.JobUpdateKey;
-import org.apache.aurora.gen.Lock;
-import org.apache.aurora.gen.LockKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -438,7 +431,7 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
   }
 
   private void replay(final LogEntry logEntry) {
-    LogEntry._Field entryField = logEntry.getSetField();
+    LogEntry._Field entryField = logEntry.unionField();
     if (!logEntryReplayActions.containsKey(entryField)) {
       throw new IllegalStateException("Unknown log entry type: " + entryField);
     }
@@ -447,7 +440,7 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
   }
 
   private void replayOp(Op op) {
-    Op._Field opField = op.getSetField();
+    Op._Field opField = op.unionField();
     if (!transactionReplayActions.containsKey(opField)) {
       throw new IllegalStateException("Unknown transaction op: " + opField);
     }
@@ -485,12 +478,12 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
       Snapshot snapshot = snapshotStore.createSnapshot();
       persist(snapshot);
       LOG.info("Snapshot complete."
-          + " host attrs: " + snapshot.getHostAttributesSize()
-          + ", cron jobs: " + snapshot.getCronJobsSize()
-          + ", locks: " + snapshot.getLocksSize()
-          + ", quota confs: " + snapshot.getQuotaConfigurationsSize()
-          + ", tasks: " + snapshot.getTasksSize()
-          + ", updates: " + snapshot.getJobUpdateDetailsSize());
+          + " host attrs: " + snapshot.getHostAttributes().size()
+          + ", cron jobs: " + snapshot.getCronJobs().size()
+          + ", locks: " + snapshot.getLocks().size()
+          + ", quota confs: " + snapshot.getQuotaConfigurations().size()
+          + ", tasks: " + snapshot.getTasks().size()
+          + ", updates: " + snapshot.getJobUpdateDetails().size());
     });
   }
 

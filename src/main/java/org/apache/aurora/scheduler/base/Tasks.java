@@ -13,7 +13,6 @@
  */
 package org.apache.aurora.scheduler.base;
 
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
@@ -27,10 +26,10 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.Ordering;
 
-import org.apache.aurora.gen.ScheduleStatus;
-import org.apache.aurora.gen.apiConstants;
+import org.apache.aurora.gen.Api_Constants;
 import org.apache.aurora.gen.AssignedTask;
 import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.ScheduleStatus;
 import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.gen.TaskEvent;
@@ -42,8 +41,8 @@ public final class Tasks {
 
   @VisibleForTesting
   static final List<ScheduleStatus> ORDERED_TASK_STATUSES = ImmutableList.<ScheduleStatus>builder()
-          .addAll(apiConstants.TERMINAL_STATES)
-          .addAll(apiConstants.ACTIVE_STATES)
+          .addAll(Api_Constants.TERMINAL_STATES)
+          .addAll(Api_Constants.ACTIVE_STATES)
           .build();
 
   public static TaskConfig getConfig(ScheduledTask scheduledTask) {
@@ -54,7 +53,7 @@ public final class Tasks {
     return scheduledTask.getAssignedTask().getInstanceId();
   }
 
-  public static JobKey getJob(IAssignedTask assignedTask) {
+  public static JobKey getJob(AssignedTask assignedTask) {
     return assignedTask.getTask().getJob();
   }
 
@@ -65,24 +64,6 @@ public final class Tasks {
   public static String scheduledToSlaveHost(ScheduledTask scheduledTask) {
     return scheduledTask.getAssignedTask().getSlaveHost();
   }
-
-  /**
-   * Different states that an active task may be in.
-   */
-  public static final EnumSet<ScheduleStatus> ACTIVE_STATES =
-      EnumSet.copyOf(apiConstants.ACTIVE_STATES);
-
-  /**
-   * Terminal states, which a task should not move from.
-   */
-  public static final Set<ScheduleStatus> TERMINAL_STATES =
-      EnumSet.copyOf(apiConstants.TERMINAL_STATES);
-
-  /**
-   * Tasks a state can be in when associated with a slave machine.
-   */
-  public static final Set<ScheduleStatus> SLAVE_ASSIGNED_STATES =
-      EnumSet.copyOf(apiConstants.SLAVE_ASSIGNED_STATES);
 
   private Tasks() {
     // Utility class.
@@ -99,11 +80,11 @@ public final class Tasks {
   }
 
   public static boolean isActive(ScheduleStatus status) {
-    return ACTIVE_STATES.contains(status);
+    return Api_Constants.ACTIVE_STATES.contains(status);
   }
 
   public static boolean isTerminated(ScheduleStatus status) {
-    return TERMINAL_STATES.contains(status);
+    return Api_Constants.TERMINAL_STATES.contains(status);
   }
 
   public static String id(ScheduledTask task) {
@@ -133,7 +114,7 @@ public final class Tasks {
         .max(tasks);
   }
 
-  public static ITaskEvent getLatestEvent(ScheduledTask task) {
+  public static TaskEvent getLatestEvent(ScheduledTask task) {
     return Iterables.getLast(task.getTaskEvents());
   }
 

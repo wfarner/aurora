@@ -19,10 +19,11 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
-import org.apache.aurora.gen.JobUpdatePulseStatus;
 import org.apache.aurora.gen.InstanceKey;
+import org.apache.aurora.gen.JobKey;
 import org.apache.aurora.gen.JobUpdate;
 import org.apache.aurora.gen.JobUpdateKey;
+import org.apache.aurora.gen.JobUpdatePulseStatus;
 import org.apache.aurora.gen.ScheduledTask;
 
 import static java.util.Objects.requireNonNull;
@@ -87,7 +88,7 @@ public interface JobUpdateController {
   void start(JobUpdate update, AuditData auditData) throws UpdateStateException;
 
   /**
-   * Thrown when {@link #assertNotUpdating(IJobKey)} is called and a job was updating.
+   * Thrown when {@link #assertNotUpdating(JobKey)} is called and a job was updating.
    */
   class JobUpdatingException extends Exception {
     public JobUpdatingException(String msg) {
@@ -102,7 +103,7 @@ public interface JobUpdateController {
    * @param job Job to check.
    * @throws JobUpdatingException if the job is actively updating.
    */
-  void assertNotUpdating(IJobKey job) throws JobUpdatingException;
+  void assertNotUpdating(JobKey job) throws JobUpdatingException;
 
   /**
    * Pauses an in-progress update.

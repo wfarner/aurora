@@ -16,15 +16,21 @@ package org.apache.aurora.codec;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.lang.reflect.InvocationTargetException;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
 
 import javax.annotation.Nullable;
 
+import net.morimekta.providence.PMessage;
+import net.morimekta.providence.serializer.BinarySerializer;
+import net.morimekta.providence.serializer.Serializer;
+import net.morimekta.providence.serializer.binary.BinaryReader;
+import net.morimekta.providence.serializer.binary.BinaryWriter;
+
 import org.apache.aurora.common.quantity.Amount;
 import org.apache.aurora.common.quantity.Data;
+import org.apache.aurora.gen.storage.Snapshot;
 
 import static java.util.Objects.requireNonNull;
 
@@ -33,6 +39,8 @@ import static java.util.Objects.requireNonNull;
  */
 public final class ThriftBinaryCodec {
 
+  private static final Serializer SERIALIZER = new BinarySerializer();
+
   private ThriftBinaryCodec() {
     // Utility class.
   }
@@ -40,36 +48,40 @@ public final class ThriftBinaryCodec {
   /**
    * Identical to {@link #decodeNonNull(Class, byte[])}, but allows for a null buffer.
    *
-   * @param clazz Class to instantiate and deserialize to.
+   * @param readInto Object to populate from binary data.
    * @param buffer Buffer to decode.
    * @param <T> Target type.
    * @return A populated message, or {@code null} if the buffer was {@code null}.
    * @throws CodingException If the message could not be decoded.
    */
   @Nullable
-  public static <T extends TBase<T, ?>> T decode(Class<T> clazz, @Nullable byte[] buffer)
+  public static <T extends PMessage<?, ?>> T decode(@Nullable byte[] buffer)
       throws CodingException {
 
     if (buffer == null) {
       return null;
     }
-    return decodeNonNull(clazz, buffer);
+    return (T) SERIALIZER.deserialize(new ByteArrayInputStream(buffer), )
+    return decodeNonNull(readInto, buffer);
   }
 
   /**
    * Decodes a binary-encoded byte array into a target type.
    *
-   * @param clazz Class to instantiate and deserialize to.
+   * @param readInto Object to populate from binary data.
    * @param buffer Buffer to decode.
    * @param <T> Target type.
    * @return A populated message.
    * @throws CodingException If the message could not be decoded.
    */
-  public static <T extends TBase<T, ?>> T decodeNonNull(Class<T> clazz, byte[] buffer)
+  public static <T extends BinaryReader> T decodeNonNull(T readInto, byte[] buffer)
       throws CodingException {
 
-    requireNonNull(clazz);
+    requireNonNull(readInto);
     requireNonNull(buffer);
+
+    return new BinarySerializer().deserialize(new ByteArrayInputStream(buffer), Snapshot.kDescriptor)
+    readInto.readBinary();
 
     try {
       T t = newInstance(clazz);
@@ -81,29 +93,29 @@ public final class ThriftBinaryCodec {
   }
 
   /**
-   * Identical to {@link #encodeNonNull(TBase)}, but allows for a null input.
+   * Identical to {@link #encodeNonNull(BinaryWriter)}, but allows for a null input.
    *
-   * @param tBase Object to encode.
+   * @param object Object to encode.
    * @return Encoded object, or {@code null} if the argument was {@code null}.
    * @throws CodingException If the object could not be encoded.
    */
   @Nullable
-  public static byte[] encode(@Nullable TBase<?, ?> tBase) throws CodingException {
-    if (tBase == null) {
+  public static byte[] encode(@Nullable BinaryWriter object) throws CodingException {
+    if (object== null) {
       return null;
     }
-    return encodeNonNull(tBase);
+    return encodeNonNull(object);
   }
 
   /**
    * Encodes a thrift object into a binary array.
    *
-   * @param tBase Object to encode.
+   * @param object Object to encode.
    * @return Encoded object.
    * @throws CodingException If the object could not be encoded.
    */
-  public static byte[] encodeNonNull(TBase<?, ?> tBase) throws CodingException {
-    requireNonNull(tBase);
+  public static byte[] encodeNonNull(BinaryWriter object) throws CodingException {
+    requireNonNull(object);
 
     try {
       return new TSerializer(PROTOCOL_FACTORY).serialize(tBase);
@@ -179,24 +191,6 @@ public final class ThriftBinaryCodec {
       throw new CodingException("Failed to deserialize: " + e, e);
     } finally {
       transport.close();
-    }
-  }
-
-  private static <T extends TBase<T, ?>> T newInstance(Class<T> clazz) throws CodingException {
-    try {
-      return clazz.getConstructor().newInstance();
-    } catch (InvocationTargetException e) {
-      throw new CodingException("Exception in constructor for target type: " + e, e);
-    } catch (NoSuchMethodException e) {
-      throw new CodingException(
-          "No no-args constructor for target type: "
-              + clazz
-              + ". Did the thrift code generator change?",
-          e);
-    } catch (InstantiationException e) {
-      throw new CodingException("Failed to instantiate target type.", e);
-    } catch (IllegalAccessException e) {
-      throw new CodingException("Failed to access constructor for target type.", e);
     }
   }
 
