@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -11,7 +11,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.aurora.scheduler.storage;
 
-if (gradle.gradleVersion != GRADLE_VERSION) {
-  throw new GradleException("Building is only supported with gradle version: $GRADLE_VERSION .")
+import org.apache.aurora.providence.storage.Snapshot;
+import org.junit.Test;
+
+public class ProvidenceCompatibilityTest {
+
+  @Test
+  public void testProvidenceThriftRoundtrip() {
+
+    Snapshot thriftSnapshot = Snapshot.builder().build();
+
+  }
 }
