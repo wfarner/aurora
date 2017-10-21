@@ -16,7 +16,6 @@ package org.apache.aurora.scheduler.app;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -24,6 +23,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
@@ -290,14 +290,17 @@ public class SchedulerIT extends BaseZooKeeperTest {
   }
 
   private Iterable<Entry> toEntries(LogEntry... entries) {
-    return Iterables.transform(Arrays.asList(entries),
-        entry -> () -> {
+    return ImmutableList.copyOf(entries)
+        .stream()
+        .map(entry -> {
           try {
-            return Iterables.getFirst(entrySerializer.serialize(entry), null);
+            byte[] encoded = Iterables.getFirst(entrySerializer.serialize(entry), null);
+            return (Entry) () -> encoded;
           } catch (CodingException e) {
             throw Throwables.propagate(e);
           }
-        });
+        })
+        .collect(Collectors.toList());
   }
 
   private static IScheduledTask makeTask(String id, ScheduleStatus status) {

@@ -13,15 +13,50 @@
  */
 package org.apache.aurora.scheduler.storage;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+
+import net.morimekta.util.io.BigEndianBinaryReader;
+import net.morimekta.util.io.BigEndianBinaryWriter;
+
+import org.apache.aurora.codec.ThriftBinaryCodec;
 import org.apache.aurora.providence.storage.Snapshot;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 public class ProvidenceCompatibilityTest {
 
   @Test
-  public void testProvidenceThriftRoundtrip() {
+  public void testProvidenceThriftRoundtrip() throws Exception {
+    // thrift -> thrift binary
+    org.apache.aurora.gen.storage.Snapshot tSnapshot = new org.apache.aurora.gen.storage.Snapshot();
+    byte[] tSnapshotData = ThriftBinaryCodec.encode(tSnapshot);
 
-    Snapshot thriftSnapshot = Snapshot.builder().build();
+    // thrift binary -> providence -> providence binary
+    Snapshot pSnapshot = decodeProvidence(tSnapshotData);
+    byte[] pSnapshotData = encodeProvidence(pSnapshot);
 
+    // providence binary -> thrift -> thrift binary
+    org.apache.aurora.gen.storage.Snapshot tSnapshot2 =
+        ThriftBinaryCodec.decode(org.apache.aurora.gen.storage.Snapshot.class, pSnapshotData);
+    assertEquals(tSnapshot, tSnapshot2);
+    byte[] tSnapshotData2 = ThriftBinaryCodec.encode(tSnapshot2);
+
+    // thrift binary -> providence
+    assertEquals(pSnapshot, decodeProvidence(tSnapshotData2));
+  }
+
+  private byte[] encodeProvidence(Snapshot snapshot) throws IOException {
+    ByteArrayOutputStream data = new ByteArrayOutputStream();
+    snapshot.writeBinary(new BigEndianBinaryWriter(data));
+    return data.toByteArray();
+  }
+
+  private Snapshot decodeProvidence(byte[] data) throws IOException {
+    Snapshot._Builder snapshot = Snapshot.builder();
+    snapshot.readBinary(new BigEndianBinaryReader(new ByteArrayInputStream(data)), true);
+    return snapshot.build();
   }
 }
