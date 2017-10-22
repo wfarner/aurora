@@ -17,8 +17,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-import net.morimekta.util.io.BigEndianBinaryReader;
-import net.morimekta.util.io.BigEndianBinaryWriter;
+import net.morimekta.providence.serializer.BinarySerializer;
 
 import org.apache.aurora.codec.ThriftBinaryCodec;
 import org.apache.aurora.providence.storage.Snapshot;
@@ -41,6 +40,8 @@ public class ProvidenceCompatibilityTest {
     // providence binary -> thrift -> thrift binary
     org.apache.aurora.gen.storage.Snapshot tSnapshot2 =
         ThriftBinaryCodec.decode(org.apache.aurora.gen.storage.Snapshot.class, pSnapshotData);
+    // TODO(wfarner): This is failing because providence defaults to empty collections while
+    // thrift defaults to nulls.  Patch providence with a compatibility mode for this.
     assertEquals(tSnapshot, tSnapshot2);
     byte[] tSnapshotData2 = ThriftBinaryCodec.encode(tSnapshot2);
 
@@ -50,13 +51,11 @@ public class ProvidenceCompatibilityTest {
 
   private byte[] encodeProvidence(Snapshot snapshot) throws IOException {
     ByteArrayOutputStream data = new ByteArrayOutputStream();
-    snapshot.writeBinary(new BigEndianBinaryWriter(data));
+    new BinarySerializer().serialize(data, snapshot);
     return data.toByteArray();
   }
 
   private Snapshot decodeProvidence(byte[] data) throws IOException {
-    Snapshot._Builder snapshot = Snapshot.builder();
-    snapshot.readBinary(new BigEndianBinaryReader(new ByteArrayInputStream(data)), true);
-    return snapshot.build();
+    return new BinarySerializer().deserialize(new ByteArrayInputStream(data), Snapshot.kDescriptor);
   }
 }
