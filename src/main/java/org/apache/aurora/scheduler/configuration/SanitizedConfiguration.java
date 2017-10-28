@@ -21,25 +21,25 @@ import com.google.common.collect.ContiguousSet;
 import com.google.common.collect.DiscreteDomain;
 import com.google.common.collect.Range;
 
+import org.apache.aurora.gen.JobConfiguration;
 import org.apache.aurora.scheduler.configuration.ConfigurationManager.TaskDescriptionException;
-import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
 
 /**
  * Wrapper for a configuration that has been fully-sanitized and populated with defaults.
  */
 public final class SanitizedConfiguration {
 
-  private final IJobConfiguration sanitized;
+  private final JobConfiguration sanitized;
   private final Set<Integer> instanceIds;
 
   /**
    * Constructs a SanitizedConfiguration object and populates the set of instance IDs for
-   * the provided {@link org.apache.aurora.scheduler.storage.entities.ITaskConfig}.
+   * the provided {@link JobConfiguration}.
    *
    * @param sanitized A sanitized configuration.
    */
   @VisibleForTesting
-  public SanitizedConfiguration(IJobConfiguration sanitized) {
+  public SanitizedConfiguration(JobConfiguration sanitized) {
     this.sanitized = sanitized;
     this.instanceIds = ContiguousSet.create(
         Range.closedOpen(0, sanitized.getInstanceCount()),
@@ -55,12 +55,12 @@ public final class SanitizedConfiguration {
    */
   public static SanitizedConfiguration fromUnsanitized(
       ConfigurationManager configurationManager,
-      IJobConfiguration unsanitized) throws TaskDescriptionException {
+      JobConfiguration unsanitized) throws TaskDescriptionException {
 
     return new SanitizedConfiguration(configurationManager.validateAndPopulate(unsanitized));
   }
 
-  public IJobConfiguration getJobConfig() {
+  public JobConfiguration getJobConfig() {
     return sanitized;
   }
 
@@ -74,7 +74,7 @@ public final class SanitizedConfiguration {
    * @return {@code true} if this is a cron job, otherwise {@code false}.
    */
   public boolean isCron() {
-    return getJobConfig().isSetCronSchedule();
+    return getJobConfig().hasCronSchedule();
   }
 
   @Override

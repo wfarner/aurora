@@ -25,7 +25,6 @@ import org.apache.aurora.gen.JobUpdateKey;
 import org.apache.aurora.gen.JobUpdateRequest;
 import org.apache.aurora.gen.Response;
 import org.apache.aurora.scheduler.http.api.security.AuthorizingParam;
-import org.apache.thrift.TException;
 
 /**
  * Extension of the generated thrift interface with Java annotations, for example {@link Nullable}
@@ -40,65 +39,65 @@ import org.apache.thrift.TException;
  */
 public interface AnnotatedAuroraAdmin extends AuroraAdmin.Iface {
   @Override
-  Response createJob(@AuthorizingParam @Nullable JobConfiguration description) throws TException;
+  Response createJob(@AuthorizingParam @Nullable JobConfiguration description);
 
   @Override
   Response scheduleCronJob(
-      @AuthorizingParam @Nullable JobConfiguration description) throws TException;
+      @AuthorizingParam @Nullable JobConfiguration description);
 
   @Override
-  Response descheduleCronJob(@AuthorizingParam @Nullable JobKey job) throws TException;
+  Response descheduleCronJob(@AuthorizingParam @Nullable JobKey job);
 
   @Override
   Response startCronJob(
-      @AuthorizingParam @Nullable JobKey job) throws TException;
+      @AuthorizingParam @Nullable JobKey job);
 
   @Override
   Response restartShards(
       @AuthorizingParam @Nullable JobKey job,
-      @Nullable Set<Integer> shardIds) throws TException;
+      @Nullable Set<Integer> shardIds);
 
   @Override
   Response killTasks(
       @AuthorizingParam @Nullable JobKey job,
       @Nullable Set<Integer> instances,
-      @Nullable String message) throws TException;
+      @Nullable String message);
 
   @Override
   Response addInstances(
       @AuthorizingParam @Nullable InstanceKey key,
-      int count) throws TException;
+      int count);
 
   @Override
   Response replaceCronTemplate(
-      @AuthorizingParam @Nullable JobConfiguration config) throws TException;
+      @AuthorizingParam @Nullable JobConfiguration config);
 
   @Override
   Response startJobUpdate(
       @AuthorizingParam @Nullable JobUpdateRequest request,
-      @Nullable String message) throws TException;
+      @Nullable String message);
 
   @Override
   Response pauseJobUpdate(
       @AuthorizingParam @Nullable JobUpdateKey key,
-      @Nullable String message) throws TException;
+      @Nullable String message);
 
   @Override
   Response resumeJobUpdate(
       @AuthorizingParam @Nullable JobUpdateKey key,
-      @Nullable String message) throws TException;
+      @Nullable String message);
 
   @Override
   Response abortJobUpdate(
       @AuthorizingParam @Nullable JobUpdateKey key,
-      @Nullable String message) throws TException;
+      @Nullable String message);
 
   @Override
   Response pulseJobUpdate(
-      @AuthorizingParam @Nullable JobUpdateKey key) throws TException;
+      @AuthorizingParam @Nullable JobUpdateKey key);
 
   @Override
   Response rollbackJobUpdate(
       @AuthorizingParam @Nullable JobUpdateKey key,
-      @Nullable String message) throws TException;
+      @Nullable String message);
 }

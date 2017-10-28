@@ -39,6 +39,10 @@ import org.apache.aurora.scheduler.storage.entities.IJobKey;
 import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
 import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
 import org.apache.aurora.scheduler.storage.mem.MemStorageModule;
+import org.apache.aurora.scheduler.storage.db.DbUtil;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.gen.TaskConfig;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -84,10 +88,10 @@ public class ResourceCounterTest {
         ZERO,
         resourceCounter.computeQuotaAllocationTotals());
 
-    Map<IJobKey, Metric> aggregates = resourceCounter.computeAggregates(
+    Map<JobKey, Metric> aggregates = resourceCounter.computeAggregates(
         Query.unscoped(),
         Predicates.alwaysTrue(),
-        ITaskConfig::getJob);
+        TaskConfig::getJob);
     assertEquals(ImmutableMap.of(), aggregates);
 
     for (Metric metric : resourceCounter.computeConsumptionTotals()) {
@@ -150,12 +154,12 @@ public class ResourceCounterTest {
         ),
         resourceCounter.computeAggregates(
             Query.roleScoped("bob"),
-            ITaskConfig::isProduction,
-            ITaskConfig::getJob)
+            TaskConfig::isProduction,
+            TaskConfig::getJob)
     );
   }
 
-  private static IScheduledTask task(
+  private static ScheduledTask task(
       String role,
       String job,
       String id,
@@ -181,10 +185,10 @@ public class ResourceCounterTest {
     }
 
     task.setStatus(status);
-    return IScheduledTask.build(task);
+    return ScheduledTask.build(task);
   }
 
-  private void insertTasks(final IScheduledTask... tasks) {
+  private void insertTasks(final ScheduledTask... tasks) {
     storage.write((NoResult.Quiet)
         storeProvider -> storeProvider.getUnsafeTaskStore().saveTasks(ImmutableSet.copyOf(tasks)));
   }

@@ -33,8 +33,8 @@ import org.apache.aurora.gen.TaskConstraint;
 import org.apache.aurora.gen.TaskEvent;
 import org.apache.aurora.gen.ValueConstraint;
 import org.apache.aurora.scheduler.base.Tasks;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.gen.TaskConfig;
 import org.junit.Test;
 
 import static org.apache.aurora.gen.Resource.numCpus;
@@ -55,14 +55,14 @@ import static org.apache.aurora.scheduler.updater.StateEvaluator.Result.SUCCEEDE
 import static org.junit.Assert.assertEquals;
 
 public class InstanceUpdaterTest {
-  private static final Optional<ITaskConfig> NO_CONFIG = Optional.absent();
+  private static final Optional<TaskConfig> NO_CONFIG = Optional.absent();
 
-  private static final ITaskConfig OLD = ITaskConfig.build(new TaskConfig()
+  private static final TaskConfig OLD = TaskConfig.build(new TaskConfig()
           .setResources(ImmutableSet.of(numCpus(1.0))));
-  private static final ITaskConfig NEW = ITaskConfig.build(new TaskConfig()
+  private static final TaskConfig NEW = TaskConfig.build(new TaskConfig()
           .setProduction(true)
           .setResources(ImmutableSet.of(numCpus(1.0))));
-  private static final ITaskConfig NEW_EXTRA_RESOURCES = ITaskConfig.build(new TaskConfig()
+  private static final TaskConfig NEW_EXTRA_RESOURCES = TaskConfig.build(new TaskConfig()
       .setResources(ImmutableSet.of(numCpus(2.0))));
   private static final ITaskConfig NEW_DIFFERENT_CONSTRAINTS = ITaskConfig.build(new TaskConfig()
       .setConstraints(ImmutableSet.of(new Constraint("different",
@@ -75,19 +75,19 @@ public class InstanceUpdaterTest {
     private final FakeClock clock;
     private final InstanceUpdater updater;
     private final TaskUtil taskUtil;
-    private Optional<IScheduledTask> task = Optional.absent();
+    private Optional<ScheduledTask> task = Optional.absent();
 
-    TestFixture(Optional<ITaskConfig> newConfig, int maxToleratedFailures) {
+    TestFixture(Optional<TaskConfig> newConfig, int maxToleratedFailures) {
       this.clock = new FakeClock();
       this.updater = new InstanceUpdater(newConfig, maxToleratedFailures, MIN_RUNNING_TIME, clock);
       this.taskUtil = new TaskUtil(clock);
     }
 
-    TestFixture(ITaskConfig newConfig, int maxToleratedFailures) {
+    TestFixture(TaskConfig newConfig, int maxToleratedFailures) {
       this(Optional.of(newConfig), maxToleratedFailures);
     }
 
-    void setActualState(ITaskConfig config) {
+    void setActualState(TaskConfig config) {
       this.task = Optional.of(taskUtil.makeTask(config, PENDING));
     }
 
@@ -103,7 +103,7 @@ public class InstanceUpdaterTest {
       }
       builder.setStatus(status);
 
-      task = Optional.of(IScheduledTask.build(builder));
+      task = Optional.of(ScheduledTask.build(builder));
       return updater.evaluate(task);
     }
 
@@ -277,7 +277,7 @@ public class InstanceUpdaterTest {
     TestFixture f = new TestFixture(NEW, 1);
     ScheduledTask noEvents = new TaskUtil(new FakeClock())
         .makeTask(OLD, RUNNING).newBuilder().setTaskEvents(ImmutableList.of());
-    f.updater.evaluate(Optional.of(IScheduledTask.build(noEvents)));
+    f.updater.evaluate(Optional.of(ScheduledTask.build(noEvents)));
   }
 
   @Test
@@ -319,7 +319,7 @@ public class InstanceUpdaterTest {
       this.clock = Objects.requireNonNull(clock);
     }
 
-    IScheduledTask makeTask(ITaskConfig config, ScheduleStatus status) {
+    ScheduledTask makeTask(TaskConfig config, ScheduleStatus status) {
       List<TaskEvent> events = Lists.newArrayList();
       if (status != PENDING) {
         events.add(new TaskEvent().setTimestamp(clock.nowMillis()).setStatus(PENDING));
@@ -331,7 +331,7 @@ public class InstanceUpdaterTest {
 
       events.add(new TaskEvent().setTimestamp(clock.nowMillis()).setStatus(status));
 
-      return IScheduledTask.build(
+      return ScheduledTask.build(
           new ScheduledTask()
               .setStatus(status)
               .setTaskEvents(ImmutableList.copyOf(events))

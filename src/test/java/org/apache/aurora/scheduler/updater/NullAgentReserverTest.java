@@ -16,7 +16,7 @@ package org.apache.aurora.scheduler.updater;
 import org.apache.aurora.common.testing.easymock.EasyMockTest;
 import org.apache.aurora.scheduler.base.InstanceKeys;
 import org.apache.aurora.scheduler.base.JobKeys;
-import org.apache.aurora.scheduler.storage.entities.IInstanceKey;
+import org.apache.aurora.gen.InstanceKey;
 import org.apache.aurora.scheduler.updater.UpdateAgentReserver.NullAgentReserver;
 import org.junit.Test;
 
@@ -24,7 +24,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class NullAgentReserverTest extends EasyMockTest {
-  private static final IInstanceKey INSTANCE_KEY =
+  private static final InstanceKey INSTANCE_KEY =
       InstanceKeys.from(JobKeys.from("role", "env", "name"), 1);
 
   @Test

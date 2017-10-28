@@ -39,8 +39,8 @@ import org.apache.aurora.scheduler.base.Query;
 import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.state.StateManager;
 import org.apache.aurora.scheduler.storage.Storage;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.ScheduledTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,9 +70,9 @@ public class TaskHistoryPruner implements EventSubscriber {
   private final TaskEventBatchWorker batchWorker;
   private final AtomicLong prunedTasksCount;
 
-  private final Predicate<IScheduledTask> safeToDelete = new Predicate<IScheduledTask>() {
+  private final Predicate<ScheduledTask> safeToDelete = new Predicate<ScheduledTask>() {
     @Override
-    public boolean apply(IScheduledTask task) {
+    public boolean apply(ScheduledTask task) {
       return Tasks.getLatestEvent(task).getTimestamp()
           <= clock.nowMillis() - settings.minRetentionThresholdMillis;
     }
@@ -150,12 +150,12 @@ public class TaskHistoryPruner implements EventSubscriber {
   }
 
   @VisibleForTesting
-  static Query.Builder jobHistoryQuery(IJobKey jobKey) {
+  static Query.Builder jobHistoryQuery(JobKey jobKey) {
     return Query.jobScoped(jobKey).byStatus(apiConstants.TERMINAL_STATES);
   }
 
   private void registerInactiveTask(
-      final IJobKey jobKey,
+      final JobKey jobKey,
       final String taskId,
       long timeRemaining) {
 
@@ -178,7 +178,7 @@ public class TaskHistoryPruner implements EventSubscriber {
             LOG,
             String.format(FATAL_ERROR_FORMAT, "job: " + jobKey),
             () -> {
-              Iterable<IScheduledTask> inactiveTasks =
+              Iterable<ScheduledTask> inactiveTasks =
                   Storage.Util.fetchTasks(storage, jobHistoryQuery(jobKey));
               int numInactiveTasks = Iterables.size(inactiveTasks);
               int tasksToPrune = numInactiveTasks - settings.perJobHistoryGoal;

@@ -30,7 +30,7 @@ import org.apache.aurora.gen.ScheduleStatus;
 import org.apache.aurora.scheduler.base.TaskTestUtil;
 import org.apache.aurora.scheduler.events.PubsubEvent.TaskStateChange;
 import org.apache.aurora.scheduler.events.WebhookInfo.WebhookInfoBuilder;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.testing.FakeStatsProvider;
 import org.asynchttpclient.AsyncHandler;
 import org.asynchttpclient.AsyncHttpClient;
@@ -55,7 +55,7 @@ public class WebhookTest {
       "Content-Type", "application/vnd.kafka.json.v1+json",
       "Producer-Type", "reliable"
   );
-  private static final IScheduledTask TASK = TaskTestUtil.makeTask("id", TaskTestUtil.JOB);
+  private static final ScheduledTask TASK = TaskTestUtil.makeTask("id", TaskTestUtil.JOB);
   private static final TaskStateChange CHANGE = TaskStateChange.initialized(TASK);
   private static final TaskStateChange CHANGE_OLD_STATE = TaskStateChange
       .transition(TASK, ScheduleStatus.FAILED);

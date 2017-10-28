@@ -51,7 +51,7 @@ class LoggingInterceptor implements MethodInterceptor {
           JobConfiguration.class,
           input -> {
             JobConfiguration configuration = ((JobConfiguration) input).deepCopy();
-            if (configuration.isSetTaskConfig()) {
+            if (configuration.hasTaskConfig()) {
               configuration.getTaskConfig().setExecutorConfig(
                   new ExecutorConfig("BLANKED", "BLANKED"));
             }
@@ -60,7 +60,7 @@ class LoggingInterceptor implements MethodInterceptor {
           JobUpdateRequest.class,
           input -> {
             JobUpdateRequest configuration = ((JobUpdateRequest) input).deepCopy();
-            if (configuration.isSetTaskConfig()) {
+            if (configuration.hasTaskConfig()) {
               configuration.getTaskConfig().setExecutorConfig(
                   new ExecutorConfig("BLANKED", "BLANKED"));
             }

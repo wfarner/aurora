@@ -11,5 +11,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+pluginManagement {
+  repositories {
+      maven {
+          url 'file://' + System.getProperty('user.home') + '/.m2/repository'
+      }
+      gradlePluginPortal()
+      maven {
+          url 'https://repo1.maven.org/maven2/'
+      }
+  }
+}
 rootProject.name = 'aurora'
 include 'ui', 'api', 'buildSrc', 'commons-args', 'commons'

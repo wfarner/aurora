@@ -24,7 +24,7 @@ import org.apache.aurora.gen.GetJobsResult;
 import org.apache.aurora.gen.Response;
 import org.apache.aurora.gen.Result;
 import org.apache.aurora.gen.ServerInfo;
-import org.apache.aurora.scheduler.storage.entities.IServerInfo;
+import org.apache.aurora.gen.ServerInfo;
 import org.apache.aurora.scheduler.thrift.auth.DecoratedThrift;
 import org.junit.Before;
 import org.junit.Test;

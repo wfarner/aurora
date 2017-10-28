@@ -31,12 +31,6 @@ import org.apache.aurora.scheduler.TierInfo;
 import org.apache.aurora.scheduler.TierManager;
 import org.apache.aurora.scheduler.quota.QuotaManager;
 import org.apache.aurora.scheduler.resources.ResourceType;
-import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdate;
-import org.apache.aurora.scheduler.storage.entities.IResource;
-import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -59,7 +53,7 @@ public final class ThriftBackfill {
 
   private static Resource getResource(Set<Resource> resources, ResourceType type) {
     return resources.stream()
-            .filter(e -> ResourceType.fromResource(IResource.build(e)).equals(type))
+            .filter(e -> ResourceType.fromResource(e).equals(type))
             .findFirst()
             .orElseThrow(() ->
                     new IllegalArgumentException("Missing resource definition for " + type));
@@ -68,30 +62,27 @@ public final class ThriftBackfill {
   /**
    * Ensures TaskConfig.resources and correspondent task-level fields are all populated.
    *
-   * @param config TaskConfig to backfill.
+   * @param input TaskConfig to backfill.
    * @return Backfilled TaskConfig.
    */
-  public TaskConfig backfillTask(TaskConfig config) {
-    backfillTier(config);
-    return config;
-  }
-
-  private void backfillTier(TaskConfig config) {
-    ITaskConfig taskConfig = ITaskConfig.build(config);
-    if (config.isSetTier()) {
-      TierInfo tier = tierManager.getTier(taskConfig);
-      config.setProduction(!tier.isPreemptible() && !tier.isRevocable());
+  public TaskConfig backfillTask(TaskConfig input) {
+    TaskConfig._Builder builder = input.mutate();
+    if (input.hasTier()) {
+      TierInfo tier = tierManager.getTier(input);
+      builder.setProduction(!tier.isPreemptible() && !tier.isRevocable());
     } else {
-      config.setTier(tierManager.getTiers()
+      builder.setTier(tierManager.getTiers()
           .entrySet()
           .stream()
-          .filter(e -> e.getValue().isPreemptible() == !taskConfig.isProduction()
+          .filter(e -> e.getValue().isPreemptible() == !input.isProduction()
               && !e.getValue().isRevocable())
           .findFirst()
           .orElseThrow(() -> new IllegalStateException(
-              format("No matching implicit tier for task of job %s", taskConfig.getJob())))
+              format("No matching implicit tier for task of job %s", input.getJob())))
           .getKey());
     }
+
+    return builder.build();
   }
 
   /**
@@ -100,9 +91,10 @@ public final class ThriftBackfill {
    * @param jobConfig JobConfiguration to backfill.
    * @return Backfilled JobConfiguration.
    */
-  public IJobConfiguration backfillJobConfiguration(JobConfiguration jobConfig) {
-    backfillTask(jobConfig.getTaskConfig());
-    return IJobConfiguration.build(jobConfig);
+  JobConfiguration backfillJobConfiguration(JobConfiguration jobConfig) {
+    return jobConfig.mutate()
+        .setTaskConfig(backfillTask(jobConfig.getTaskConfig()))
+        .build();
   }
 
   /**
@@ -111,44 +103,41 @@ public final class ThriftBackfill {
    * @param tasks Set of tasks to backfill.
    * @return Backfilled set of tasks.
    */
-  public Set<IScheduledTask> backfillTasks(Set<ScheduledTask> tasks) {
+  Set<ScheduledTask> backfillTasks(Set<ScheduledTask> tasks) {
     return tasks.stream()
-        .map(t -> backfillScheduledTask(t))
-        .map(IScheduledTask::build)
+        .map(this::backfillScheduledTask)
         .collect(GuavaUtils.toImmutableSet());
   }
 
   /**
    * Ensures ResourceAggregate.resources and correspondent deprecated fields are all populated.
    *
-   * @param aggregate ResourceAggregate to backfill.
-   * @return Backfilled IResourceAggregate.
+   * @param input ResourceAggregate to backfill.
+   * @return Backfilled ResourceAggregate.
    */
-  public static IResourceAggregate backfillResourceAggregate(ResourceAggregate aggregate) {
-    if (!aggregate.isSetResources() || aggregate.getResources().isEmpty()) {
-      aggregate.addToResources(Resource.numCpus(aggregate.getNumCpus()));
-      aggregate.addToResources(Resource.ramMb(aggregate.getRamMb()));
-      aggregate.addToResources(Resource.diskMb(aggregate.getDiskMb()));
+  public static ResourceAggregate backfillResourceAggregate(ResourceAggregate input) {
+    ResourceAggregate._Builder aggregate = input.mutate();
+    if (!input.hasResources() || input.getResources().isEmpty()) {
+      aggregate.addToResources(Resource.withNumCpus(aggregate.getNumCpus()));
+      aggregate.addToResources(Resource.withRamMb(aggregate.getRamMb()));
+      aggregate.addToResources(Resource.withDiskMb(aggregate.getDiskMb()));
     } else {
       EnumSet<ResourceType> quotaResources = QuotaManager.QUOTA_RESOURCE_TYPES;
-      if (aggregate.getResources().size() > quotaResources.size()) {
+      if (input.getResources().size() > quotaResources.size()) {
         throw new IllegalArgumentException("Too many resource values in quota.");
       }
 
-      if (!quotaResources.equals(aggregate.getResources().stream()
-              .map(e -> ResourceType.fromResource(IResource.build(e)))
+      if (!quotaResources.equals(input.getResources().stream()
+              .map(e -> ResourceType.fromResource(e))
               .collect(Collectors.toSet()))) {
 
         throw new IllegalArgumentException("Quota resources must be exactly: " + quotaResources);
       }
-      aggregate.setNumCpus(
-              getResource(aggregate.getResources(), CPUS).getNumCpus());
-      aggregate.setRamMb(
-              getResource(aggregate.getResources(), RAM_MB).getRamMb());
-      aggregate.setDiskMb(
-              getResource(aggregate.getResources(), DISK_MB).getDiskMb());
+      aggregate.setNumCpus(getResource(input.getResources(), CPUS).getNumCpus());
+      aggregate.setRamMb(getResource(input.getResources(), RAM_MB).getRamMb());
+      aggregate.setDiskMb(getResource(input.getResources(), DISK_MB).getDiskMb());
     }
-    return IResourceAggregate.build(aggregate);
+    return aggregate.build();
   }
 
   private ScheduledTask backfillScheduledTask(ScheduledTask task) {
@@ -159,17 +148,21 @@ public final class ThriftBackfill {
   /**
    * Backfills JobUpdate. See {@link #backfillTask(TaskConfig)}.
    *
-   * @param update JobUpdate to backfill.
+   * @param input JobUpdate to backfill.
    * @return Backfilled job update.
    */
-  IJobUpdate backFillJobUpdate(JobUpdate update) {
+  JobUpdate backFillJobUpdate(JobUpdate input) {
+    JobUpdate._Builder update = input.mutate();
     JobUpdateInstructions instructions = update.getInstructions();
-    if (instructions.isSetDesiredState()) {
-      backfillTask(instructions.getDesiredState().getTask());
+    if (instructions.hasDesiredState()) {
+      update.mutableInstructions().mutableDesiredState()
+          .setTask(instructions.getDesiredState().getTask());
     }
 
-    instructions.getInitialState().forEach(e -> backfillTask(e.getTask()));
-
-    return IJobUpdate.build(update);
+    update.mutableInstructions().setInitialState(
+        instructions.getInitialState().stream()
+            .map(e -> e.mutate().setTask(backfillTask(e.getTask())).build())
+            .collect(Collectors.toList()));
+    return update.build();
   }
 }

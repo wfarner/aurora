@@ -33,7 +33,7 @@ import org.apache.aurora.scheduler.resources.ResourceTestUtil;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.ScheduledTask;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -82,7 +82,7 @@ public class StorageTransactionTest extends TearDownTestCase {
     assertEquals("slowResult", future.get());
   }
 
-  private IScheduledTask makeTask(String taskId) {
+  private ScheduledTask makeTask(String taskId) {
     return TaskTestUtil.makeTask(taskId, TaskTestUtil.JOB);
   }
 

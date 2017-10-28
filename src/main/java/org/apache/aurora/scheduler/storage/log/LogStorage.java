@@ -59,13 +59,13 @@ import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
 import org.apache.aurora.scheduler.storage.Storage.NonVolatileStorage;
 import org.apache.aurora.scheduler.storage.TaskStore;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateEvent;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
-import org.apache.aurora.scheduler.storage.entities.ILock;
-import org.apache.aurora.scheduler.storage.entities.ILockKey;
+import org.apache.aurora.gen.HostAttributes;
+import org.apache.aurora.gen.JobInstanceUpdateEvent;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.JobUpdateEvent;
+import org.apache.aurora.gen.JobUpdateKey;
+import org.apache.aurora.gen.Lock;
+import org.apache.aurora.gen.LockKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -198,8 +198,8 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
   private final SlidingStats writerWaitStats =
       new SlidingStats("log_storage_write_lock_wait", "ns");
 
-  private final Map<LogEntry._Fields, Consumer<LogEntry>> logEntryReplayActions;
-  private final Map<Op._Fields, Consumer<Op>> transactionReplayActions;
+  private final Map<LogEntry._Field, Consumer<LogEntry>> logEntryReplayActions;
+  private final Map<Op._Field, Consumer<Op>> transactionReplayActions;
 
   @Inject
   LogStorage(
@@ -301,88 +301,88 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
   }
 
   @VisibleForTesting
-  final Map<LogEntry._Fields, Consumer<LogEntry>> buildLogEntryReplayActions() {
-    return ImmutableMap.<LogEntry._Fields, Consumer<LogEntry>>builder()
-        .put(LogEntry._Fields.SNAPSHOT, logEntry -> {
+  final Map<LogEntry._Field, Consumer<LogEntry>> buildLogEntryReplayActions() {
+    return ImmutableMap.<LogEntry._Field, Consumer<LogEntry>>builder()
+        .put(LogEntry._Field.SNAPSHOT, logEntry -> {
           Snapshot snapshot = logEntry.getSnapshot();
           LOG.info("Applying snapshot taken on " + new Date(snapshot.getTimestamp()));
           snapshotStore.applySnapshot(snapshot);
         })
-        .put(LogEntry._Fields.TRANSACTION, logEntry -> write((NoResult.Quiet) unused -> {
+        .put(LogEntry._Field.TRANSACTION, logEntry -> write((NoResult.Quiet) unused -> {
           for (Op op : logEntry.getTransaction().getOps()) {
             replayOp(op);
           }
         }))
-        .put(LogEntry._Fields.NOOP, item -> {
+        .put(LogEntry._Field.NOOP, item -> {
           // Nothing to do here
         })
         .build();
   }
 
   @VisibleForTesting
-  final Map<Op._Fields, Consumer<Op>> buildTransactionReplayActions() {
-    return ImmutableMap.<Op._Fields, Consumer<Op>>builder()
+  final Map<Op._Field, Consumer<Op>> buildTransactionReplayActions() {
+    return ImmutableMap.<Op._Field, Consumer<Op>>builder()
         .put(
-            Op._Fields.SAVE_FRAMEWORK_ID,
+            Op._Field.SAVE_FRAMEWORK_ID,
             op -> writeBehindSchedulerStore.saveFrameworkId(op.getSaveFrameworkId().getId()))
-        .put(Op._Fields.SAVE_CRON_JOB, op -> {
+        .put(Op._Field.SAVE_CRON_JOB, op -> {
           SaveCronJob cronJob = op.getSaveCronJob();
           writeBehindJobStore.saveAcceptedJob(
               thriftBackfill.backfillJobConfiguration(cronJob.getJobConfig()));
         })
         .put(
-            Op._Fields.REMOVE_JOB,
-            op -> writeBehindJobStore.removeJob(IJobKey.build(op.getRemoveJob().getJobKey())))
+            Op._Field.REMOVE_JOB,
+            op -> writeBehindJobStore.removeJob(op.getRemoveJob().getJobKey()))
         .put(
-            Op._Fields.SAVE_TASKS,
+            Op._Field.SAVE_TASKS,
             op -> writeBehindTaskStore.saveTasks(
                 thriftBackfill.backfillTasks(op.getSaveTasks().getTasks())))
         .put(
-            Op._Fields.REMOVE_TASKS,
+            Op._Field.REMOVE_TASKS,
             op -> writeBehindTaskStore.deleteTasks(op.getRemoveTasks().getTaskIds()))
-        .put(Op._Fields.SAVE_QUOTA, op -> {
+        .put(Op._Field.SAVE_QUOTA, op -> {
           SaveQuota saveQuota = op.getSaveQuota();
           writeBehindQuotaStore.saveQuota(
               saveQuota.getRole(),
               ThriftBackfill.backfillResourceAggregate(saveQuota.getQuota()));
         })
         .put(
-            Op._Fields.REMOVE_QUOTA,
+            Op._Field.REMOVE_QUOTA,
             op -> writeBehindQuotaStore.removeQuota(op.getRemoveQuota().getRole()))
-        .put(Op._Fields.SAVE_HOST_ATTRIBUTES, op -> {
+        .put(Op._Field.SAVE_HOST_ATTRIBUTES, op -> {
           HostAttributes attributes = op.getSaveHostAttributes().getHostAttributes();
           // Prior to commit 5cf760b, the store would persist maintenance mode changes for
           // unknown hosts.  5cf760b began rejecting these, but the replicated log may still
           // contain entries with a null slave ID.
-          if (attributes.isSetSlaveId()) {
-            writeBehindAttributeStore.saveHostAttributes(IHostAttributes.build(attributes));
+          if (attributes.hasSlaveId()) {
+            writeBehindAttributeStore.saveHostAttributes(attributes);
           } else {
             LOG.info("Dropping host attributes with no agent ID: " + attributes);
           }
         })
         .put(
-            Op._Fields.SAVE_LOCK,
-            op -> writeBehindLockStore.saveLock(ILock.build(op.getSaveLock().getLock())))
+            Op._Field.SAVE_LOCK,
+            op -> writeBehindLockStore.saveLock(op.getSaveLock().getLock()))
         .put(
-            Op._Fields.REMOVE_LOCK,
-            op -> writeBehindLockStore.removeLock(ILockKey.build(op.getRemoveLock().getLockKey())))
-        .put(Op._Fields.SAVE_JOB_UPDATE, op ->
+            Op._Field.REMOVE_LOCK,
+            op -> writeBehindLockStore.removeLock(op.getRemoveLock().getLockKey()))
+        .put(Op._Field.SAVE_JOB_UPDATE, op ->
           writeBehindJobUpdateStore.saveJobUpdate(
               thriftBackfill.backFillJobUpdate(op.getSaveJobUpdate().getJobUpdate()),
               Optional.fromNullable(op.getSaveJobUpdate().getLockToken())))
-        .put(Op._Fields.SAVE_JOB_UPDATE_EVENT, op -> {
+        .put(Op._Field.SAVE_JOB_UPDATE_EVENT, op -> {
           SaveJobUpdateEvent event = op.getSaveJobUpdateEvent();
           writeBehindJobUpdateStore.saveJobUpdateEvent(
-              IJobUpdateKey.build(event.getKey()),
-              IJobUpdateEvent.build(op.getSaveJobUpdateEvent().getEvent()));
+              event.getKey(),
+              op.getSaveJobUpdateEvent().getEvent());
         })
-        .put(Op._Fields.SAVE_JOB_INSTANCE_UPDATE_EVENT, op -> {
+        .put(Op._Field.SAVE_JOB_INSTANCE_UPDATE_EVENT, op -> {
           SaveJobInstanceUpdateEvent event = op.getSaveJobInstanceUpdateEvent();
           writeBehindJobUpdateStore.saveJobInstanceUpdateEvent(
-              IJobUpdateKey.build(event.getKey()),
-              IJobInstanceUpdateEvent.build(op.getSaveJobInstanceUpdateEvent().getEvent()));
+              event.getKey(),
+              op.getSaveJobInstanceUpdateEvent().getEvent());
         })
-        .put(Op._Fields.PRUNE_JOB_UPDATE_HISTORY, op -> writeBehindJobUpdateStore.pruneHistory(
+        .put(Op._Field.PRUNE_JOB_UPDATE_HISTORY, op -> writeBehindJobUpdateStore.pruneHistory(
             op.getPruneJobUpdateHistory().getPerJobRetainCount(),
             op.getPruneJobUpdateHistory().getHistoryPruneThresholdMs())).build();
   }
@@ -438,7 +438,7 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
   }
 
   private void replay(final LogEntry logEntry) {
-    LogEntry._Fields entryField = logEntry.getSetField();
+    LogEntry._Field entryField = logEntry.getSetField();
     if (!logEntryReplayActions.containsKey(entryField)) {
       throw new IllegalStateException("Unknown log entry type: " + entryField);
     }
@@ -447,7 +447,7 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
   }
 
   private void replayOp(Op op) {
-    Op._Fields opField = op.getSetField();
+    Op._Field opField = op.getSetField();
     if (!transactionReplayActions.containsKey(opField)) {
       throw new IllegalStateException("Unknown transaction op: " + opField);
     }

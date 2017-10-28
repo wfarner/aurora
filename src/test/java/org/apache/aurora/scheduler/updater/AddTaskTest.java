@@ -28,16 +28,16 @@ import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.base.Query;
 import org.apache.aurora.scheduler.base.TaskTestUtil;
 import org.apache.aurora.scheduler.state.StateManager;
-import org.apache.aurora.scheduler.storage.entities.IInstanceKey;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateInstructions;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
+import org.apache.aurora.gen.InstanceKey;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.JobUpdateInstructions;
+import org.apache.aurora.gen.JobUpdateKey;
 import org.apache.aurora.scheduler.storage.testing.StorageTestUtil;
 import org.junit.Before;
 import org.junit.Test;
 
 public class AddTaskTest extends EasyMockTest {
-  private static final IJobUpdateInstructions INSTRUCTIONS = IJobUpdateInstructions.build(
+  private static final JobUpdateInstructions INSTRUCTIONS = IJobUpdateInstructions.build(
       new JobUpdateInstructions()
           .setDesiredState(new InstanceTaskConfig()
               .setTask(new TaskConfig())
@@ -45,11 +45,11 @@ public class AddTaskTest extends EasyMockTest {
           .setSettings(
               new JobUpdateSettings()
                   .setMinWaitInInstanceRunningMs(1000)));
-  private static final IJobKey JOB = JobKeys.from("role", "env", "job");
-  private static final IInstanceKey INSTANCE =
-      IInstanceKey.build(new InstanceKey(JOB.newBuilder(), 0));
-  private static final IJobUpdateKey UPDATE_ID =
-          IJobUpdateKey.build(new JobUpdateKey(JOB.newBuilder(), "update_id"));
+  private static final JobKey JOB = JobKeys.from("role", "env", "job");
+  private static final InstanceKey INSTANCE =
+      InstanceKey.build(new InstanceKey(JOB.newBuilder(), 0));
+  private static final JobUpdateKey UPDATE_ID =
+          JobUpdateKey.build(new JobUpdateKey(JOB.newBuilder(), "update_id"));
 
   private StorageTestUtil storageUtil;
   private StateManager stateManager;

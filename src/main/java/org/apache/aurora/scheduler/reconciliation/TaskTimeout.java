@@ -35,7 +35,7 @@ import org.apache.aurora.scheduler.events.PubsubEvent.TaskStateChange;
 import org.apache.aurora.scheduler.state.StateChangeResult;
 import org.apache.aurora.scheduler.state.StateManager;
 import org.apache.aurora.scheduler.storage.Storage;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.ScheduledTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -113,7 +113,7 @@ class TaskTimeout extends AbstractIdleService implements EventSubscriber {
     @Override
     public void run() {
       if (isRunning()) {
-        Optional<IScheduledTask> task = storage.read(
+        Optional<ScheduledTask> task = storage.read(
             storeProvider -> storeProvider.getTaskStore().fetchTask(taskId));
         // Double-Checked Locking: acquire storage write lock only if necessary
         if (task.isPresent() && task.get().getStatus() == newState) {

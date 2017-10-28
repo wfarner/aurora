@@ -35,7 +35,7 @@ from apache.aurora.config.thrift import convert as convert_pystachio_to_thrift
 from apache.aurora.config.thrift import InvalidConfig, task_instance_from_job
 from apache.thermos.config.schema import Process, Resources, Task
 
-from gen.apache.aurora.api.constants import GOOD_IDENTIFIER_PATTERN_PYTHON
+from gen.apache.aurora.api.constants import GOOD_IDENTIFIER_PATTERN
 from gen.apache.aurora.api.ttypes import Mode as ThriftMode
 from gen.apache.aurora.api.ttypes import CronCollisionPolicy, Identity, JobKey, Resource
 from gen.apache.aurora.test.constants import INVALID_IDENTIFIERS, VALID_IDENTIFIERS
@@ -250,7 +250,7 @@ def test_task_instance_from_job():
 
 
 def test_identifier_validation():
-  matcher = re.compile(GOOD_IDENTIFIER_PATTERN_PYTHON)
+  matcher = re.compile(GOOD_IDENTIFIER_PATTERN)
   for identifier in VALID_IDENTIFIERS:
     assert matcher.match(identifier)
   for identifier in INVALID_IDENTIFIERS:

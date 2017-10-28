@@ -22,8 +22,8 @@ import com.google.inject.Inject;
 import org.apache.aurora.GuavaUtils;
 import org.apache.aurora.scheduler.storage.LockStore;
 import org.apache.aurora.scheduler.storage.db.views.LockRow;
-import org.apache.aurora.scheduler.storage.entities.ILock;
-import org.apache.aurora.scheduler.storage.entities.ILockKey;
+import org.apache.aurora.gen.Lock;
+import org.apache.aurora.gen.LockKey;
 
 import static java.util.Objects.requireNonNull;
 
@@ -52,7 +52,7 @@ class DbLockStore implements LockStore.Mutable {
 
   @Timed("lock_store_remove_lock")
   @Override
-  public void removeLock(ILockKey lockKey) {
+  public void removeLock(LockKey lockKey) {
     mapper.delete(lockKey.newBuilder());
   }
 
@@ -70,7 +70,7 @@ class DbLockStore implements LockStore.Mutable {
 
   @Timed("lock_store_fetch_lock")
   @Override
-  public Optional<ILock> fetchLock(ILockKey lockKey) {
+  public Optional<ILock> fetchLock(LockKey lockKey) {
     return Optional.ofNullable(mapper.select(lockKey.newBuilder())).map(TO_ROW);
   }
 

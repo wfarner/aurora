@@ -31,8 +31,8 @@ import org.apache.aurora.scheduler.filter.SchedulingFilter.Veto;
 import org.apache.aurora.scheduler.metadata.NearestFit;
 import org.apache.aurora.scheduler.resources.ResourceBag;
 import org.apache.aurora.scheduler.resources.ResourceManager;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.HostAttributes;
+import org.apache.aurora.gen.TaskConfig;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -44,7 +44,7 @@ import static org.junit.Assert.assertEquals;
 
 public class NotifyingSchedulingFilterTest extends EasyMockTest {
 
-  private static final ITaskConfig TASK = ITaskConfig.build(new TaskConfig()
+  private static final TaskConfig TASK = TaskConfig.build(new TaskConfig()
       .setResources(ImmutableSet.of(
           numCpus(1),
           ramMb(1024),

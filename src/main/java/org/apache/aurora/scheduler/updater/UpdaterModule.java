@@ -33,7 +33,7 @@ import org.apache.aurora.scheduler.config.types.TimeAmount;
 import org.apache.aurora.scheduler.events.PubsubEventModule;
 import org.apache.aurora.scheduler.preemptor.BiCache;
 import org.apache.aurora.scheduler.preemptor.BiCache.BiCacheSettings;
-import org.apache.aurora.scheduler.storage.entities.IInstanceKey;
+import org.apache.aurora.gen.InstanceKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,7 +78,7 @@ public class UpdaterModule extends AbstractModule {
         if (options.enableAffinity) {
           bind(BiCacheSettings.class).toInstance(
               new BiCacheSettings(options.affinityExpiration, "update_affinity"));
-          bind(new TypeLiteral<BiCache<IInstanceKey, TaskGroupKey>>() { }).in(Singleton.class);
+          bind(new TypeLiteral<BiCache<InstanceKey, TaskGroupKey>>() { }).in(Singleton.class);
           bind(UpdateAgentReserver.class).to(UpdateAgentReserver.UpdateAgentReserverImpl.class);
           bind(UpdateAgentReserver.UpdateAgentReserverImpl.class).in(Singleton.class);
         } else {

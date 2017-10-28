@@ -22,8 +22,8 @@ import org.apache.aurora.scheduler.base.InstanceKeys;
 import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.base.TaskGroupKey;
 import org.apache.aurora.scheduler.preemptor.BiCache;
-import org.apache.aurora.scheduler.storage.entities.IInstanceKey;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.InstanceKey;
+import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.updater.UpdateAgentReserver.UpdateAgentReserverImpl;
 import org.junit.Before;
 import org.junit.Test;
@@ -36,14 +36,14 @@ import static org.junit.Assert.assertTrue;
 
 public class UpdateAgentReserverImplTest extends EasyMockTest {
   private UpdateAgentReserver reserver;
-  private BiCache<IInstanceKey, String> cache;
+  private BiCache<InstanceKey, String> cache;
 
   private static final String AGENT_ID = "agent";
-  private static final IInstanceKey INSTANCE_KEY =
+  private static final InstanceKey INSTANCE_KEY =
       InstanceKeys.from(JobKeys.from("role", "env", "name"), 1);
 
-  private TaskGroupKey getTaskGroup(IInstanceKey key) {
-    return TaskGroupKey.from(ITaskConfig.build(
+  private TaskGroupKey getTaskGroup(InstanceKey key) {
+    return TaskGroupKey.from(TaskConfig.build(
         new TaskConfig()
             .setJob(key.getJobKey().newBuilder())
             .setNumCpus(1.0)
@@ -53,7 +53,7 @@ public class UpdateAgentReserverImplTest extends EasyMockTest {
 
   @Before
   public void setUp() {
-    cache = createMock(new Clazz<BiCache<IInstanceKey, String>>() { });
+    cache = createMock(new Clazz<BiCache<InstanceKey, String>>() { });
     reserver = new UpdateAgentReserverImpl(cache);
   }
 
@@ -82,8 +82,8 @@ public class UpdateAgentReserverImplTest extends EasyMockTest {
 
   @Test
   public void testHasReservations() {
-    IInstanceKey instanceKey2 = InstanceKeys.from(JobKeys.from("role", "env", "name"), 2);
-    IInstanceKey instanceKey3 = InstanceKeys.from(JobKeys.from("role2", "env2", "name2"), 1);
+    InstanceKey instanceKey2 = InstanceKeys.from(JobKeys.from("role", "env", "name"), 2);
+    InstanceKey instanceKey3 = InstanceKeys.from(JobKeys.from("role2", "env2", "name2"), 1);
     expect(cache.asMap())
         .andReturn(ImmutableMap.of(
             INSTANCE_KEY,

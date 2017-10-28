@@ -110,7 +110,7 @@ public interface SnapshotDeduplicator {
           .setPartialSnapshot(deepCopyWithoutTasks(snapshot));
 
       // Nothing to do if we don't have any input tasks.
-      if (!snapshot.isSetTasks()) {
+      if (!snapshot.hasTasks()) {
         LOG.warn("Got snapshot with unset tasks field.");
         return deduplicatedSnapshot;
       }
@@ -145,7 +145,7 @@ public interface SnapshotDeduplicator {
     public Snapshot reduplicate(DeduplicatedSnapshot deduplicatedSnapshot) throws CodingException {
       LOG.info("Starting reduplication.");
       Snapshot snapshot = new Snapshot(deduplicatedSnapshot.getPartialSnapshot());
-      if (!deduplicatedSnapshot.isSetTaskConfigs()) {
+      if (!deduplicatedSnapshot.hasTaskConfigs()) {
         LOG.warn("Got deduplicated snapshot with unset task configs.");
         return snapshot;
       }

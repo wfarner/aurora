@@ -26,8 +26,8 @@ import org.apache.aurora.gen.Attribute;
 import org.apache.aurora.gen.HostAttributes;
 import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.storage.AttributeStore;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.HostAttributes;
+import org.apache.aurora.gen.ScheduledTask;
 import org.easymock.IExpectationSetters;
 import org.junit.Before;
 import org.junit.Test;
@@ -165,7 +165,7 @@ public class AttributeAggregateTest extends EasyMockTest {
     assertEquals(expected, aggregate.getAggregates());
   }
 
-  private AttributeAggregate aggregate(IScheduledTask... activeTasks) {
+  private AttributeAggregate aggregate(ScheduledTask... activeTasks) {
     return AttributeAggregate.create(
         Suppliers.ofInstance(ImmutableSet.copyOf(activeTasks)),
         attributeStore);
@@ -187,8 +187,8 @@ public class AttributeAggregateTest extends EasyMockTest {
     assertEquals(expected, aggregate.getNumTasksWithAttribute(name, value));
   }
 
-  private static IScheduledTask task(String id, String host) {
-    return IScheduledTask.build(new ScheduledTask().setAssignedTask(
+  private static ScheduledTask task(String id, String host) {
+    return ScheduledTask.build(new ScheduledTask().setAssignedTask(
         new AssignedTask()
             .setTaskId(id)
             .setSlaveHost(host)));

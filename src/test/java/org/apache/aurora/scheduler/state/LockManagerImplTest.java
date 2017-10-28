@@ -23,9 +23,13 @@ import org.apache.aurora.gen.Lock;
 import org.apache.aurora.gen.LockKey;
 import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.state.LockManager.LockException;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.ILock;
 import org.apache.aurora.scheduler.storage.mem.MemStorageModule;
+import org.apache.aurora.scheduler.storage.db.DbUtil;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.Lock;
+import org.apache.aurora.gen.LockKey;
+import org.apache.aurora.scheduler.storage.testing.StorageTestUtil;
+import org.easymock.EasyMock;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -37,7 +41,7 @@ import static org.junit.Assert.assertEquals;
 public class LockManagerImplTest extends EasyMockTest {
   private static final String USER = "jim-user";
   private static final String MY_JOB = "myJob";
-  private static final IJobKey JOB_KEY = JobKeys.from("jim", "devel", MY_JOB);
+  private static final JobKey JOB_KEY = JobKeys.from("jim", "devel", MY_JOB);
   private static final UUID TOKEN = UUID.fromString("79d6d790-3212-11e3-aa6e-0800200c9a66");
 
   private LockManager lockManager;
@@ -92,7 +96,7 @@ public class LockManagerImplTest extends EasyMockTest {
     lockManager.acquireLock(JOB_KEY, USER);
   }
 
-  private void expectLockException(IJobKey key) {
+  private void expectLockException(JobKey key) {
     expectedException.expect(LockException.class);
     expectedException.expectMessage(JobKeys.canonicalString(key));
   }

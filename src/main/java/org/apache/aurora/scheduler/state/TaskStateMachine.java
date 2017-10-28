@@ -37,7 +37,7 @@ import org.apache.aurora.common.util.StateMachine.Rule;
 import org.apache.aurora.common.util.StateMachine.Transition;
 import org.apache.aurora.gen.ScheduleStatus;
 import org.apache.aurora.scheduler.base.Tasks;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.ScheduledTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,8 +94,8 @@ class TaskStateMachine {
   private static final Function<ScheduleStatus, TaskState> STATUS_TO_TASK_STATE =
       input -> TaskState.valueOf(input.name());
 
-  private static final Function<IScheduledTask, TaskState> SCHEDULED_TO_TASK_STATE =
-      Functions.compose(STATUS_TO_TASK_STATE, IScheduledTask::getStatus);
+  private static final Function<ScheduledTask, TaskState> SCHEDULED_TO_TASK_STATE =
+      Functions.compose(STATUS_TO_TASK_STATE, ScheduledTask::getStatus);
 
   /**
    * ScheduleStatus enum extension to account for cases where no direct state mapping exists.
@@ -149,11 +149,11 @@ class TaskStateMachine {
    *.
    * @param task Read-only task that this state machine manages.
    */
-  TaskStateMachine(IScheduledTask task) {
+  TaskStateMachine(ScheduledTask task) {
     this(Tasks.id(task), Optional.of(task));
   }
 
-  private TaskStateMachine(final String name, final Optional<IScheduledTask> task) {
+  private TaskStateMachine(final String name, final Optional<ScheduledTask> task) {
     MorePreconditions.checkNotBlank(name);
     requireNonNull(task);
 

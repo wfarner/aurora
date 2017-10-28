@@ -19,7 +19,7 @@ import com.google.common.collect.FluentIterable;
 
 import org.apache.aurora.gen.JobUpdateInstructions;
 import org.apache.aurora.gen.JobUpdateSettings;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateInstructions;
+import org.apache.aurora.gen.JobUpdateInstructions;
 
 public final class DbJobUpdateInstructions {
   private Set<DbInstanceTaskConfig> initialState;
@@ -39,7 +39,7 @@ public final class DbJobUpdateInstructions {
         .setSettings(settings);
   }
 
-  public IJobUpdateInstructions toImmutable() {
-    return IJobUpdateInstructions.build(toThrift());
+  public JobUpdateInstructions toImmutable() {
+    return JobUpdateInstructions.build(toThrift());
   }
 }

@@ -57,10 +57,10 @@ import org.apache.aurora.scheduler.filter.AttributeAggregate;
 import org.apache.aurora.scheduler.offers.OfferManager;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.AssignedTask;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.gen.TaskConfig;
 
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
@@ -156,7 +156,7 @@ public class PendingTaskProcessor implements Runnable {
       // identical task group instances are removed from further iteration if none of the
       // available slaves could yield a preemption proposal. A consuming iterator is used for
       // task groups to ensure iteration order is preserved after a task group is removed.
-      LoadingCache<IJobKey, AttributeAggregate> jobStates = attributeCache(store);
+      LoadingCache<JobKey, AttributeAggregate> jobStates = attributeCache(store);
       List<TaskGroupKey> pendingGroups = fetchIdlePendingGroups(store);
       Iterator<TaskGroupKey> groups = Iterators.consumingIterator(pendingGroups.iterator());
       TaskGroupKey lastGroup = null;
@@ -165,7 +165,7 @@ public class PendingTaskProcessor implements Runnable {
       while (!pendingGroups.isEmpty()) {
         boolean matched = false;
         TaskGroupKey group = groups.next();
-        ITaskConfig task = group.getTask();
+        TaskConfig task = group.getTask();
 
         metrics.recordPreemptionAttemptFor(task);
         // start over only if a different task group is being processed
@@ -207,7 +207,7 @@ public class PendingTaskProcessor implements Runnable {
     Multiset<TaskGroupKey> taskGroupCounts = HashMultiset.create(
         FluentIterable.from(store.getTaskStore().fetchTasks(Query.statusScoped(PENDING)))
             .filter(Predicates.and(isIdleTask, Predicates.not(hasCachedSlot)))
-            .transform(Functions.compose(ASSIGNED_TO_GROUP_KEY, IScheduledTask::getAssignedTask)));
+            .transform(Functions.compose(ASSIGNED_TO_GROUP_KEY, ScheduledTask::getAssignedTask)));
 
     return getPreemptionSequence(taskGroupCounts, reservationBatchSize);
   }
@@ -244,11 +244,11 @@ public class PendingTaskProcessor implements Runnable {
     return instructions;
   }
 
-  private LoadingCache<IJobKey, AttributeAggregate> attributeCache(final StoreProvider store) {
+  private LoadingCache<JobKey, AttributeAggregate> attributeCache(final StoreProvider store) {
     return CacheBuilder.newBuilder().build(CacheLoader.from(
-        new Function<IJobKey, AttributeAggregate>() {
+        new Function<JobKey, AttributeAggregate>() {
           @Override
-          public AttributeAggregate apply(IJobKey job) {
+          public AttributeAggregate apply(JobKey job) {
             return AttributeAggregate.getJobActiveState(store, job);
           }
         }));
@@ -257,16 +257,16 @@ public class PendingTaskProcessor implements Runnable {
   private static final Function<IAssignedTask, TaskGroupKey> ASSIGNED_TO_GROUP_KEY =
       task -> TaskGroupKey.from(task.getTask());
 
-  private final Predicate<IScheduledTask> hasCachedSlot = new Predicate<IScheduledTask>() {
+  private final Predicate<ScheduledTask> hasCachedSlot = new Predicate<ScheduledTask>() {
     @Override
-    public boolean apply(IScheduledTask task) {
+    public boolean apply(ScheduledTask task) {
       return !slotCache.getByValue(TaskGroupKey.from(task.getAssignedTask().getTask())).isEmpty();
     }
   };
 
-  private final Predicate<IScheduledTask> isIdleTask = new Predicate<IScheduledTask>() {
+  private final Predicate<ScheduledTask> isIdleTask = new Predicate<ScheduledTask>() {
     @Override
-    public boolean apply(IScheduledTask task) {
+    public boolean apply(ScheduledTask task) {
       return (clock.nowMillis() - Tasks.getLatestEvent(task).getTimestamp())
           >= preemptionCandidacyDelay.as(Time.MILLISECONDS);
     }

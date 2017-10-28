@@ -21,8 +21,8 @@ import com.google.common.collect.FluentIterable;
 import org.apache.aurora.common.inject.TimedInterceptor.Timed;
 import org.apache.aurora.scheduler.storage.CronJobStore;
 import org.apache.aurora.scheduler.storage.db.views.DbJobConfiguration;
-import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
+import org.apache.aurora.gen.JobConfiguration;
+import org.apache.aurora.gen.JobKey;
 
 import static java.util.Objects.requireNonNull;
 
@@ -47,7 +47,7 @@ class DbCronJobStore implements CronJobStore.Mutable {
 
   @Timed("db_storage_cron_save_accepted_job")
   @Override
-  public void saveAcceptedJob(IJobConfiguration jobConfig) {
+  public void saveAcceptedJob(JobConfiguration jobConfig) {
     requireNonNull(jobConfig);
     jobKeyMapper.merge(jobConfig.getKey());
     cronJobMapper.merge(jobConfig, taskConfigManager.insert(jobConfig.getTaskConfig()));
@@ -55,7 +55,7 @@ class DbCronJobStore implements CronJobStore.Mutable {
 
   @Timed("db_storage_cron_remove_job")
   @Override
-  public void removeJob(IJobKey jobKey) {
+  public void removeJob(JobKey jobKey) {
     requireNonNull(jobKey);
     cronJobMapper.delete(jobKey);
   }
@@ -68,7 +68,7 @@ class DbCronJobStore implements CronJobStore.Mutable {
 
   @Timed("db_storage_cron_fetch_jobs")
   @Override
-  public Iterable<IJobConfiguration> fetchJobs() {
+  public Iterable<JobConfiguration> fetchJobs() {
     return FluentIterable.from(cronJobMapper.selectAll())
         .transform(DbJobConfiguration::toImmutable)
         .toList();
@@ -76,7 +76,7 @@ class DbCronJobStore implements CronJobStore.Mutable {
 
   @Timed("db_storage_cron_fetch_job")
   @Override
-  public Optional<IJobConfiguration> fetchJob(IJobKey jobKey) {
+  public Optional<JobConfiguration> fetchJob(JobKey jobKey) {
     requireNonNull(jobKey);
     return Optional.fromNullable(cronJobMapper.select(jobKey))
         .transform(DbJobConfiguration::toImmutable);

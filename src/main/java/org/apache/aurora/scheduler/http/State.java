@@ -32,7 +32,7 @@ import com.google.common.collect.Multimap;
 import org.apache.aurora.scheduler.preemptor.ClusterState;
 import org.apache.aurora.scheduler.preemptor.ClusterStateImpl;
 import org.apache.aurora.scheduler.preemptor.PreemptionVictim;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.TaskConfig;
 
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
@@ -47,7 +47,7 @@ public class State {
   private final ClusterState clusterState;
 
   @VisibleForTesting
-  static String taskKey(ITaskConfig config) {
+  static String taskKey(TaskConfig config) {
     return String.format("%s/%s/%s-%d",
         config.getJob().getRole(),
         config.getJob().getEnvironment(),
@@ -61,11 +61,11 @@ public class State {
    * O(DISTINCT_RUNNING_TASK_CONFIGS).
    */
   private static class NormalizedClusterState {
-    private final Map<String, ITaskConfig> taskConfigs;
+    private final Map<String, TaskConfig> taskConfigs;
     private final Map<String, List<String>> agents;
 
     NormalizedClusterState(
-        Map<String, ITaskConfig> taskConfigMap,
+        Map<String, TaskConfig> taskConfigMap,
         Map<String, List<String>> agentTasksMap) {
 
       this.taskConfigs = requireNonNull(taskConfigMap);
@@ -73,7 +73,7 @@ public class State {
     }
 
     static NormalizedClusterState fromClusterState(Multimap<String, PreemptionVictim> state) {
-      Map<String, ITaskConfig> tasks = new HashMap<>();
+      Map<String, TaskConfig> tasks = new HashMap<>();
       ImmutableMap.Builder<String, List<String>> agents = new ImmutableMap.Builder<>();
       for (Entry<String, Collection<PreemptionVictim>> entry: state.asMap().entrySet()) {
         for (PreemptionVictim victim: entry.getValue()) {

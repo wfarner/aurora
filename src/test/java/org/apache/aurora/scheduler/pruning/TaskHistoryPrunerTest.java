@@ -35,8 +35,8 @@ import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.events.PubsubEvent.TaskStateChange;
 import org.apache.aurora.scheduler.pruning.TaskHistoryPruner.HistoryPrunnerSettings;
 import org.apache.aurora.scheduler.state.StateManager;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.storage.testing.StorageTestUtil;
 import org.apache.aurora.scheduler.testing.FakeStatsProvider;
 import org.easymock.Capture;
@@ -105,11 +105,11 @@ public class TaskHistoryPrunerTest extends EasyMockTest {
   @Test
   public void testNoPruning() {
     long taskATimestamp = clock.nowMillis();
-    IScheduledTask a = makeTask("a", FINISHED);
+    ScheduledTask a = makeTask("a", FINISHED);
 
     clock.advance(ONE_MS);
     long taskBTimestamp = clock.nowMillis();
-    IScheduledTask b = makeTask("b", LOST);
+    ScheduledTask b = makeTask("b", LOST);
 
     expectNoImmediatePrune(ImmutableSet.of(a));
     expectOneDelayedPrune(taskATimestamp);
@@ -125,19 +125,19 @@ public class TaskHistoryPrunerTest extends EasyMockTest {
   @Test
   public void testStorageStartedWithPruning() {
     long taskATimestamp = clock.nowMillis();
-    IScheduledTask a = makeTask("a", FINISHED);
+    ScheduledTask a = makeTask("a", FINISHED);
 
     clock.advance(ONE_MINUTE);
     long taskBTimestamp = clock.nowMillis();
-    IScheduledTask b = makeTask("b", LOST);
+    ScheduledTask b = makeTask("b", LOST);
 
     clock.advance(ONE_MINUTE);
     long taskCTimestamp = clock.nowMillis();
-    IScheduledTask c = makeTask("c", FINISHED);
+    ScheduledTask c = makeTask("c", FINISHED);
 
     clock.advance(ONE_MINUTE);
-    IScheduledTask d = makeTask("d", FINISHED);
-    IScheduledTask e = makeTask(JobKeys.from("role", "env", "job-x"), "e", FINISHED);
+    ScheduledTask d = makeTask("d", FINISHED);
+    ScheduledTask e = makeTask(JobKeys.from("role", "env", "job-x"), "e", FINISHED);
 
     expectNoImmediatePrune(ImmutableSet.of(a));
     expectOneDelayedPrune(taskATimestamp);
@@ -153,7 +153,7 @@ public class TaskHistoryPrunerTest extends EasyMockTest {
     control.replay();
 
     assertEquals(0L, statsProvider.getValue(TASKS_PRUNED));
-    for (IScheduledTask task : ImmutableList.of(a, b, c, d, e)) {
+    for (ScheduledTask task : ImmutableList.of(a, b, c, d, e)) {
       pruner.recordStateChange(TaskStateChange.initialized(task));
     }
     assertEquals(2L, statsProvider.getValue(TASKS_PRUNED));
@@ -161,9 +161,9 @@ public class TaskHistoryPrunerTest extends EasyMockTest {
 
   @Test
   public void testStateChange() {
-    IScheduledTask starting = makeTask("a", STARTING);
-    IScheduledTask running = copy(starting, RUNNING);
-    IScheduledTask killed = copy(starting, KILLED);
+    ScheduledTask starting = makeTask("a", STARTING);
+    ScheduledTask running = copy(starting, RUNNING);
+    ScheduledTask killed = copy(starting, KILLED);
 
     expectNoImmediatePrune(ImmutableSet.of(killed));
     expectDefaultDelayedPrune();
@@ -179,8 +179,8 @@ public class TaskHistoryPrunerTest extends EasyMockTest {
 
   @Test
   public void testActivateFutureAndExceedHistoryGoal() {
-    IScheduledTask running = makeTask("a", RUNNING);
-    IScheduledTask killed = copy(running, KILLED);
+    ScheduledTask running = makeTask("a", RUNNING);
+    ScheduledTask killed = copy(running, KILLED);
     expectNoImmediatePrune(ImmutableSet.of(running));
     Capture<Runnable> delayedDelete = expectDefaultDelayedPrune();
 
@@ -200,8 +200,8 @@ public class TaskHistoryPrunerTest extends EasyMockTest {
 
   @Test
   public void testSuppressEmptyDelete() {
-    IScheduledTask running = makeTask("a", RUNNING);
-    IScheduledTask killed = copy(running, KILLED);
+    ScheduledTask running = makeTask("a", RUNNING);
+    ScheduledTask killed = copy(running, KILLED);
     expectImmediatePrune(
         ImmutableSet.of(makeTask("b", KILLED), makeTask("c", KILLED), makeTask("d", KILLED)));
     expectDefaultDelayedPrune();
@@ -213,21 +213,21 @@ public class TaskHistoryPrunerTest extends EasyMockTest {
 
   @Test
   public void testJobHistoryExceeded() {
-    IScheduledTask a = makeTask("a", RUNNING);
+    ScheduledTask a = makeTask("a", RUNNING);
     clock.advance(ONE_MS);
-    IScheduledTask aKilled = copy(a, KILLED);
+    ScheduledTask aKilled = copy(a, KILLED);
 
-    IScheduledTask b = makeTask("b", RUNNING);
+    ScheduledTask b = makeTask("b", RUNNING);
     clock.advance(ONE_MS);
-    IScheduledTask bKilled = copy(b, KILLED);
+    ScheduledTask bKilled = copy(b, KILLED);
 
-    IScheduledTask c = makeTask("c", RUNNING);
+    ScheduledTask c = makeTask("c", RUNNING);
     clock.advance(ONE_MS);
-    IScheduledTask cLost = copy(c, LOST);
+    ScheduledTask cLost = copy(c, LOST);
 
-    IScheduledTask d = makeTask("d", RUNNING);
+    ScheduledTask d = makeTask("d", RUNNING);
     clock.advance(ONE_MS);
-    IScheduledTask dLost = copy(d, LOST);
+    ScheduledTask dLost = copy(d, LOST);
 
     expectNoImmediatePrune(ImmutableSet.of(a));
     expectDefaultDelayedPrune();
@@ -251,8 +251,8 @@ public class TaskHistoryPrunerTest extends EasyMockTest {
 
   @Test
   public void serviceShutdownOnFailure() {
-    IScheduledTask running = makeTask("a", RUNNING);
-    IScheduledTask killed = copy(running, KILLED);
+    ScheduledTask running = makeTask("a", RUNNING);
+    ScheduledTask killed = copy(running, KILLED);
     expectNoImmediatePrune(ImmutableSet.of(running));
     Capture<Runnable> delayedDelete = expectDefaultDelayedPrune();
 
@@ -282,13 +282,13 @@ public class TaskHistoryPrunerTest extends EasyMockTest {
     return expectDelayedPrune(timestampMillis);
   }
 
-  private void expectNoImmediatePrune(ImmutableSet<IScheduledTask> tasksInJob) {
+  private void expectNoImmediatePrune(ImmutableSet<ScheduledTask> tasksInJob) {
     expectImmediatePrune(tasksInJob);
   }
 
   private void expectImmediatePrune(
-      ImmutableSet<IScheduledTask> tasksInJob,
-      IScheduledTask... pruned) {
+      ImmutableSet<ScheduledTask> tasksInJob,
+      ScheduledTask... pruned) {
 
     // Expect a deferred prune operation when a new task is being watched.
     executor.execute(EasyMock.<Runnable>anyObject());
@@ -300,7 +300,7 @@ public class TaskHistoryPrunerTest extends EasyMockTest {
         }
     );
 
-    IJobKey jobKey = Iterables.getOnlyElement(
+    JobKey jobKey = Iterables.getOnlyElement(
         FluentIterable.from(tasksInJob).transform(Tasks::getJob).toSet());
     storageUtil.expectTaskFetch(TaskHistoryPruner.jobHistoryQuery(jobKey), tasksInJob);
     if (pruned.length > 0) {
@@ -316,16 +316,16 @@ public class TaskHistoryPrunerTest extends EasyMockTest {
     return capture;
   }
 
-  private void changeState(IScheduledTask oldStateTask, IScheduledTask newStateTask) {
+  private void changeState(ScheduledTask oldStateTask, ScheduledTask newStateTask) {
     pruner.recordStateChange(TaskStateChange.transition(newStateTask, oldStateTask.getStatus()));
   }
 
-  private IScheduledTask copy(IScheduledTask task, ScheduleStatus status) {
-    return IScheduledTask.build(task.newBuilder().setStatus(status));
+  private ScheduledTask copy(ScheduledTask task, ScheduleStatus status) {
+    return ScheduledTask.build(task.newBuilder().setStatus(status));
   }
 
-  private IScheduledTask makeTask(
-      IJobKey job,
+  private ScheduledTask makeTask(
+      JobKey job,
       String taskId,
       ScheduleStatus status) {
 
@@ -333,10 +333,10 @@ public class TaskHistoryPrunerTest extends EasyMockTest {
         TaskTestUtil.makeTask(taskId, job), status, clock.nowMillis())
         .newBuilder();
     builder.getAssignedTask().setSlaveHost(SLAVE_HOST);
-    return IScheduledTask.build(builder);
+    return ScheduledTask.build(builder);
   }
 
-  private IScheduledTask makeTask(String taskId, ScheduleStatus status) {
+  private ScheduledTask makeTask(String taskId, ScheduleStatus status) {
     return makeTask(TaskTestUtil.JOB, taskId, status);
   }
 

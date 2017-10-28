@@ -26,8 +26,6 @@ import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.base.TaskTestUtil;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult.Quiet;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
 import org.apache.aurora.scheduler.storage.mem.MemStorageModule;
 import org.junit.Before;
 import org.junit.Test;
@@ -72,7 +70,7 @@ public class MaintenanceTest {
           .setSlaveId("b");
 
       storeProvider.getUnsafeTaskStore().saveTasks(
-          IScheduledTask.setFromBuilders(ImmutableList.of(pending, assigned)));
+          ScheduledTask.setFromBuilders(ImmutableList.of(pending, assigned)));
     });
 
     @SuppressWarnings("unchecked")

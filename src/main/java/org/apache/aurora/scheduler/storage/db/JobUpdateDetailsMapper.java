@@ -27,7 +27,7 @@ import org.apache.aurora.gen.Range;
 import org.apache.aurora.scheduler.storage.db.views.DbJobUpdate;
 import org.apache.aurora.scheduler.storage.db.views.DbJobUpdateInstructions;
 import org.apache.aurora.scheduler.storage.db.views.DbStoredJobUpdateDetails;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
+import org.apache.aurora.gen.JobUpdateKey;
 import org.apache.ibatis.annotations.Param;
 
 /**
@@ -51,7 +51,7 @@ interface JobUpdateDetailsMapper {
    * @param lockToken Unique lock identifier, resulting from
    *        {@link org.apache.aurora.scheduler.storage.entities.ILock#getToken()}.
    */
-  void insertLockToken(@Param("key") IJobUpdateKey key, @Param("lockToken") String lockToken);
+  void insertLockToken(@Param("key") JobUpdateKey key, @Param("lockToken") String lockToken);
 
   /**
    * Inserts a task configuration entry for an update.
@@ -63,7 +63,7 @@ interface JobUpdateDetailsMapper {
    * @param result Container for auto-generated ID of the inserted job update row.
    */
   void insertTaskConfig(
-      @Param("key") IJobUpdateKey key,
+      @Param("key") JobUpdateKey key,
       @Param("taskConfigRow") long taskConfigRow,
       @Param("isNew") boolean isNew,
       @Param("result") InsertResult result);
@@ -75,7 +75,7 @@ interface JobUpdateDetailsMapper {
    * @param metadata Set of metadata (key, value) pairs.
    */
   void insertJobUpdateMetadata(
-      @Param("key") IJobUpdateKey key,
+      @Param("key") JobUpdateKey key,
       @Param("metadata") Set<Metadata> metadata);
 
   /**
@@ -95,7 +95,7 @@ interface JobUpdateDetailsMapper {
    * @param key Update to store overrides for.
    * @param ranges Instance ID ranges to associate with an update.
    */
-  void insertInstanceOverrides(@Param("key") IJobUpdateKey key, @Param("ranges") Set<Range> ranges);
+  void insertInstanceOverrides(@Param("key") JobUpdateKey key, @Param("ranges") Set<Range> ranges);
 
   /**
    * Maps update with a set of instance IDs in
@@ -104,7 +104,7 @@ interface JobUpdateDetailsMapper {
    * @param key Update to store desired instances for.
    * @param ranges Desired instance ID ranges to associate with an update.
    */
-  void insertDesiredInstances(@Param("key") IJobUpdateKey key, @Param("ranges") Set<Range> ranges);
+  void insertDesiredInstances(@Param("key") JobUpdateKey key, @Param("ranges") Set<Range> ranges);
 
   /**
    * Deletes all updates and events from the database.
@@ -161,7 +161,7 @@ interface JobUpdateDetailsMapper {
    * @return Job update details for the provided update ID, if it exists.
    */
   @Nullable
-  DbStoredJobUpdateDetails selectDetails(@Param("key") IJobUpdateKey key);
+  DbStoredJobUpdateDetails selectDetails(@Param("key") JobUpdateKey key);
 
   /**
    * Gets all job update details matching the provided {@code query}.
@@ -179,7 +179,7 @@ interface JobUpdateDetailsMapper {
    * @return Job update for the provided update ID, if it exists.
    */
   @Nullable
-  DbJobUpdate selectUpdate(@Param("key") IJobUpdateKey key);
+  DbJobUpdate selectUpdate(@Param("key") JobUpdateKey key);
 
   /**
    * Gets job update instructions for the provided {@code update}.
@@ -188,7 +188,7 @@ interface JobUpdateDetailsMapper {
    * @return Job update instructions for the provided update ID, if it exists.
    */
   @Nullable
-  DbJobUpdateInstructions selectInstructions(@Param("key") IJobUpdateKey key);
+  DbJobUpdateInstructions selectInstructions(@Param("key") JobUpdateKey key);
 
   /**
    * Gets all stored job update details.
@@ -205,6 +205,6 @@ interface JobUpdateDetailsMapper {
    * @return Instance events affecting {@code instanceId} within {@code key}.
    */
   List<JobInstanceUpdateEvent> selectInstanceUpdateEvents(
-      @Param("key") IJobUpdateKey key,
+      @Param("key") JobUpdateKey key,
       @Param("instanceId") int instanceId);
 }

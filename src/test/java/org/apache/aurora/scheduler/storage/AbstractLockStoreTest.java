@@ -23,8 +23,8 @@ import org.apache.aurora.gen.Lock;
 import org.apache.aurora.gen.LockKey;
 import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.storage.Storage.StorageException;
-import org.apache.aurora.scheduler.storage.entities.ILock;
-import org.apache.aurora.scheduler.storage.entities.ILockKey;
+import org.apache.aurora.gen.Lock;
+import org.apache.aurora.gen.LockKey;
 import org.apache.aurora.scheduler.storage.testing.StorageEntityUtil;
 import org.junit.Before;
 import org.junit.Test;
@@ -42,7 +42,7 @@ public abstract class AbstractLockStoreTest {
         storage.read(storeProvider -> storeProvider.getLockStore().fetchLocks()));
   }
 
-  private Optional<ILock> getLock(ILockKey key) {
+  private Optional<ILock> getLock(LockKey key) {
     return storage.read(storeProvider -> storeProvider.getLockStore().fetchLock(key));
   }
 

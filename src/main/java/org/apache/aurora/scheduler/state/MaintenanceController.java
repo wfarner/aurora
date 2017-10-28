@@ -39,9 +39,9 @@ import org.apache.aurora.scheduler.events.PubsubEvent.TaskStateChange;
 import org.apache.aurora.scheduler.storage.AttributeStore;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.IHostStatus;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.HostAttributes;
+import org.apache.aurora.gen.HostStatus;
+import org.apache.aurora.gen.ScheduledTask;
 import org.apache.mesos.v1.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,7 +68,7 @@ public interface MaintenanceController {
    * @param hosts Hosts to put into maintenance mode.
    * @return The adjusted state of the hosts.
    */
-  Set<IHostStatus> startMaintenance(Set<String> hosts);
+  Set<HostStatus> startMaintenance(Set<String> hosts);
 
   /**
    * Initiate a drain of all active tasks on {@code hosts}.
@@ -77,7 +77,7 @@ public interface MaintenanceController {
    * @return The adjusted state of the hosts.  Hosts without any active tasks will be immediately
    *         moved to DRAINED.
    */
-  Set<IHostStatus> drain(Set<String> hosts);
+  Set<HostStatus> drain(Set<String> hosts);
 
   /**
    * Drain tasks defined by the inverse offer.
@@ -101,7 +101,7 @@ public interface MaintenanceController {
    * @param hosts Hosts to fetch state for.
    * @return The state of the hosts.
    */
-  Set<IHostStatus> getStatus(Set<String> hosts);
+  Set<HostStatus> getStatus(Set<String> hosts);
 
   /**
    * Moves {@code hosts} out of maintenance mode, returning them to mode NONE.
@@ -109,7 +109,7 @@ public interface MaintenanceController {
    * @param hosts Hosts to move out of maintenance mode.
    * @return The adjusted state of the hosts.
    */
-  Set<IHostStatus> endMaintenance(Set<String> hosts);
+  Set<HostStatus> endMaintenance(Set<String> hosts);
 
   class MaintenanceControllerImpl implements MaintenanceController, EventSubscriber {
     private static final Logger LOG = LoggerFactory.getLogger(MaintenanceControllerImpl.class);
@@ -154,7 +154,7 @@ public interface MaintenanceController {
 
     }
 
-    private Set<IHostStatus> watchDrainingTasks(MutableStoreProvider store, Set<String> hosts) {
+    private Set<HostStatus> watchDrainingTasks(MutableStoreProvider store, Set<String> hosts) {
       LOG.info("Hosts to drain: " + hosts);
       Set<String> emptyHosts = Sets.newHashSet();
       for (String host : hosts) {
@@ -165,7 +165,7 @@ public interface MaintenanceController {
         }
       }
 
-      return ImmutableSet.<IHostStatus>builder()
+      return ImmutableSet.<HostStatus>builder()
           .addAll(setMaintenanceMode(store, emptyHosts, DRAINED))
           .addAll(setMaintenanceMode(store, Sets.difference(hosts, emptyHosts), DRAINING))
           .build();
@@ -187,7 +187,7 @@ public interface MaintenanceController {
               store.getAttributeStore().getHostAttributes(host);
           if (attributes.isPresent() && attributes.get().getMode() == DRAINING) {
             Query.Builder builder = Query.slaveScoped(host).active();
-            Iterable<IScheduledTask> activeTasks = store.getTaskStore().fetchTasks(builder);
+            Iterable<ScheduledTask> activeTasks = store.getTaskStore().fetchTasks(builder);
             if (Iterables.isEmpty(activeTasks)) {
               LOG.info("Moving host {} into DRAINED", host);
               setMaintenanceMode(store, ImmutableSet.of(host), DRAINED);
@@ -201,7 +201,7 @@ public interface MaintenanceController {
     }
 
     @Override
-    public Set<IHostStatus> startMaintenance(Set<String> hosts) {
+    public Set<HostStatus> startMaintenance(Set<String> hosts) {
       return storage.write(
           storeProvider -> setMaintenanceMode(storeProvider, hosts, MaintenanceMode.SCHEDULED));
     }
@@ -211,7 +211,7 @@ public interface MaintenanceController {
         Optional.of("Draining machine for maintenance.");
 
     @Override
-    public Set<IHostStatus> drain(Set<String> hosts) {
+    public Set<HostStatus> drain(Set<String> hosts) {
       return storage.write(store -> watchDrainingTasks(store, hosts));
     }
 
@@ -240,11 +240,11 @@ public interface MaintenanceController {
     private static final Function<IHostAttributes, String> HOST_NAME =
         IHostAttributes::getHost;
 
-    private static final Function<IHostAttributes, IHostStatus> ATTRS_TO_STATUS =
-        attributes -> IHostStatus.build(
+    private static final Function<IHostAttributes, HostStatus> ATTRS_TO_STATUS =
+        attributes -> HostStatus.build(
             new HostStatus().setHost(attributes.getHost()).setMode(attributes.getMode()));
 
-    private static final Function<IHostStatus, MaintenanceMode> GET_MODE = IHostStatus::getMode;
+    private static final Function<HostStatus, MaintenanceMode> GET_MODE = IHostStatus::getMode;
 
     @Override
     public MaintenanceMode getMode(final String host) {
@@ -255,7 +255,7 @@ public interface MaintenanceController {
     }
 
     @Override
-    public Set<IHostStatus> getStatus(final Set<String> hosts) {
+    public Set<HostStatus> getStatus(final Set<String> hosts) {
       return storage.read(storeProvider -> {
         // Warning - this is filtering _all_ host attributes.  If using this to frequently query
         // for a small set of hosts, a getHostAttributes variant should be added.
@@ -267,25 +267,25 @@ public interface MaintenanceController {
     }
 
     @Override
-    public Set<IHostStatus> endMaintenance(final Set<String> hosts) {
+    public Set<HostStatus> endMaintenance(final Set<String> hosts) {
       return storage.write(
           storeProvider -> setMaintenanceMode(storeProvider, hosts, MaintenanceMode.NONE));
     }
 
-    private Set<IHostStatus> setMaintenanceMode(
+    private Set<HostStatus> setMaintenanceMode(
         MutableStoreProvider storeProvider,
         Set<String> hosts,
         MaintenanceMode mode) {
 
       AttributeStore.Mutable store = storeProvider.getAttributeStore();
-      ImmutableSet.Builder<IHostStatus> statuses = ImmutableSet.builder();
+      ImmutableSet.Builder<HostStatus> statuses = ImmutableSet.builder();
       for (String host : hosts) {
         LOG.info("Setting maintenance mode to {} for host {}", mode, host);
         Optional<IHostAttributes> toSave = AttributeStore.Util.mergeMode(store, host, mode);
         if (toSave.isPresent()) {
           store.saveHostAttributes(toSave.get());
           LOG.info("Updated host attributes: " + toSave.get());
-          statuses.add(IHostStatus.build(new HostStatus().setHost(host).setMode(mode)));
+          statuses.add(HostStatus.build(new HostStatus().setHost(host).setMode(mode)));
         }
       }
       return statuses.build();

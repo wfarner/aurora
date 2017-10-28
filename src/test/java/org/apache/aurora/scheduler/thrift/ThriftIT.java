@@ -69,6 +69,9 @@ import org.apache.aurora.scheduler.storage.backup.StorageBackup;
 import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
 import org.apache.aurora.scheduler.storage.entities.IServerInfo;
 import org.apache.aurora.scheduler.storage.mem.MemStorageModule;
+import org.apache.aurora.scheduler.storage.db.DbModule;
+import org.apache.aurora.gen.ResourceAggregate;
+import org.apache.aurora.gen.ServerInfo;
 import org.apache.aurora.scheduler.thrift.aop.AnnotatedAuroraAdmin;
 import org.apache.aurora.scheduler.thrift.aop.AopModule;
 import org.apache.mesos.v1.Protos.FrameworkInfo;
@@ -82,7 +85,7 @@ import static org.junit.Assert.assertEquals;
 public class ThriftIT extends EasyMockTest {
 
   private static final String USER = "someuser";
-  private static final IResourceAggregate QUOTA = ResourceTestUtil.aggregate(1, 1, 1);
+  private static final ResourceAggregate QUOTA = ResourceTestUtil.aggregate(1, 1, 1);
   private static final IServerInfo SERVER_INFO = IServerInfo.build(new ServerInfo());
 
   private AuroraAdmin.Iface thrift;

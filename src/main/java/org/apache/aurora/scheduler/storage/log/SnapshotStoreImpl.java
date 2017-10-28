@@ -62,14 +62,14 @@ import org.apache.aurora.scheduler.storage.db.DbStorage;
 import org.apache.aurora.scheduler.storage.db.DbUtil;
 import org.apache.aurora.scheduler.storage.db.EnumBackfill;
 import org.apache.aurora.scheduler.storage.db.MigrationManager;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
-import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateEvent;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
-import org.apache.aurora.scheduler.storage.entities.ILock;
-import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.HostAttributes;
+import org.apache.aurora.gen.JobConfiguration;
+import org.apache.aurora.gen.JobInstanceUpdateEvent;
+import org.apache.aurora.gen.JobUpdateEvent;
+import org.apache.aurora.gen.JobUpdateKey;
+import org.apache.aurora.gen.Lock;
+import org.apache.aurora.gen.ResourceAggregate;
+import org.apache.aurora.gen.ScheduledTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -133,7 +133,7 @@ public class SnapshotStoreImpl implements SnapshotStore<Snapshot> {
 
         @Override
         public void restoreFromSnapshot(MutableStoreProvider store, Snapshot snapshot) {
-          if (snapshot.isSetDbScript()) {
+          if (snapshot.hasDbScript()) {
             LOG.info("Loading contents from legacy dbScript field");
 
             Injector injector = DbUtil.createStorageInjector(DbModule.testModuleWithWorkQueue());
@@ -231,7 +231,7 @@ public class SnapshotStoreImpl implements SnapshotStore<Snapshot> {
         @Override
         public void saveToSnapshot(MutableStoreProvider store, Snapshot snapshot) {
           snapshot.setTasks(
-              IScheduledTask.toBuildersSet(store.getTaskStore().fetchTasks(Query.unscoped())));
+              ScheduledTask.toBuildersSet(store.getTaskStore().fetchTasks(Query.unscoped())));
         }
 
         @Override
@@ -253,7 +253,7 @@ public class SnapshotStoreImpl implements SnapshotStore<Snapshot> {
         public void saveToSnapshot(MutableStoreProvider store, Snapshot snapshot) {
           ImmutableSet.Builder<StoredCronJob> jobs = ImmutableSet.builder();
 
-          for (IJobConfiguration config : store.getCronJobStore().fetchJobs()) {
+          for (JobConfiguration config : store.getCronJobStore().fetchJobs()) {
             jobs.add(new StoredCronJob(config.newBuilder()));
           }
           snapshot.setCronJobs(jobs.build());
@@ -283,8 +283,8 @@ public class SnapshotStoreImpl implements SnapshotStore<Snapshot> {
 
         @Override
         public void restoreFromSnapshot(MutableStoreProvider store, Snapshot snapshot) {
-          if (snapshot.isSetSchedulerMetadata()
-              && snapshot.getSchedulerMetadata().isSetFrameworkId()) {
+          if (snapshot.hasSchedulerMetadata()
+              && snapshot.getSchedulerMetadata().hasFrameworkId()) {
             // No delete necessary here since this is a single value.
 
             store.getSchedulerStore()
@@ -301,7 +301,7 @@ public class SnapshotStoreImpl implements SnapshotStore<Snapshot> {
         @Override
         public void saveToSnapshot(MutableStoreProvider store, Snapshot snapshot) {
           ImmutableSet.Builder<QuotaConfiguration> quotas = ImmutableSet.builder();
-          for (Map.Entry<String, IResourceAggregate> entry
+          for (Map.Entry<String, ResourceAggregate> entry
               : store.getQuotaStore().fetchQuotas().entrySet()) {
 
             quotas.add(new QuotaConfiguration(entry.getKey(), entry.getValue().newBuilder()));
@@ -316,7 +316,7 @@ public class SnapshotStoreImpl implements SnapshotStore<Snapshot> {
             store.getQuotaStore().deleteQuotas();
             for (QuotaConfiguration quota : snapshot.getQuotaConfigurations()) {
               store.getQuotaStore()
-                  .saveQuota(quota.getRole(), IResourceAggregate.build(quota.getQuota()));
+                  .saveQuota(quota.getRole(), ResourceAggregate.build(quota.getQuota()));
             }
           }
         }
@@ -346,15 +346,15 @@ public class SnapshotStoreImpl implements SnapshotStore<Snapshot> {
               if (details.getUpdateEventsSize() > 0) {
                 for (JobUpdateEvent updateEvent : details.getUpdateEvents()) {
                   updateStore.saveJobUpdateEvent(
-                      IJobUpdateKey.build(details.getUpdate().getSummary().getKey()),
-                      IJobUpdateEvent.build(updateEvent));
+                      JobUpdateKey.build(details.getUpdate().getSummary().getKey()),
+                      JobUpdateEvent.build(updateEvent));
                 }
               }
 
               if (details.getInstanceEventsSize() > 0) {
                 for (JobInstanceUpdateEvent instanceEvent : details.getInstanceEvents()) {
                   updateStore.saveJobInstanceUpdateEvent(
-                      IJobUpdateKey.build(details.getUpdate().getSummary().getKey()),
+                      JobUpdateKey.build(details.getUpdate().getSummary().getKey()),
                       IJobInstanceUpdateEvent.build(instanceEvent));
                 }
               }

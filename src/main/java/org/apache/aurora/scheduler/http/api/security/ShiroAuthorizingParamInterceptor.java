@@ -51,7 +51,7 @@ import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.http.api.security.FieldGetter.IdentityFieldGetter;
 import org.apache.aurora.scheduler.spi.Permissions;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
+import org.apache.aurora.gen.JobKey;
 import org.apache.aurora.scheduler.thrift.Responses;
 import org.apache.shiro.authz.Permission;
 import org.apache.shiro.subject.Subject;
@@ -276,7 +276,7 @@ class ShiroAuthorizingParamInterceptor implements MethodInterceptor {
   }
 
   @VisibleForTesting
-  Permission makeTargetPermission(String methodName, IJobKey jobKey) {
+  Permission makeTargetPermission(String methodName, JobKey jobKey) {
     return Permissions.createJobScopedPermission(methodName, jobKey);
   }
 
@@ -287,10 +287,10 @@ class ShiroAuthorizingParamInterceptor implements MethodInterceptor {
     Method method = invocation.getMethod();
     Subject subject = subjectProvider.get();
 
-    Optional<IJobKey> jobKey = authorizingParamGetters
+    Optional<JobKey> jobKey = authorizingParamGetters
         .getUnchecked(invocation.getMethod())
         .apply(invocation.getArguments())
-        .transform(IJobKey::build);
+        .transform(JobKey::build);
     if (jobKey.isPresent() && JobKeys.isValid(jobKey.get())) {
       Permission targetPermission = makeTargetPermission(method.getName(), jobKey.get());
       if (subject.isPermitted(targetPermission)) {

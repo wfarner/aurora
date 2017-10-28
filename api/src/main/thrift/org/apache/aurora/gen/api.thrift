@@ -458,13 +458,9 @@ const set<ScheduleStatus> TERMINAL_STATES = [ScheduleStatus.FAILED,
                                              ScheduleStatus.KILLED,
                                              ScheduleStatus.LOST]
 
-// Regular expressions for matching valid identifiers for job path components. All expressions
-// below should accept and reject the same set of inputs.
+// Regular expression for matching valid identifiers for job path components.  Compatible with
+// JDK java.util.regex.Pattern#compile and Python re.compile
 const string GOOD_IDENTIFIER_PATTERN = "^[\\w\\-\\.]+$"
-// JVM: Use with java.util.regex.Pattern#compile
-const string GOOD_IDENTIFIER_PATTERN_JVM = GOOD_IDENTIFIER_PATTERN
-// Python: Use with re.compile
-const string GOOD_IDENTIFIER_PATTERN_PYTHON = GOOD_IDENTIFIER_PATTERN
 
 /** Event marking a state transition within a task's lifecycle. */
 struct TaskEvent {

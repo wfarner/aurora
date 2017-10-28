@@ -17,7 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
 import org.apache.aurora.gen.ScheduleStatus;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.ScheduledTask;
 import org.junit.Test;
 
 import static org.apache.aurora.gen.ScheduleStatus.FINISHED;
@@ -41,12 +41,12 @@ public class TasksTest {
 
   @Test
   public void testLatestTransitionedTasks() {
-    IScheduledTask f1 = makeTask(FINISHED, 100);
-    IScheduledTask f2 = makeTask(FINISHED, 200);
-    IScheduledTask f3 = makeTask(FINISHED, 300);
-    IScheduledTask r1 = makeTask(RUNNING, 400);
-    IScheduledTask r2 = makeTask(RUNNING, 500);
-    IScheduledTask r3 = makeTask(RUNNING, 600);
+    ScheduledTask f1 = makeTask(FINISHED, 100);
+    ScheduledTask f2 = makeTask(FINISHED, 200);
+    ScheduledTask f3 = makeTask(FINISHED, 300);
+    ScheduledTask r1 = makeTask(RUNNING, 400);
+    ScheduledTask r2 = makeTask(RUNNING, 500);
+    ScheduledTask r3 = makeTask(RUNNING, 600);
 
     try {
       getLatestActiveTask(ImmutableList.of());
@@ -73,11 +73,11 @@ public class TasksTest {
     assertLatestTask(r3, r1, r3, r2, f3, f1, f2);
   }
 
-  private void assertLatestTask(IScheduledTask expectedLatest, IScheduledTask... tasks) {
+  private void assertLatestTask(ScheduledTask expectedLatest, ScheduledTask... tasks) {
     assertEquals(expectedLatest, getLatestActiveTask(ImmutableList.copyOf(tasks)));
   }
 
-  private IScheduledTask makeTask(ScheduleStatus status, long timestamp) {
+  private ScheduledTask makeTask(ScheduleStatus status, long timestamp) {
     return TaskTestUtil.addStateTransition(
         TaskTestUtil.makeTask("id-" + timestamp, TaskTestUtil.JOB),
         status,

@@ -17,13 +17,13 @@ import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
-import static org.apache.aurora.gen.apiConstants.GOOD_IDENTIFIER_PATTERN_JVM;
+import static org.apache.aurora.gen.Api_Constants.GOOD_IDENTIFIER_PATTERN;
 
 /**
  * Utility class for validation of strings provided by end-users.
  */
 public final class UserProvidedStrings {
-  private static final Pattern GOOD_IDENTIFIER = Pattern.compile(GOOD_IDENTIFIER_PATTERN_JVM);
+  private static final Pattern GOOD_IDENTIFIER = Pattern.compile(GOOD_IDENTIFIER_PATTERN);
   private static final int MAX_IDENTIFIER_LENGTH = 255;
 
   private UserProvidedStrings() {

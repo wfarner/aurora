@@ -13,20 +13,20 @@
  */
 package org.apache.aurora.scheduler.updater;
 
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateSummary;
+import org.apache.aurora.gen.JobUpdateSummary;
 
 /**
  * Thrown when there is an in-progress update for the job already.
  */
 public class UpdateInProgressException extends UpdateStateException {
-  private final IJobUpdateSummary inProgressUpdateSummary;
+  private final JobUpdateSummary inProgressUpdateSummary;
 
-  public UpdateInProgressException(String message, IJobUpdateSummary inProgressUpdateSummary) {
+  public UpdateInProgressException(String message, JobUpdateSummary inProgressUpdateSummary) {
     super(message);
     this.inProgressUpdateSummary = inProgressUpdateSummary;
   }
 
-  public IJobUpdateSummary getInProgressUpdateSummary() {
+  public JobUpdateSummary getInProgressUpdateSummary() {
     return inProgressUpdateSummary;
   }
 }

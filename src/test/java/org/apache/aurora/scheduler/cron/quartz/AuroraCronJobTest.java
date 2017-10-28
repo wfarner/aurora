@@ -33,7 +33,7 @@ import org.apache.aurora.scheduler.state.StateChangeResult;
 import org.apache.aurora.scheduler.state.StateManager;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.storage.mem.MemStorageModule;
 import org.easymock.Capture;
 import org.junit.Before;
@@ -180,7 +180,7 @@ public class AuroraCronJobTest extends EasyMockTest {
   private void populateTaskStore() {
     storage.write((NoResult.Quiet)
         storeProvider -> storeProvider.getUnsafeTaskStore().saveTasks(ImmutableSet.of(
-            IScheduledTask.build(new ScheduledTask()
+            ScheduledTask.build(new ScheduledTask()
                 .setStatus(ScheduleStatus.RUNNING)
                 .setAssignedTask(new AssignedTask()
                     .setTaskId(TASK_ID)

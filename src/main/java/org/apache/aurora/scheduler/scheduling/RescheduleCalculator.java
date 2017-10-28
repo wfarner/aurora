@@ -34,8 +34,8 @@ import org.apache.aurora.gen.ScheduleStatus;
 import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.config.types.TimeAmount;
 import org.apache.aurora.scheduler.storage.Storage;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
-import org.apache.aurora.scheduler.storage.entities.ITaskEvent;
+import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.gen.TaskEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +56,7 @@ public interface RescheduleCalculator {
    * @param task Task to calculate delay for.
    * @return Delay in msec.
    */
-  long getStartupScheduleDelayMs(IScheduledTask task);
+  long getStartupScheduleDelayMs(ScheduledTask task);
 
   /**
    * Calculates the penalty, in milliseconds, that a task should be penalized before being
@@ -65,7 +65,7 @@ public interface RescheduleCalculator {
    * @param task Task to calculate delay for.
    * @return Delay in msec.
    */
-  long getFlappingPenaltyMs(IScheduledTask task);
+  long getFlappingPenaltyMs(ScheduledTask task);
 
   class RescheduleCalculatorImpl implements RescheduleCalculator {
 
@@ -82,9 +82,9 @@ public interface RescheduleCalculator {
     private static final Set<ScheduleStatus> INTERRUPTED_TASK_STATES =
         EnumSet.of(RESTARTING, KILLING, DRAINING);
 
-    private final Predicate<IScheduledTask> flapped = new Predicate<IScheduledTask>() {
+    private final Predicate<ScheduledTask> flapped = new Predicate<ScheduledTask>() {
       @Override
-      public boolean apply(IScheduledTask task) {
+      public boolean apply(ScheduledTask task) {
         if (task.getTaskEvents().isEmpty()) {
           return false;
         }
@@ -136,13 +136,13 @@ public interface RescheduleCalculator {
     }
 
     @Override
-    public long getStartupScheduleDelayMs(IScheduledTask task) {
+    public long getStartupScheduleDelayMs(ScheduledTask task) {
       return random.nextInt(settings.maxStartupRescheduleDelay.as(Time.MILLISECONDS).intValue())
           + getFlappingPenaltyMs(task);
     }
 
-    private Optional<IScheduledTask> getTaskAncestor(IScheduledTask task) {
-      if (!task.isSetAncestorId()) {
+    private Optional<ScheduledTask> getTaskAncestor(ScheduledTask task) {
+      if (!task.hasAncestorId()) {
         return Optional.absent();
       }
 
@@ -150,8 +150,8 @@ public interface RescheduleCalculator {
     }
 
     @Override
-    public long getFlappingPenaltyMs(IScheduledTask task) {
-      Optional<IScheduledTask> curTask = getTaskAncestor(task);
+    public long getFlappingPenaltyMs(ScheduledTask task) {
+      Optional<ScheduledTask> curTask = getTaskAncestor(task);
       long penaltyMs = 0;
       while (curTask.isPresent() && flapped.apply(curTask.get())) {
         LOG.info(

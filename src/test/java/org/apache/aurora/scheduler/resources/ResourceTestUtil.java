@@ -25,9 +25,9 @@ import org.apache.aurora.gen.Resource;
 import org.apache.aurora.gen.ResourceAggregate;
 import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.base.Numbers;
-import org.apache.aurora.scheduler.storage.entities.IResource;
-import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.Resource;
+import org.apache.aurora.gen.ResourceAggregate;
+import org.apache.aurora.gen.TaskConfig;
 import org.apache.mesos.v1.Protos;
 import org.apache.mesos.v1.Protos.Value.Type;
 
@@ -54,28 +54,28 @@ public final class ResourceTestUtil {
     return ResourceManager.bagFromAggregate(aggregate(numCpus, ramMb, diskMb));
   }
 
-  public static IResourceAggregate aggregate(double numCpus, long ramMb, long diskMb) {
-    return IResourceAggregate.build(new ResourceAggregate(numCpus, ramMb, diskMb, ImmutableSet.of(
+  public static ResourceAggregate aggregate(double numCpus, long ramMb, long diskMb) {
+    return ResourceAggregate.build(new ResourceAggregate(numCpus, ramMb, diskMb, ImmutableSet.of(
         numCpus(numCpus),
         ramMb(ramMb),
         diskMb(diskMb)
     )));
   }
 
-  public static ITaskConfig resetPorts(ITaskConfig config, Set<String> portNames) {
+  public static TaskConfig resetPorts(TaskConfig config, Set<String> portNames) {
     TaskConfig builder = config.newBuilder();
-    builder.getResources().removeIf(e -> fromResource(IResource.build(e)).equals(PORTS));
+    builder.getResources().removeIf(e -> fromResource(Resource.build(e)).equals(PORTS));
     portNames.forEach(e -> builder.addToResources(Resource.namedPort(e)));
-    return ITaskConfig.build(builder);
+    return TaskConfig.build(builder);
   }
 
-  public static ITaskConfig resetResource(ITaskConfig config, ResourceType type, Double value) {
+  public static TaskConfig resetResource(TaskConfig config, ResourceType type, Double value) {
     TaskConfig builder = config.newBuilder();
-    builder.getResources().removeIf(e -> fromResource(IResource.build(e)).equals(type));
-    builder.addToResources(IResource.newBuilder(
+    builder.getResources().removeIf(e -> fromResource(Resource.build(e)).equals(type));
+    builder.addToResources(Resource.newBuilder(
         type.getValue(),
         type.getAuroraResourceConverter().valueOf(value)));
-    return ITaskConfig.build(builder);
+    return TaskConfig.build(builder);
   }
 
   public static Protos.Resource mesosScalar(ResourceType type, double value) {

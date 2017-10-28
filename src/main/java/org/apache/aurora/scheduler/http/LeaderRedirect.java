@@ -85,9 +85,9 @@ class LeaderRedirect implements Closeable {
   private Optional<HostAndPort> getLeaderHttp() {
     Optional<ServiceInstance> leadingScheduler = getLeader();
 
-    if (leadingScheduler.isPresent() && leadingScheduler.get().isSetServiceEndpoint()) {
+    if (leadingScheduler.isPresent() && leadingScheduler.get().hasServiceEndpoint()) {
       Endpoint leaderHttp = leadingScheduler.get().getServiceEndpoint();
-      if (leaderHttp != null && leaderHttp.isSetHost() && leaderHttp.isSetPort()) {
+      if (leaderHttp != null && leaderHttp.hasHost() && leaderHttp.hasPort()) {
         return Optional.of(HostAndPort.fromParts(leaderHttp.getHost(), leaderHttp.getPort()));
       }
     }
@@ -137,7 +137,7 @@ class LeaderRedirect implements Closeable {
       return LeaderStatus.NO_LEADER;
     }
 
-    if (!leadingScheduler.get().isSetServiceEndpoint()) {
+    if (!leadingScheduler.get().hasServiceEndpoint()) {
       LOG.warn("Leader service instance seems to be incomplete: " + leadingScheduler);
       return LeaderStatus.NO_LEADER;
     }

@@ -39,8 +39,8 @@ public final class Responses {
    *
    * @return An empty response message.
    */
-  public static Response empty() {
-    return new Response().setDetails(Lists.newArrayList());
+  public static Response._Builder empty() {
+    return new Response._Builder().setDetails(Lists.newArrayList());
   }
 
   /**
@@ -51,38 +51,45 @@ public final class Responses {
    * @param message Message to include in the response.
    * @return {@code response} with {@code message} included.
    */
-  public static Response addMessage(Response response, String message) {
+  public static Response._Builder addMessage(Response._Builder response, String message) {
     return appendMessage(response, MorePreconditions.checkNotBlank(message));
   }
 
   /**
-   * Identical to {@link #addMessage(Response, String)} that also applies a response code.
+   * Identical to {@link #addMessage(Response._Builder, String)} that also applies a response code.
    *
    * @param response Response to augment.
    * @param code Response code to include.
    * @param message Message to include in the response.
    * @return {@code response} with {@code message} included.
-   * @see {@link #addMessage(Response, String)}
+   * @see {@link #addMessage(Response._Builder, String)}
    */
-  public static Response addMessage(Response response, ResponseCode code, String message) {
+  public static Response._Builder addMessage(
+      Response._Builder response,
+      ResponseCode code,
+      String message) {
+
     return addMessage(response.setResponseCode(code), message);
   }
 
   /**
-   * Identical to {@link #addMessage(Response, String)} that also applies a response code and
-   * extracts a message from the provided {@link Throwable}.
+   * Identical to {@link #addMessage(Response._Builder, String)} that also applies a response code
+   * and extracts a message from the provided {@link Throwable}.
    *
    * @param response Response to augment.
    * @param code Response code to include.
    * @param throwable {@link Throwable} to extract message from.
-   * @return {@link #addMessage(Response, String)}
+   * @return {@link #addMessage(Response._Builder, String)}
    */
-  public static Response addMessage(Response response, ResponseCode code, Throwable throwable) {
+  public static Response._Builder addMessage(
+      Response._Builder response,
+      ResponseCode code,
+      Throwable throwable) {
     return appendMessage(response.setResponseCode(code), throwable.getMessage());
   }
 
-  private static Response appendMessage(Response response, String message) {
-    response.addToDetails(new ResponseDetail(message));
+  private static Response._Builder appendMessage(Response._Builder response, String message) {
+    response.addToDetails(new ResponseDetail._Builder().setMessage(message).build());
     return response;
   }
 
@@ -92,7 +99,7 @@ public final class Responses {
    * @param message The error message.
    * @return A response with an ERROR code set containing the message indicated.
    */
-  public static Response error(String message) {
+  public static Response._Builder error(String message) {
     return addMessage(empty(), ERROR, message);
   }
 
@@ -102,18 +109,18 @@ public final class Responses {
    * @return Ok response with an empty result.
    */
   public static Response ok()  {
-    return empty().setResponseCode(OK);
+    return empty().setResponseCode(OK).build();
   }
 
   static Response invalidRequest(String message) {
-    return addMessage(empty(), INVALID_REQUEST, message);
+    return addMessage(empty(), INVALID_REQUEST, message).build();
   }
 
   static Response ok(Result result) {
-    return ok().setResult(result);
+    return ok().mutate().setResult(result).build();
   }
 
   static Response error(ResponseCode code, Throwable error) {
-    return addMessage(empty(), code, error);
+    return addMessage(empty(), code, error).build();
   }
 }

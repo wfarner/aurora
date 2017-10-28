@@ -26,10 +26,10 @@ import org.apache.aurora.scheduler.base.Query;
 import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.storage.AttributeStore;
 import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
-import org.apache.aurora.scheduler.storage.entities.IAttribute;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.Attribute;
+import org.apache.aurora.gen.HostAttributes;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.ScheduledTask;
 
 import static java.util.Objects.requireNonNull;
 
@@ -73,7 +73,7 @@ public final class AttributeAggregate {
    */
   public static AttributeAggregate getJobActiveState(
       final StoreProvider storeProvider,
-      final IJobKey jobKey) {
+      final JobKey jobKey) {
 
     return create(
         () -> storeProvider.getTaskStore()
@@ -83,7 +83,7 @@ public final class AttributeAggregate {
 
   @VisibleForTesting
   static AttributeAggregate create(
-      final Supplier<Iterable<IScheduledTask>> taskSupplier,
+      final Supplier<Iterable<ScheduledTask>> taskSupplier,
       final AttributeStore attributeStore) {
 
     final Function<String, Iterable<IAttribute>> getHostAttributes =

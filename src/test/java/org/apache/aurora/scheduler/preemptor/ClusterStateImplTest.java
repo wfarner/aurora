@@ -22,8 +22,8 @@ import org.apache.aurora.gen.ScheduleStatus;
 import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.events.PubsubEvent.TaskStateChange;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.AssignedTask;
+import org.apache.aurora.gen.ScheduledTask;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -125,7 +125,7 @@ public class ClusterStateImplTest {
   }
 
   private void changeState(IAssignedTask assignedTask, ScheduleStatus status) {
-    IScheduledTask task = IScheduledTask.build(new ScheduledTask()
+    ScheduledTask task = ScheduledTask.build(new ScheduledTask()
         .setStatus(status)
         .setAssignedTask(assignedTask.newBuilder()));
     state.taskChangedState(TaskStateChange.transition(task, ScheduleStatus.INIT));

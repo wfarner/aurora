@@ -26,7 +26,6 @@ import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 
 import org.apache.aurora.GuavaUtils;
-import org.apache.aurora.scheduler.storage.entities.IRange;
 import org.apache.mesos.v1.Protos;
 
 /**
@@ -94,20 +93,20 @@ public final class Numbers {
    * @param range Range to convert.
    * @return A closed range from the first to last of {@code range}.
    */
-  public static Range<Integer> toRange(IRange range) {
+  public static Range<Integer> toRange(org.apache.aurora.gen.Range range) {
     return Range.closed(range.getFirst(), range.getLast());
   }
 
   /**
-   * Performs {@link #toRange(IRange)} for a collection of ranges, and convert the result to a set
-   * of integers.
+   * Performs {@link #toRange(org.apache.aurora.gen.Range)} for a collection of ranges, and convert
+   * the result to a set of integers.
    *
    * @param ranges Ranges to convert.
    * @return A set representing {@code ranges}.
    */
-  public static Set<Integer> rangesToInstanceIds(Iterable<IRange> ranges) {
+  public static Set<Integer> rangesToInstanceIds(Iterable<org.apache.aurora.gen.Range> ranges) {
     ImmutableRangeSet.Builder<Integer> instanceIds = ImmutableRangeSet.builder();
-    for (IRange range : ranges) {
+    for (org.apache.aurora.gen.Range range : ranges) {
       instanceIds.add(toRange(range));
     }
 
@@ -115,16 +114,17 @@ public final class Numbers {
   }
 
   /**
-   * Converts set of instance ranges to a set of {@link IRange}.
+   * Converts set of instance ranges to a set of {@link Range}.
    *
    * @param ranges Instance ranges to convert.
-   * @return A set of {@link IRange}.
+   * @return A set of {@link Range}.
    */
-  public static Set<IRange> convertRanges(Set<Range<Integer>> ranges) {
+  public static Set<org.apache.aurora.gen.Range> convertRanges(Set<Range<Integer>> ranges) {
     return ranges.stream()
-        .map(range -> IRange.build(new org.apache.aurora.gen.Range(
-            range.lowerEndpoint(),
-            range.upperEndpoint())))
+        .map(range -> org.apache.aurora.gen.Range.builder()
+            .setFirst(range.lowerEndpoint())
+            .setLast(range.upperEndpoint())
+            .build())
         .collect(GuavaUtils.toImmutableSet());
   }
 }

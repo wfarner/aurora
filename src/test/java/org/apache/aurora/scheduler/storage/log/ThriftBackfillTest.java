@@ -21,8 +21,8 @@ import org.apache.aurora.gen.ResourceAggregate;
 import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.TierManager;
 import org.apache.aurora.scheduler.base.TaskTestUtil;
-import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.ResourceAggregate;
+import org.apache.aurora.gen.TaskConfig;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -56,7 +56,7 @@ public class ThriftBackfillTest extends EasyMockTest {
     TaskConfig expected = config.deepCopy()
         .setResources(ImmutableSet.of(numCpus(1.0), ramMb(32), diskMb(64)));
 
-    expect(tierManager.getTier(ITaskConfig.build(expected))).andReturn(TaskTestUtil.DEV_TIER);
+    expect(tierManager.getTier(TaskConfig.build(expected))).andReturn(TaskTestUtil.DEV_TIER);
 
     control.replay();
 
@@ -74,7 +74,7 @@ public class ThriftBackfillTest extends EasyMockTest {
         .setRamMb(32)
         .setDiskMb(64);
 
-    IResourceAggregate expected = IResourceAggregate.build(aggregate.deepCopy()
+    ResourceAggregate expected = IResourceAggregate.build(aggregate.deepCopy()
         .setResources(ImmutableSet.of(numCpus(1.0), ramMb(32), diskMb(64))));
 
     assertEquals(expected, ThriftBackfill.backfillResourceAggregate(aggregate));
@@ -87,7 +87,7 @@ public class ThriftBackfillTest extends EasyMockTest {
     ResourceAggregate aggregate = new ResourceAggregate()
         .setResources(ImmutableSet.of(numCpus(1.0), ramMb(32), diskMb(64)));
 
-    IResourceAggregate expected = IResourceAggregate.build(aggregate.deepCopy()
+    ResourceAggregate expected = IResourceAggregate.build(aggregate.deepCopy()
         .setNumCpus(1.0)
         .setRamMb(32)
         .setDiskMb(64));
@@ -131,7 +131,7 @@ public class ThriftBackfillTest extends EasyMockTest {
     TaskConfig expected = config.deepCopy()
         .setResources(ImmutableSet.of(numCpus(1.0), ramMb(32), diskMb(64)));
 
-    expect(tierManager.getTier(ITaskConfig.build(expected))).andReturn(TaskTestUtil.PREFERRED_TIER);
+    expect(tierManager.getTier(TaskConfig.build(expected))).andReturn(TaskTestUtil.PREFERRED_TIER);
 
     control.replay();
 
@@ -149,7 +149,7 @@ public class ThriftBackfillTest extends EasyMockTest {
     TaskConfig configWithBackfilledResources = config.deepCopy()
         .setResources(ImmutableSet.of(numCpus(1.0), ramMb(32), diskMb(64)));
 
-    expect(tierManager.getTier(ITaskConfig.build(configWithBackfilledResources)))
+    expect(tierManager.getTier(TaskConfig.build(configWithBackfilledResources)))
         .andReturn(TaskTestUtil.DEV_TIER);
 
     control.replay();

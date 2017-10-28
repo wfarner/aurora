@@ -21,7 +21,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.TaskConfig;
 import org.codehaus.jackson.annotate.JsonCreator;
 import org.codehaus.jackson.annotate.JsonProperty;
 
@@ -40,7 +40,7 @@ public interface TierManager {
    * @param taskConfig Task configuration to get tier for.
    * @return {@link TierInfo} for the given {@code taskConfig}.
    */
-  TierInfo getTier(ITaskConfig taskConfig);
+  TierInfo getTier(TaskConfig taskConfig);
 
   /**
    * Gets name of the default tier.
@@ -97,9 +97,9 @@ public interface TierManager {
     }
 
     @Override
-    public TierInfo getTier(ITaskConfig taskConfig) {
+    public TierInfo getTier(TaskConfig taskConfig) {
       checkArgument(
-          !taskConfig.isSetTier() || tierConfig.tiers.containsKey(taskConfig.getTier()),
+          !taskConfig.hasTier() || tierConfig.tiers.containsKey(taskConfig.getTier()),
           "Invalid tier '%s' in TaskConfig.", taskConfig.getTier());
 
       return tierConfig.tiers.get(taskConfig.getTier());

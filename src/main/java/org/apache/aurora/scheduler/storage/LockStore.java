@@ -16,8 +16,8 @@ package org.apache.aurora.scheduler.storage;
 import java.util.Optional;
 import java.util.Set;
 
-import org.apache.aurora.scheduler.storage.entities.ILock;
-import org.apache.aurora.scheduler.storage.entities.ILockKey;
+import org.apache.aurora.gen.Lock;
+import org.apache.aurora.gen.LockKey;
 
 /**
  * Stores all lock-related data and defines methods for saving, deleting and fetching locks.
@@ -28,7 +28,7 @@ public interface LockStore {
    *
    * @return All locks in the store.
    */
-  Set<ILock> fetchLocks();
+  Set<Lock> fetchLocks();
 
   /**
    * Fetches a lock by its key.
@@ -36,22 +36,22 @@ public interface LockStore {
    * @param lockKey Key of the lock to fetch.
    * @return Optional lock.
    */
-  Optional<ILock> fetchLock(ILockKey lockKey);
+  Optional<Lock> fetchLock(LockKey lockKey);
 
   interface Mutable extends LockStore {
     /**
      * Saves a new lock or overwrites the existing one with same LockKey.
      *
-     * @param lock ILock to save.
+     * @param lock Lock to save.
      */
-    void saveLock(ILock lock);
+    void saveLock(Lock lock);
 
     /**
      * Removes the lock from the store.
      *
      * @param lockKey Key of the lock to remove.
      */
-    void removeLock(ILockKey lockKey);
+    void removeLock(LockKey lockKey);
 
     /**
      * Deletes all locks from the store.

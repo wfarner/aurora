@@ -21,12 +21,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.ContiguousSet;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Range;
 
 import org.apache.aurora.gen.AssignedTask;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
 import org.apache.mesos.v1.Protos.Offer;
 
 import static java.util.stream.StreamSupport.stream;
@@ -48,7 +46,7 @@ public interface ResourceMapper<T> {
    * @param task Task with requested resources.
    * @return A new task with updated mapping.
    */
-  IAssignedTask mapAndAssign(Offer offer, IAssignedTask task);
+  AssignedTask mapAndAssign(Offer offer, AssignedTask task);
 
   /**
    * Gets assigned resource values stored in {@code task}.
@@ -56,13 +54,13 @@ public interface ResourceMapper<T> {
    * @param task Task to get assigned resources from.
    * @return Assigned resource values.
    */
-  T getAssigned(IAssignedTask task);
+  T getAssigned(AssignedTask task);
 
   PortMapper PORT_MAPPER = new PortMapper();
 
   class PortMapper implements ResourceMapper<Set<Integer>> {
     @Override
-    public IAssignedTask mapAndAssign(Offer offer, IAssignedTask task) {
+    public AssignedTask mapAndAssign(Offer offer, AssignedTask task) {
       List<Integer> availablePorts =
           stream(ResourceManager.getOfferResources(offer, PORTS).spliterator(), false)
               .flatMap(resource -> resource.getRanges().getRangeList().stream())
@@ -88,13 +86,13 @@ public interface ResourceMapper<T> {
       Map<String, Integer> portMap =
           requestedPorts.stream().collect(Collectors.toMap(key -> key, value -> ports.next()));
 
-      AssignedTask builder = task.newBuilder();
-      builder.setAssignedPorts(ImmutableMap.copyOf(portMap));
-      return IAssignedTask.build(builder);
+      return task.mutate()
+          .setAssignedPorts(portMap)
+          .build();
     }
 
     @Override
-    public Set<Integer> getAssigned(IAssignedTask task) {
+    public Set<Integer> getAssigned(AssignedTask task) {
       return ImmutableSet.copyOf(task.getAssignedPorts().values());
     }
   }

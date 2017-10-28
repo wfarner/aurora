@@ -22,10 +22,10 @@ import com.google.common.base.Predicate;
 
 import org.apache.aurora.scheduler.base.Query;
 import org.apache.aurora.scheduler.base.Tasks;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
-import org.apache.aurora.scheduler.storage.entities.ITaskQuery;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.gen.TaskConfig;
+import org.apache.aurora.gen.TaskQuery;
 
 /**
  * Stores all tasks configured with the scheduler.
@@ -38,7 +38,7 @@ public interface TaskStore {
    * @param taskId ID of the task to fetch.
    * @return The task, if it exists.
    */
-  Optional<IScheduledTask> fetchTask(String taskId);
+  Optional<ScheduledTask> fetchTask(String taskId);
 
   /**
    * Fetches a read-only view of tasks matching a query and filters. Intended for use with a
@@ -47,21 +47,21 @@ public interface TaskStore {
    * @param query Builder of the query to identify tasks with.
    * @return A read-only view of matching tasks.
    */
-  Iterable<IScheduledTask> fetchTasks(Query.Builder query);
+  Iterable<ScheduledTask> fetchTasks(Query.Builder query);
 
   /**
    * Fetches all job keys represented in the task store.
    *
    * @return Job keys of stored tasks.
    */
-  Set<IJobKey> getJobKeys();
+  Set<JobKey> getJobKeys();
 
   interface Mutable extends TaskStore {
 
     /**
      * A convenience interface to allow callers to more concisely implement a task mutation.
      */
-    interface TaskMutation extends Function<IScheduledTask, IScheduledTask> {
+    interface TaskMutation extends Function<ScheduledTask, ScheduledTask> {
     }
 
     /**
@@ -72,7 +72,7 @@ public interface TaskStore {
      *
      * @param tasks Tasks to add.
      */
-    void saveTasks(Set<IScheduledTask> tasks);
+    void saveTasks(Set<ScheduledTask> tasks);
 
     /**
      * Removes all tasks from the store.
@@ -95,9 +95,9 @@ public interface TaskStore {
      * @param mutator The mutate operation.
      * @return The result of the mutate operation, if performed.
      */
-    Optional<IScheduledTask> mutateTask(
+    Optional<ScheduledTask> mutateTask(
         String taskId,
-        Function<IScheduledTask, IScheduledTask> mutator);
+        Function<ScheduledTask, ScheduledTask> mutator);
   }
 
   final class Util {
@@ -105,10 +105,10 @@ public interface TaskStore {
       // Utility class.
     }
 
-    public static Predicate<IScheduledTask> queryFilter(final Query.Builder queryBuilder) {
+    public static Predicate<ScheduledTask> queryFilter(final Query.Builder queryBuilder) {
       return task -> {
-        ITaskQuery query = queryBuilder.get();
-        ITaskConfig config = task.getAssignedTask().getTask();
+        TaskQuery query = queryBuilder.get();
+        TaskConfig config = task.getAssignedTask().getTask();
         // TODO(wfarner): Investigate why blank inputs are treated specially for the role field.
         if (query.getRole() != null
             && !CharMatcher.whitespace().matchesAllOf(query.getRole())

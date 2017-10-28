@@ -26,8 +26,8 @@ import org.apache.aurora.common.inject.TimedInterceptor.Timed;
 import org.apache.aurora.common.stats.StatsProvider;
 import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.storage.CronJobStore;
-import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
+import org.apache.aurora.gen.JobConfiguration;
+import org.apache.aurora.gen.JobKey;
 
 /**
  * An in-memory cron job store.
@@ -36,7 +36,7 @@ class MemCronJobStore implements CronJobStore.Mutable {
   @VisibleForTesting
   static final String CRON_JOBS_SIZE = "mem_storage_cron_size";
 
-  private final Map<IJobKey, IJobConfiguration> jobs = Maps.newConcurrentMap();
+  private final Map<JobKey, JobConfiguration> jobs = Maps.newConcurrentMap();
 
   @Inject
   MemCronJobStore(StatsProvider statsProvider) {
@@ -45,14 +45,14 @@ class MemCronJobStore implements CronJobStore.Mutable {
 
   @Timed("mem_storage_cron_save_accepted_job")
   @Override
-  public void saveAcceptedJob(IJobConfiguration jobConfig) {
-    IJobKey key = JobKeys.assertValid(jobConfig.getKey());
+  public void saveAcceptedJob(JobConfiguration jobConfig) {
+    JobKey key = JobKeys.assertValid(jobConfig.getKey());
     jobs.put(key, jobConfig);
   }
 
   @Timed("mem_storage_cron_remove_job")
   @Override
-  public void removeJob(IJobKey jobKey) {
+  public void removeJob(JobKey jobKey) {
     jobs.remove(jobKey);
   }
 
@@ -64,13 +64,13 @@ class MemCronJobStore implements CronJobStore.Mutable {
 
   @Timed("mem_storage_cron_fetch_jobs")
   @Override
-  public Iterable<IJobConfiguration> fetchJobs() {
+  public Iterable<JobConfiguration> fetchJobs() {
     return ImmutableSet.copyOf(jobs.values());
   }
 
   @Timed("mem_storage_cron_fetch_job")
   @Override
-  public Optional<IJobConfiguration> fetchJob(IJobKey jobKey) {
+  public Optional<JobConfiguration> fetchJob(JobKey jobKey) {
     return Optional.fromNullable(jobs.get(jobKey));
   }
 }

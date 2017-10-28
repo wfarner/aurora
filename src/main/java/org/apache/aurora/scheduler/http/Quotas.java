@@ -30,7 +30,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
 import org.apache.aurora.scheduler.storage.Storage;
-import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
+import org.apache.aurora.gen.ResourceAggregate;
 import org.codehaus.jackson.annotate.JsonProperty;
 
 /**
@@ -55,11 +55,11 @@ public class Quotas {
   @Produces(MediaType.APPLICATION_JSON)
   public Response getQuotas(@QueryParam("role") final String role) {
     return storage.read(storeProvider -> {
-      Map<String, IResourceAggregate> quotas;
+      Map<String, ResourceAggregate> quotas;
       if (role == null) {
         quotas = storeProvider.getQuotaStore().fetchQuotas();
       } else {
-        Optional<IResourceAggregate> quota = storeProvider.getQuotaStore().fetchQuota(role);
+        Optional<ResourceAggregate> quota = storeProvider.getQuotaStore().fetchQuota(role);
         if (quota.isPresent()) {
           quotas = ImmutableMap.of(role, quota.get());
         } else {
@@ -71,7 +71,7 @@ public class Quotas {
     });
   }
 
-  private static final Function<IResourceAggregate, ResourceAggregateBean> TO_BEAN =
+  private static final Function<ResourceAggregate, ResourceAggregateBean> TO_BEAN =
       quota -> new ResourceAggregateBean(quota.getNumCpus(), quota.getRamMb(), quota.getDiskMb());
 
   private static final class ResourceAggregateBean {

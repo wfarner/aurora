@@ -23,7 +23,7 @@ import org.apache.aurora.common.stats.Stats;
 import org.apache.aurora.scheduler.base.InstanceKeys;
 import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.events.PubsubEvent;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.ScheduledTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +62,7 @@ class JobUpdateEventSubscriber extends AbstractIdleService implements PubsubEven
 
   @Subscribe
   public void tasksDeleted(TasksDeleted event) {
-    for (IScheduledTask task : event.getTasks()) {
+    for (ScheduledTask task : event.getTasks()) {
       // Ignore pruned tasks, since they are irrelevant to updates.
       try {
         if (!Tasks.isTerminated(task.getStatus())) {

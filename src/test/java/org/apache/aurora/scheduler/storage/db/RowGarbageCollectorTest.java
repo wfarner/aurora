@@ -26,9 +26,9 @@ import org.apache.aurora.common.util.testing.FakeClock;
 import org.apache.aurora.gen.JobKey;
 import org.apache.aurora.scheduler.base.TaskTestUtil;
 import org.apache.aurora.scheduler.storage.Storage;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.testing.FakeStatsProvider;
 import org.junit.Before;
 import org.junit.Test;
@@ -40,13 +40,13 @@ import static org.junit.Assert.assertEquals;
 
 public class RowGarbageCollectorTest {
 
-  private static final IJobKey JOB_A = IJobKey.build(new JobKey("roleA", "envA", "jobA"));
-  private static final IJobKey JOB_B = IJobKey.build(new JobKey("roleB", "envB", "jobB"));
-  private static final IScheduledTask TASK_A2 = TaskTestUtil.makeTask("task_a2", JOB_A);
-  private static final ITaskConfig CONFIG_A =
-      ITaskConfig.build(TASK_A2.getAssignedTask().getTask().newBuilder()
+  private static final JobKey JOB_A = JobKey.build(new JobKey("roleA", "envA", "jobA"));
+  private static final JobKey JOB_B = JobKey.build(new JobKey("roleB", "envB", "jobB"));
+  private static final ScheduledTask TASK_A2 = TaskTestUtil.makeTask("task_a2", JOB_A);
+  private static final TaskConfig CONFIG_A =
+      TaskConfig.build(TASK_A2.getAssignedTask().getTask().newBuilder()
               .setResources(ImmutableSet.of(numCpus(1.0), ramMb(124246), diskMb(1024))));
-  private static final ITaskConfig CONFIG_B = TaskTestUtil.makeConfig(JOB_B);
+  private static final TaskConfig CONFIG_B = TaskTestUtil.makeConfig(JOB_B);
 
   private JobKeyMapper jobKeyMapper;
   private TaskMapper taskMapper;

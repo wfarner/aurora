@@ -39,8 +39,8 @@ import com.google.common.collect.Iterables;
 import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.base.Query;
 import org.apache.aurora.scheduler.storage.Storage;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.AssignedTask;
+import org.apache.aurora.gen.ScheduledTask;
 
 import static java.util.Objects.requireNonNull;
 
@@ -186,7 +186,7 @@ public class Mname {
       UriInfo uriInfo,
       Optional<String> forwardRequest) {
 
-    IScheduledTask task = Iterables.getOnlyElement(
+    ScheduledTask task = Iterables.getOnlyElement(
         Storage.Util.fetchTasks(storage,
             Query.instanceScoped(JobKeys.from(role, env, job), instanceId).active()),
         null);

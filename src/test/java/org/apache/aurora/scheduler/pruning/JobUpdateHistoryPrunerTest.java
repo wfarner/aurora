@@ -24,7 +24,7 @@ import org.apache.aurora.common.util.Clock;
 import org.apache.aurora.gen.JobKey;
 import org.apache.aurora.gen.JobUpdateKey;
 import org.apache.aurora.scheduler.pruning.JobUpdateHistoryPruner.HistoryPrunerSettings;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
+import org.apache.aurora.gen.JobUpdateKey;
 import org.apache.aurora.scheduler.storage.testing.StorageTestUtil;
 import org.apache.aurora.scheduler.testing.FakeScheduledExecutor;
 import org.apache.aurora.scheduler.testing.FakeStatsProvider;
@@ -51,7 +51,7 @@ public class JobUpdateHistoryPrunerTest extends EasyMockTest {
 
     expect(storageUtil.jobUpdateStore.pruneHistory(1, 1))
         .andReturn(ImmutableSet.of(
-            IJobUpdateKey.build(
+            JobUpdateKey.build(
                 new JobUpdateKey().setJob(new JobKey("role", "env", "job")).setId("id1"))));
     expect(storageUtil.jobUpdateStore.pruneHistory(1, 1)).andReturn(ImmutableSet.of());
 

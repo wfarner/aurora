@@ -14,7 +14,7 @@
 package org.apache.aurora.scheduler.storage.db.views;
 
 import org.apache.aurora.common.collections.Pair;
-import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
+import org.apache.aurora.gen.ResourceAggregate;
 
 public final class DBSaveQuota {
   private String role;
@@ -23,7 +23,7 @@ public final class DBSaveQuota {
   private DBSaveQuota() {
   }
 
-  public Pair<String, IResourceAggregate> toImmutable() {
+  public Pair<String, ResourceAggregate> toImmutable() {
     return Pair.of(role, quota.toImmutable());
   }
 }

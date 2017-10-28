@@ -26,8 +26,8 @@ import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.base.TaskTestUtil;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.HostAttributes;
+import org.apache.aurora.gen.ScheduledTask;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -144,7 +144,7 @@ public abstract class AbstractAttributeStoreTest {
     builder.getAssignedTask()
         .setSlaveHost(HOST_A_ATTRS.getHost())
         .setSlaveId(HOST_A_ATTRS.getSlaveId());
-    final IScheduledTask taskA = IScheduledTask.build(builder);
+    final ScheduledTask taskA = ScheduledTask.build(builder);
 
     storage.write((NoResult.Quiet)
         storeProvider -> storeProvider.getUnsafeTaskStore().saveTasks(ImmutableSet.of(taskA)));

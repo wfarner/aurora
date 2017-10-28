@@ -31,8 +31,8 @@ import org.apache.aurora.gen.JobKey;
 import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.preemptor.ClusterStateImpl;
 import org.apache.aurora.scheduler.preemptor.PreemptionVictim;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.AssignedTask;
+import org.apache.aurora.gen.TaskConfig;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -76,9 +76,9 @@ public class StateTest extends EasyMockTest {
     TaskConfig task1 = new TaskConfig().setJob(new JobKey("role", "env", "job"));
     TaskConfig task2 = new TaskConfig().setJob(new JobKey("role", "env", "job"));
     TaskConfig task3 = new TaskConfig().setJob(new JobKey("role", "env", "another-job"));
-    String task1Key = taskKey(ITaskConfig.build(task1));
-    String task2Key = taskKey(ITaskConfig.build(task2));
-    String task3Key = taskKey(ITaskConfig.build(task3));
+    String task1Key = taskKey(TaskConfig.build(task1));
+    String task2Key = taskKey(TaskConfig.build(task2));
+    String task3Key = taskKey(TaskConfig.build(task3));
 
     // Tests:
     // Same task config on multiple hosts.

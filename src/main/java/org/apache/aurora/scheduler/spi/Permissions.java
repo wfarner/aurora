@@ -15,7 +15,7 @@ package org.apache.aurora.scheduler.spi;
 
 import com.google.common.base.Optional;
 
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
+import org.apache.aurora.gen.JobKey;
 import org.apache.shiro.authz.Permission;
 import org.apache.shiro.authz.permission.WildcardPermission;
 
@@ -137,9 +137,9 @@ public final class Permissions {
     private static final Domain DOMAIN = Domain.THRIFT_AURORA_SCHEDULER_MANAGER;
 
     private final String rpc;
-    private final IJobKey permittedJob;
+    private final JobKey permittedJob;
 
-    JobScopedRpcPermission(String rpc, IJobKey permittedJob) {
+    JobScopedRpcPermission(String rpc, JobKey permittedJob) {
       this.rpc = requireNonNull(rpc);
       this.permittedJob = requireNonNull(permittedJob);
 
@@ -155,7 +155,7 @@ public final class Permissions {
     /**
      * The job permitted as an argument to the permitted RPC.
      */
-    public IJobKey getPermittedJob() {
+    public JobKey getPermittedJob() {
       return permittedJob;
     }
 
@@ -182,7 +182,7 @@ public final class Permissions {
    * @param targetJob The job permitted to be operated upon.
    * @return A permission permitting the given RPC to operate on the given job.
    */
-  public static JobScopedRpcPermission createJobScopedPermission(String rpc, IJobKey targetJob) {
+  public static JobScopedRpcPermission createJobScopedPermission(String rpc, JobKey targetJob) {
     return new JobScopedRpcPermission(rpc, targetJob);
   }
 

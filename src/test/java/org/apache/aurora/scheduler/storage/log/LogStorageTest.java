@@ -92,17 +92,17 @@ import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult.Quiet;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
-import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdate;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateEvent;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
-import org.apache.aurora.scheduler.storage.entities.ILock;
-import org.apache.aurora.scheduler.storage.entities.ILockKey;
-import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.HostAttributes;
+import org.apache.aurora.gen.JobConfiguration;
+import org.apache.aurora.gen.JobInstanceUpdateEvent;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.JobUpdate;
+import org.apache.aurora.gen.JobUpdateEvent;
+import org.apache.aurora.gen.JobUpdateKey;
+import org.apache.aurora.gen.Lock;
+import org.apache.aurora.gen.LockKey;
+import org.apache.aurora.gen.ResourceAggregate;
+import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.storage.log.LogStorage.SchedulingService;
 import org.apache.aurora.scheduler.storage.log.SnapshotDeduplicator.SnapshotDeduplicatorImpl;
 import org.apache.aurora.scheduler.storage.log.testing.LogOpMatcher;
@@ -129,9 +129,9 @@ import static org.junit.Assert.assertTrue;
 public class LogStorageTest extends EasyMockTest {
 
   private static final Amount<Long, Time> SNAPSHOT_INTERVAL = Amount.of(1L, Time.MINUTES);
-  private static final IJobKey JOB_KEY = JobKeys.from("role", "env", "name");
-  private static final IJobUpdateKey UPDATE_ID =
-      IJobUpdateKey.build(new JobUpdateKey(JOB_KEY.newBuilder(), "testUpdateId"));
+  private static final JobKey JOB_KEY = JobKeys.from("role", "env", "name");
+  private static final JobUpdateKey UPDATE_ID =
+      JobUpdateKey.build(new JobUpdateKey(JOB_KEY.newBuilder(), "testUpdateId"));
   private static final long NOW = 42L;
 
   private LogStorage logStorage;
@@ -282,7 +282,7 @@ public class LogStorageTest extends EasyMockTest {
         new JobConfiguration().setTaskConfig(makeConfig(JOB_KEY).newBuilder());
     SaveCronJob cronJob = new SaveCronJob().setJobConfig(actualJob);
     builder.add(createTransaction(Op.saveCronJob(cronJob)));
-    storageUtil.jobStore.saveAcceptedJob(IJobConfiguration.build(expectedJob));
+    storageUtil.jobStore.saveAcceptedJob(JobConfiguration.build(expectedJob));
 
     RemoveJob removeJob = new RemoveJob(JOB_KEY.newBuilder());
     builder.add(createTransaction(Op.removeJob(removeJob)));
@@ -290,7 +290,7 @@ public class LogStorageTest extends EasyMockTest {
 
     ScheduledTask actualTask = makeTask("id", JOB_KEY).newBuilder();
     actualTask.getAssignedTask().setTask(nonBackfilledConfig());
-    IScheduledTask expectedTask = makeTask("id", JOB_KEY);
+    ScheduledTask expectedTask = makeTask("id", JOB_KEY);
     SaveTasks saveTasks = new SaveTasks(ImmutableSet.of(actualTask));
     builder.add(createTransaction(Op.saveTasks(saveTasks)));
     storageUtil.taskStore.saveTasks(ImmutableSet.of(expectedTask));
@@ -307,7 +307,7 @@ public class LogStorageTest extends EasyMockTest {
     builder.add(createTransaction(Op.saveQuota(saveQuota)));
     storageUtil.quotaStore.saveQuota(
         saveQuota.getRole(),
-        IResourceAggregate.build(nonBackfilled.deepCopy()
+        ResourceAggregate.build(nonBackfilled.deepCopy()
             .setResources(ImmutableSet.of(numCpus(1.0), ramMb(32), diskMb(64)))));
 
     builder.add(createTransaction(Op.removeQuota(new RemoveQuota(JOB_KEY.getRole()))));
@@ -333,7 +333,7 @@ public class LogStorageTest extends EasyMockTest {
 
     RemoveLock removeLock = new RemoveLock(LockKey.job(JOB_KEY.newBuilder()));
     builder.add(createTransaction(Op.removeLock(removeLock)));
-    storageUtil.lockStore.removeLock(ILockKey.build(removeLock.getLockKey()));
+    storageUtil.lockStore.removeLock(LockKey.build(removeLock.getLockKey()));
 
     JobUpdate actualUpdate = new JobUpdate()
         .setSummary(new JobUpdateSummary().setKey(UPDATE_ID.newBuilder()))
@@ -348,7 +348,7 @@ public class LogStorageTest extends EasyMockTest {
     SaveJobUpdate saveUpdate = new SaveJobUpdate(actualUpdate, "token");
     builder.add(createTransaction(Op.saveJobUpdate(saveUpdate)));
     storageUtil.jobUpdateStore.saveJobUpdate(
-        IJobUpdate.build(expectedUpdate),
+        JobUpdate.build(expectedUpdate),
         Optional.of(saveUpdate.getLockToken()));
 
     SaveJobUpdateEvent saveUpdateEvent =
@@ -356,7 +356,7 @@ public class LogStorageTest extends EasyMockTest {
     builder.add(createTransaction(Op.saveJobUpdateEvent(saveUpdateEvent)));
     storageUtil.jobUpdateStore.saveJobUpdateEvent(
         UPDATE_ID,
-        IJobUpdateEvent.build(saveUpdateEvent.getEvent()));
+        JobUpdateEvent.build(saveUpdateEvent.getEvent()));
 
     SaveJobInstanceUpdateEvent saveInstanceEvent = new SaveJobInstanceUpdateEvent(
         new JobInstanceUpdateEvent(),
@@ -368,7 +368,7 @@ public class LogStorageTest extends EasyMockTest {
 
     builder.add(createTransaction(Op.pruneJobUpdateHistory(new PruneJobUpdateHistory(5, 10L))));
     expect(storageUtil.jobUpdateStore.pruneHistory(5, 10L))
-        .andReturn(ImmutableSet.of(IJobUpdateKey.build(UPDATE_ID.newBuilder())));
+        .andReturn(ImmutableSet.of(JobUpdateKey.build(UPDATE_ID.newBuilder())));
 
     // NOOP LogEntry
     builder.add(LogEntry.noop(true));
@@ -491,8 +491,8 @@ public class LogStorageTest extends EasyMockTest {
 
   @Test
   public void testSaveAcceptedJob() throws Exception {
-    IJobConfiguration jobConfig =
-        IJobConfiguration.build(new JobConfiguration().setKey(JOB_KEY.newBuilder()));
+    JobConfiguration jobConfig =
+        JobConfiguration.build(new JobConfiguration().setKey(JOB_KEY.newBuilder()));
     new AbstractMutationFixture() {
       @Override
       protected void setupExpectations() throws Exception {
@@ -531,14 +531,14 @@ public class LogStorageTest extends EasyMockTest {
 
   @Test
   public void testSaveTasks() throws Exception {
-    Set<IScheduledTask> tasks = ImmutableSet.of(task("a", ScheduleStatus.INIT));
+    Set<ScheduledTask> tasks = ImmutableSet.of(task("a", ScheduleStatus.INIT));
     new AbstractMutationFixture() {
       @Override
       protected void setupExpectations() throws Exception {
         storageUtil.expectWrite();
         storageUtil.taskStore.saveTasks(tasks);
         streamMatcher.expectTransaction(
-            Op.saveTasks(new SaveTasks(IScheduledTask.toBuildersSet(tasks))))
+            Op.saveTasks(new SaveTasks(ScheduledTask.toBuildersSet(tasks))))
             .andReturn(position);
       }
 
@@ -552,8 +552,8 @@ public class LogStorageTest extends EasyMockTest {
   @Test
   public void testMutateTasks() throws Exception {
     String taskId = "fred";
-    Function<IScheduledTask, IScheduledTask> mutation = Functions.identity();
-    Optional<IScheduledTask> mutated = Optional.of(task("a", ScheduleStatus.STARTING));
+    Function<ScheduledTask, ScheduledTask> mutation = Functions.identity();
+    Optional<ScheduledTask> mutated = Optional.of(task("a", ScheduleStatus.STARTING));
     new AbstractMutationFixture() {
       @Override
       protected void setupExpectations() throws Exception {
@@ -574,8 +574,8 @@ public class LogStorageTest extends EasyMockTest {
   @Test
   public void testNestedTransactions() throws Exception {
     String taskId = "fred";
-    Function<IScheduledTask, IScheduledTask> mutation = Functions.identity();
-    Optional<IScheduledTask> mutated = Optional.of(task("a", ScheduleStatus.STARTING));
+    Function<ScheduledTask, ScheduledTask> mutation = Functions.identity();
+    Optional<ScheduledTask> mutated = Optional.of(task("a", ScheduleStatus.STARTING));
     ImmutableSet<String> tasksToRemove = ImmutableSet.of("b");
 
     new AbstractMutationFixture() {
@@ -605,9 +605,9 @@ public class LogStorageTest extends EasyMockTest {
   @Test
   public void testSaveAndMutateTasks() throws Exception {
     String taskId = "fred";
-    Function<IScheduledTask, IScheduledTask> mutation = Functions.identity();
-    Set<IScheduledTask> saved = ImmutableSet.of(task("a", ScheduleStatus.INIT));
-    Optional<IScheduledTask> mutated = Optional.of(task("a", ScheduleStatus.PENDING));
+    Function<ScheduledTask, ScheduledTask> mutation = Functions.identity();
+    Set<ScheduledTask> saved = ImmutableSet.of(task("a", ScheduleStatus.INIT));
+    Optional<ScheduledTask> mutated = Optional.of(task("a", ScheduleStatus.PENDING));
 
     new AbstractMutationFixture() {
       @Override
@@ -635,9 +635,9 @@ public class LogStorageTest extends EasyMockTest {
   @Test
   public void testSaveAndMutateTasksNoCoalesceUniqueIds() throws Exception {
     String taskId = "fred";
-    Function<IScheduledTask, IScheduledTask> mutation = Functions.identity();
-    Set<IScheduledTask> saved = ImmutableSet.of(task("b", ScheduleStatus.INIT));
-    Optional<IScheduledTask> mutated = Optional.of(task("a", ScheduleStatus.PENDING));
+    Function<ScheduledTask, ScheduledTask> mutation = Functions.identity();
+    Set<ScheduledTask> saved = ImmutableSet.of(task("b", ScheduleStatus.INIT));
+    Optional<ScheduledTask> mutated = Optional.of(task("a", ScheduleStatus.PENDING));
 
     new AbstractMutationFixture() {
       @Override
@@ -652,7 +652,7 @@ public class LogStorageTest extends EasyMockTest {
         streamMatcher.expectTransaction(
             Op.saveTasks(new SaveTasks(
                 ImmutableSet.<ScheduledTask>builder()
-                    .addAll(IScheduledTask.toBuildersList(saved))
+                    .addAll(ScheduledTask.toBuildersList(saved))
                     .add(mutated.get().newBuilder())
                     .build())))
             .andReturn(position);
@@ -668,7 +668,7 @@ public class LogStorageTest extends EasyMockTest {
 
   @Test
   public void testRemoveTasksQuery() throws Exception {
-    IScheduledTask task = task("a", ScheduleStatus.FINISHED);
+    ScheduledTask task = task("a", ScheduleStatus.FINISHED);
     Set<String> taskIds = Tasks.ids(task);
     new AbstractMutationFixture() {
       @Override
@@ -708,7 +708,7 @@ public class LogStorageTest extends EasyMockTest {
   @Test
   public void testSaveQuota() throws Exception {
     String role = "role";
-    IResourceAggregate quota = ResourceTestUtil.aggregate(1.0, 128L, 1024L);
+    ResourceAggregate quota = ResourceTestUtil.aggregate(1.0, 128L, 1024L);
 
     new AbstractMutationFixture() {
       @Override
@@ -769,7 +769,7 @@ public class LogStorageTest extends EasyMockTest {
 
   @Test
   public void testRemoveLock() throws Exception {
-    ILockKey lockKey = ILockKey.build(LockKey.job(JOB_KEY.newBuilder()));
+    LockKey lockKey = ILockKey.build(LockKey.job(JOB_KEY.newBuilder()));
     new AbstractMutationFixture() {
       @Override
       protected void setupExpectations() throws Exception {
@@ -844,7 +844,7 @@ public class LogStorageTest extends EasyMockTest {
   }
 
   private void saveAndAssertJobUpdate(Optional<String> lockToken) throws Exception {
-    IJobUpdate update = IJobUpdate.build(new JobUpdate()
+    JobUpdate update = IJobUpdate.build(new JobUpdate()
         .setSummary(new JobUpdateSummary()
             .setKey(UPDATE_ID.newBuilder())
             .setUser("user"))
@@ -876,7 +876,7 @@ public class LogStorageTest extends EasyMockTest {
 
   @Test
   public void testSaveJobUpdateEvent() throws Exception {
-    IJobUpdateEvent event = IJobUpdateEvent.build(new JobUpdateEvent()
+    JobUpdateEvent event = IJobUpdateEvent.build(new JobUpdateEvent()
         .setStatus(JobUpdateStatus.ROLLING_BACK)
         .setTimestampMs(12345L));
 
@@ -955,8 +955,8 @@ public class LogStorageTest extends EasyMockTest {
         new Transaction(ImmutableList.copyOf(ops), storageConstants.CURRENT_SCHEMA_VERSION));
   }
 
-  private static IScheduledTask task(String id, ScheduleStatus status) {
-    return IScheduledTask.build(new ScheduledTask()
+  private static ScheduledTask task(String id, ScheduleStatus status) {
+    return ScheduledTask.build(new ScheduledTask()
         .setStatus(status)
         .setAssignedTask(new AssignedTask()
             .setTaskId(id)

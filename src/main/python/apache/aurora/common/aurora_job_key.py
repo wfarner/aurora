@@ -16,7 +16,7 @@ import re
 
 from twitter.common.lang import Compatibility, total_ordering
 
-from gen.apache.aurora.api.constants import GOOD_IDENTIFIER_PATTERN_PYTHON
+from gen.apache.aurora.api.constants import GOOD_IDENTIFIER_PATTERN
 from gen.apache.aurora.api.ttypes import JobKey, TaskQuery
 
 
@@ -30,7 +30,7 @@ class AuroraJobKey(object):
   class InvalidIdentifier(ValueError, Error): pass
   class ParseError(ValueError, Error): pass
 
-  VALID_IDENTIFIER = re.compile(GOOD_IDENTIFIER_PATTERN_PYTHON)
+  VALID_IDENTIFIER = re.compile(GOOD_IDENTIFIER_PATTERN)
 
   def __init__(self, cluster, role, env, name):
     if not isinstance(cluster, Compatibility.string):

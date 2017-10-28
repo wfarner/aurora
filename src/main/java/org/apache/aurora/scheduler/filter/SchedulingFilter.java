@@ -22,9 +22,9 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
 
 import org.apache.aurora.scheduler.resources.ResourceBag;
-import org.apache.aurora.scheduler.storage.entities.IConstraint;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.Constraint;
+import org.apache.aurora.gen.HostAttributes;
+import org.apache.aurora.gen.TaskConfig;
 
 import static org.apache.aurora.scheduler.filter.SchedulingFilter.VetoType.CONSTRAINT_MISMATCH;
 import static org.apache.aurora.scheduler.filter.SchedulingFilter.VetoType.INSUFFICIENT_RESOURCES;
@@ -298,21 +298,21 @@ public interface SchedulingFilter {
    * A request for resources in the cluster.
    */
   class ResourceRequest {
-    private final ITaskConfig task;
+    private final TaskConfig task;
     private final ResourceBag request;
     private final AttributeAggregate jobState;
 
-    public ResourceRequest(ITaskConfig task, ResourceBag request, AttributeAggregate jobState) {
+    public ResourceRequest(TaskConfig task, ResourceBag request, AttributeAggregate jobState) {
       this.task = task;
       this.request = request;
       this.jobState = jobState;
     }
 
-    public Iterable<IConstraint> getConstraints() {
+    public Iterable<Constraint> getConstraints() {
       return task.getConstraints();
     }
 
-    public ITaskConfig getTask() {
+    public TaskConfig getTask() {
       return task;
     }
 

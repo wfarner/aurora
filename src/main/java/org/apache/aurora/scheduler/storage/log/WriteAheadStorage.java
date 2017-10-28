@@ -49,21 +49,21 @@ import org.apache.aurora.scheduler.storage.QuotaStore;
 import org.apache.aurora.scheduler.storage.SchedulerStore;
 import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
 import org.apache.aurora.scheduler.storage.TaskStore;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
-import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdate;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateEvent;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateInstructions;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateQuery;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateSummary;
-import org.apache.aurora.scheduler.storage.entities.ILock;
-import org.apache.aurora.scheduler.storage.entities.ILockKey;
-import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.HostAttributes;
+import org.apache.aurora.gen.JobConfiguration;
+import org.apache.aurora.gen.JobInstanceUpdateEvent;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.JobUpdate;
+import org.apache.aurora.gen.JobUpdateDetails;
+import org.apache.aurora.gen.JobUpdateEvent;
+import org.apache.aurora.gen.JobUpdateInstructions;
+import org.apache.aurora.gen.JobUpdateKey;
+import org.apache.aurora.gen.JobUpdateQuery;
+import org.apache.aurora.gen.JobUpdateSummary;
+import org.apache.aurora.gen.Lock;
+import org.apache.aurora.gen.LockKey;
+import org.apache.aurora.gen.ResourceAggregate;
+import org.apache.aurora.gen.ScheduledTask;
 import org.slf4j.Logger;
 
 import static java.util.Objects.requireNonNull;
@@ -156,19 +156,19 @@ class WriteAheadStorage implements
   }
 
   @Override
-  public void saveTasks(final Set<IScheduledTask> newTasks) {
+  public void saveTasks(final Set<ScheduledTask> newTasks) {
     requireNonNull(newTasks);
 
-    write(Op.saveTasks(new SaveTasks(IScheduledTask.toBuildersSet(newTasks))));
+    write(Op.saveTasks(new SaveTasks(ScheduledTask.toBuildersSet(newTasks))));
     taskStore.saveTasks(newTasks);
   }
 
   @Override
-  public Optional<IScheduledTask> mutateTask(
+  public Optional<ScheduledTask> mutateTask(
       String taskId,
-      Function<IScheduledTask, IScheduledTask> mutator) {
+      Function<ScheduledTask, ScheduledTask> mutator) {
 
-    Optional<IScheduledTask> mutated = taskStore.mutateTask(taskId, mutator);
+    Optional<ScheduledTask> mutated = taskStore.mutateTask(taskId, mutator);
     log.debug("Storing updated task to log: {}={}", taskId, mutated.get().getStatus());
     write(Op.saveTasks(new SaveTasks(ImmutableSet.of(mutated.get().newBuilder()))));
 
@@ -176,7 +176,7 @@ class WriteAheadStorage implements
   }
 
   @Override
-  public void saveQuota(final String role, final IResourceAggregate quota) {
+  public void saveQuota(final String role, final ResourceAggregate quota) {
     requireNonNull(role);
     requireNonNull(quota);
 
@@ -197,7 +197,7 @@ class WriteAheadStorage implements
   }
 
   @Override
-  public void removeJob(final IJobKey jobKey) {
+  public void removeJob(final JobKey jobKey) {
     requireNonNull(jobKey);
 
     write(Op.removeJob(new RemoveJob().setJobKey(jobKey.newBuilder())));
@@ -205,7 +205,7 @@ class WriteAheadStorage implements
   }
 
   @Override
-  public void saveAcceptedJob(final IJobConfiguration jobConfig) {
+  public void saveAcceptedJob(final JobConfiguration jobConfig) {
     requireNonNull(jobConfig);
 
     write(Op.saveCronJob(new SaveCronJob(jobConfig.newBuilder())));
@@ -229,7 +229,7 @@ class WriteAheadStorage implements
   }
 
   @Override
-  public void removeLock(final ILockKey lockKey) {
+  public void removeLock(final LockKey lockKey) {
     requireNonNull(lockKey);
 
     write(Op.removeLock(new RemoveLock(lockKey.newBuilder())));
@@ -237,7 +237,7 @@ class WriteAheadStorage implements
   }
 
   @Override
-  public void saveJobUpdate(IJobUpdate update, Optional<String> lockToken) {
+  public void saveJobUpdate(JobUpdate update, Optional<String> lockToken) {
     requireNonNull(update);
 
     write(Op.saveJobUpdate(new SaveJobUpdate(update.newBuilder(), lockToken.orNull())));
@@ -245,7 +245,7 @@ class WriteAheadStorage implements
   }
 
   @Override
-  public void saveJobUpdateEvent(IJobUpdateKey key, IJobUpdateEvent event) {
+  public void saveJobUpdateEvent(JobUpdateKey key, JobUpdateEvent event) {
     requireNonNull(key);
     requireNonNull(event);
 
@@ -254,7 +254,7 @@ class WriteAheadStorage implements
   }
 
   @Override
-  public void saveJobInstanceUpdateEvent(IJobUpdateKey key, IJobInstanceUpdateEvent event) {
+  public void saveJobInstanceUpdateEvent(JobUpdateKey key, IJobInstanceUpdateEvent event) {
     requireNonNull(key);
     requireNonNull(event);
 
@@ -264,8 +264,8 @@ class WriteAheadStorage implements
   }
 
   @Override
-  public Set<IJobUpdateKey> pruneHistory(int perJobRetainCount, long historyPruneThresholdMs) {
-    Set<IJobUpdateKey> prunedUpdates = jobUpdateStore.pruneHistory(
+  public Set<JobUpdateKey> pruneHistory(int perJobRetainCount, long historyPruneThresholdMs) {
+    Set<JobUpdateKey> prunedUpdates = jobUpdateStore.pruneHistory(
         perJobRetainCount,
         historyPruneThresholdMs);
 
@@ -363,37 +363,37 @@ class WriteAheadStorage implements
   }
 
   @Override
-  public Iterable<IJobConfiguration> fetchJobs() {
+  public Iterable<JobConfiguration> fetchJobs() {
     return this.jobStore.fetchJobs();
   }
 
   @Override
-  public Optional<IJobConfiguration> fetchJob(IJobKey jobKey) {
+  public Optional<JobConfiguration> fetchJob(JobKey jobKey) {
     return this.jobStore.fetchJob(jobKey);
   }
 
   @Override
-  public Optional<IScheduledTask> fetchTask(String taskId) {
+  public Optional<ScheduledTask> fetchTask(String taskId) {
     return this.taskStore.fetchTask(taskId);
   }
 
   @Override
-  public Iterable<IScheduledTask> fetchTasks(Query.Builder query) {
+  public Iterable<ScheduledTask> fetchTasks(Query.Builder query) {
     return this.taskStore.fetchTasks(query);
   }
 
   @Override
-  public Set<IJobKey> getJobKeys() {
+  public Set<JobKey> getJobKeys() {
     return this.taskStore.getJobKeys();
   }
 
   @Override
-  public Optional<IResourceAggregate> fetchQuota(String role) {
+  public Optional<ResourceAggregate> fetchQuota(String role) {
     return this.quotaStore.fetchQuota(role);
   }
 
   @Override
-  public Map<String, IResourceAggregate> fetchQuotas() {
+  public Map<String, ResourceAggregate> fetchQuotas() {
     return this.quotaStore.fetchQuotas();
   }
 
@@ -403,7 +403,7 @@ class WriteAheadStorage implements
   }
 
   @Override
-  public java.util.Optional<ILock> fetchLock(ILockKey lockKey) {
+  public java.util.Optional<ILock> fetchLock(LockKey lockKey) {
     return this.lockStore.fetchLock(lockKey);
   }
 
@@ -418,27 +418,27 @@ class WriteAheadStorage implements
   }
 
   @Override
-  public List<IJobUpdateSummary> fetchJobUpdateSummaries(IJobUpdateQuery query) {
+  public List<JobUpdateSummary> fetchJobUpdateSummaries(IJobUpdateQuery query) {
     return this.jobUpdateStore.fetchJobUpdateSummaries(query);
   }
 
   @Override
-  public List<IJobUpdateDetails> fetchJobUpdateDetails(IJobUpdateQuery query) {
+  public List<JobUpdateDetails> fetchJobUpdateDetails(IJobUpdateQuery query) {
     return this.jobUpdateStore.fetchJobUpdateDetails(query);
   }
 
   @Override
-  public Optional<IJobUpdateDetails> fetchJobUpdateDetails(IJobUpdateKey key) {
+  public Optional<JobUpdateDetails> fetchJobUpdateDetails(JobUpdateKey key) {
     return this.jobUpdateStore.fetchJobUpdateDetails(key);
   }
 
   @Override
-  public Optional<IJobUpdate> fetchJobUpdate(IJobUpdateKey key) {
+  public Optional<JobUpdate> fetchJobUpdate(JobUpdateKey key) {
     return this.jobUpdateStore.fetchJobUpdate(key);
   }
 
   @Override
-  public Optional<IJobUpdateInstructions> fetchJobUpdateInstructions(IJobUpdateKey key) {
+  public Optional<JobUpdateInstructions> fetchJobUpdateInstructions(JobUpdateKey key) {
     return this.jobUpdateStore.fetchJobUpdateInstructions(key);
   }
 
@@ -448,7 +448,7 @@ class WriteAheadStorage implements
   }
 
   @Override
-  public List<IJobInstanceUpdateEvent> fetchInstanceEvents(IJobUpdateKey key, int instanceId) {
+  public List<IJobInstanceUpdateEvent> fetchInstanceEvents(JobUpdateKey key, int instanceId) {
     return this.jobUpdateStore.fetchInstanceEvents(key, instanceId);
   }
 }

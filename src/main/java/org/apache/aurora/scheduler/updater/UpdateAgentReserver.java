@@ -21,7 +21,7 @@ import com.google.inject.Inject;
 
 import org.apache.aurora.scheduler.base.TaskGroupKey;
 import org.apache.aurora.scheduler.preemptor.BiCache;
-import org.apache.aurora.scheduler.storage.entities.IInstanceKey;
+import org.apache.aurora.gen.InstanceKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +39,7 @@ public interface UpdateAgentReserver {
    * @param agentId The agent id to reserve.
    * @param key The instance key that will use the reservation.
    */
-  void reserve(String agentId, IInstanceKey key);
+  void reserve(String agentId, InstanceKey key);
 
   /**
    * Releases the reservation on an agent id for the given key.
@@ -47,7 +47,7 @@ public interface UpdateAgentReserver {
    * @param agentId The agent id to release the reservation on.
    * @param key The instance key that should be removed.
    */
-  void release(String agentId, IInstanceKey key);
+  void release(String agentId, InstanceKey key);
 
   /**
    * Returns the agent id associated with the given instance key.
@@ -55,7 +55,7 @@ public interface UpdateAgentReserver {
    * @param key The instance key to look up.
    * @return An optional agent id string.
    */
-  Optional<String> getAgent(IInstanceKey key);
+  Optional<String> getAgent(InstanceKey key);
 
   /**
    * Get all reservations for a given agent id. Useful for skipping over the agent between the
@@ -64,7 +64,7 @@ public interface UpdateAgentReserver {
    * @param agentId The agent id to look up reservations for.
    * @return A set of keys reserved for that agent.
    */
-  Set<IInstanceKey> getReservations(String agentId);
+  Set<InstanceKey> getReservations(String agentId);
 
   /**
    * Check if the agent reserver has any reservations for the provided key.
@@ -82,24 +82,24 @@ public interface UpdateAgentReserver {
   class UpdateAgentReserverImpl implements UpdateAgentReserver {
     private static final Logger LOG = LoggerFactory.getLogger(UpdateAgentReserverImpl.class);
 
-    private final BiCache<IInstanceKey, String> cache;
+    private final BiCache<InstanceKey, String> cache;
 
     @Inject
-    UpdateAgentReserverImpl(BiCache<IInstanceKey, String> cache) {
+    UpdateAgentReserverImpl(BiCache<InstanceKey, String> cache) {
       this.cache = requireNonNull(cache);
     }
 
-    public void reserve(String agentId, IInstanceKey key) {
+    public void reserve(String agentId, InstanceKey key) {
       LOG.info("Reserving {} for {}", agentId, key);
       cache.put(key, agentId);
     }
 
-    public void release(String agentId, IInstanceKey key) {
+    public void release(String agentId, InstanceKey key) {
       LOG.info("Releasing reservation on {} for {}", agentId, key);
       cache.remove(key, agentId);
     }
 
-    public Set<IInstanceKey> getReservations(String agentId) {
+    public Set<InstanceKey> getReservations(String agentId) {
       return cache.getByValue(agentId);
     }
 
@@ -112,7 +112,7 @@ public interface UpdateAgentReserver {
     }
 
     @Override
-    public Optional<String> getAgent(IInstanceKey key) {
+    public Optional<String> getAgent(InstanceKey key) {
       return cache.get(key);
     }
   }
@@ -122,22 +122,22 @@ public interface UpdateAgentReserver {
    */
   class NullAgentReserver implements UpdateAgentReserver {
     @Override
-    public void reserve(String agentId, IInstanceKey key) {
+    public void reserve(String agentId, InstanceKey key) {
       // noop
     }
 
     @Override
-    public void release(String agentId, IInstanceKey key) {
+    public void release(String agentId, InstanceKey key) {
       // noop
     }
 
     @Override
-    public Optional<String> getAgent(IInstanceKey key) {
+    public Optional<String> getAgent(InstanceKey key) {
       return Optional.absent();
     }
 
     @Override
-    public Set<IInstanceKey> getReservations(String agentId) {
+    public Set<InstanceKey> getReservations(String agentId) {
       return ImmutableSet.of();
     }
 

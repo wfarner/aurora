@@ -18,7 +18,7 @@ import com.google.common.collect.ImmutableSet;
 import org.apache.aurora.gen.AssignedTask;
 import org.apache.aurora.gen.JobKey;
 import org.apache.aurora.gen.TaskConfig;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
+import org.apache.aurora.gen.AssignedTask;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;

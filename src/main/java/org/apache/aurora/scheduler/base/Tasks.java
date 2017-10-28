@@ -29,11 +29,11 @@ import com.google.common.collect.Ordering;
 
 import org.apache.aurora.gen.ScheduleStatus;
 import org.apache.aurora.gen.apiConstants;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
-import org.apache.aurora.scheduler.storage.entities.ITaskEvent;
+import org.apache.aurora.gen.AssignedTask;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.gen.TaskConfig;
+import org.apache.aurora.gen.TaskEvent;
 
 /**
  * Utility class providing convenience functions relating to tasks.
@@ -46,23 +46,23 @@ public final class Tasks {
           .addAll(apiConstants.ACTIVE_STATES)
           .build();
 
-  public static ITaskConfig getConfig(IScheduledTask scheduledTask) {
+  public static TaskConfig getConfig(ScheduledTask scheduledTask) {
     return scheduledTask.getAssignedTask().getTask();
   }
 
-  public static int getInstanceId(IScheduledTask scheduledTask) {
+  public static int getInstanceId(ScheduledTask scheduledTask) {
     return scheduledTask.getAssignedTask().getInstanceId();
   }
 
-  public static IJobKey getJob(IAssignedTask assignedTask) {
+  public static JobKey getJob(IAssignedTask assignedTask) {
     return assignedTask.getTask().getJob();
   }
 
-  public static IJobKey getJob(IScheduledTask scheduledTask) {
+  public static JobKey getJob(ScheduledTask scheduledTask) {
     return getJob(scheduledTask.getAssignedTask());
   }
 
-  public static String scheduledToSlaveHost(IScheduledTask scheduledTask) {
+  public static String scheduledToSlaveHost(ScheduledTask scheduledTask) {
     return scheduledTask.getAssignedTask().getSlaveHost();
   }
 
@@ -89,12 +89,12 @@ public final class Tasks {
   }
 
   /**
-   * A utility method that returns a multi-map of tasks keyed by IJobKey.
+   * A utility method that returns a multi-map of tasks keyed by JobKey.
    *
    * @param tasks A list of tasks to be keyed by map
    * @return A multi-map of tasks keyed by job key.
    */
-  public static Multimap<IJobKey, IScheduledTask> byJobKey(Iterable<IScheduledTask> tasks) {
+  public static Multimap<JobKey, ScheduledTask> byJobKey(Iterable<ScheduledTask> tasks) {
     return Multimaps.index(tasks, Tasks::getJob);
   }
 
@@ -106,15 +106,15 @@ public final class Tasks {
     return TERMINAL_STATES.contains(status);
   }
 
-  public static String id(IScheduledTask task) {
+  public static String id(ScheduledTask task) {
     return task.getAssignedTask().getTaskId();
   }
 
-  public static Set<String> ids(Iterable<IScheduledTask> tasks) {
+  public static Set<String> ids(Iterable<ScheduledTask> tasks) {
     return ImmutableSet.copyOf(Iterables.transform(tasks, Tasks::id));
   }
 
-  public static Set<String> ids(IScheduledTask... tasks) {
+  public static Set<String> ids(ScheduledTask... tasks) {
     return ids(ImmutableList.copyOf(tasks));
   }
 
@@ -124,23 +124,23 @@ public final class Tasks {
    * @param tasks a collection of tasks
    * @return the task that transitioned most recently.
    */
-  public static IScheduledTask getLatestActiveTask(Iterable<IScheduledTask> tasks) {
+  public static ScheduledTask getLatestActiveTask(Iterable<ScheduledTask> tasks) {
     Preconditions.checkArgument(Iterables.size(tasks) != 0);
 
     return Ordering.explicit(ORDERED_TASK_STATUSES)
-        .onResultOf(IScheduledTask::getStatus)
+        .onResultOf(ScheduledTask::getStatus)
         .compound(LATEST_ACTIVITY)
         .max(tasks);
   }
 
-  public static ITaskEvent getLatestEvent(IScheduledTask task) {
+  public static ITaskEvent getLatestEvent(ScheduledTask task) {
     return Iterables.getLast(task.getTaskEvents());
   }
 
-  public static final Ordering<IScheduledTask> LATEST_ACTIVITY = Ordering.natural()
-      .onResultOf(new Function<IScheduledTask, Long>() {
+  public static final Ordering<ScheduledTask> LATEST_ACTIVITY = Ordering.natural()
+      .onResultOf(new Function<ScheduledTask, Long>() {
         @Override
-        public Long apply(IScheduledTask task) {
+        public Long apply(ScheduledTask task) {
           return getLatestEvent(task).getTimestamp();
         }
       });

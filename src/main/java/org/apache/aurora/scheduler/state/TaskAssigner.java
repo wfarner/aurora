@@ -41,8 +41,8 @@ import org.apache.aurora.scheduler.mesos.MesosTaskFactory;
 import org.apache.aurora.scheduler.offers.OfferManager;
 import org.apache.aurora.scheduler.resources.ResourceManager;
 import org.apache.aurora.scheduler.resources.ResourceType;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
-import org.apache.aurora.scheduler.storage.entities.IInstanceKey;
+import org.apache.aurora.gen.AssignedTask;
+import org.apache.aurora.gen.InstanceKey;
 import org.apache.aurora.scheduler.updater.UpdateAgentReserver;
 import org.apache.mesos.v1.Protos;
 import org.apache.mesos.v1.Protos.TaskInfo;
@@ -75,7 +75,7 @@ public interface TaskAssigner {
       MutableStoreProvider storeProvider,
       ResourceRequest resourceRequest,
       TaskGroupKey groupKey,
-      Iterable<IAssignedTask> tasks,
+      Iterable<AssignedTask> tasks,
       Map<String, TaskGroupKey> preemptionReservations);
 
   class FirstFitTaskAssigner implements TaskAssigner {
@@ -120,8 +120,8 @@ public interface TaskAssigner {
     }
 
     @VisibleForTesting
-    IAssignedTask mapAndAssignResources(Offer offer, IAssignedTask task) {
-      IAssignedTask assigned = task;
+    AssignedTask mapAndAssignResources(Offer offer, AssignedTask task) {
+      AssignedTask assigned = task;
       for (ResourceType type : ResourceManager.getTaskResourceTypes(assigned)) {
         if (type.getMapper().isPresent()) {
           assigned = type.getMapper().get().mapAndAssign(offer, assigned);
@@ -136,7 +136,7 @@ public interface TaskAssigner {
         String taskId) {
 
       String host = offer.getHostname();
-      IAssignedTask assigned = stateManager.assignTask(
+      AssignedTask assigned = stateManager.assignTask(
           storeProvider,
           taskId,
           host,
@@ -153,7 +153,7 @@ public interface TaskAssigner {
         TierInfo tierInfo,
         ResourceRequest resourceRequest,
         TaskGroupKey groupKey,
-        IAssignedTask task,
+        AssignedTask task,
         HostOffer offer,
         ImmutableSet.Builder<String> assignmentResult) throws OfferManager.LaunchException {
 
@@ -203,8 +203,8 @@ public interface TaskAssigner {
       return false;
     }
 
-    private Iterable<IAssignedTask> maybeAssignReserved(
-        Iterable<IAssignedTask> tasks,
+    private Iterable<AssignedTask> maybeAssignReserved(
+        Iterable<AssignedTask> tasks,
         MutableStoreProvider storeProvider,
         TierInfo tierInfo,
         ResourceRequest resourceRequest,
@@ -218,10 +218,10 @@ public interface TaskAssigner {
       // Data structure to record which tasks should be excluded from the regular (non-reserved)
       // scheduling loop. This is important because we release reservations once they are used,
       // so we need to record them separately to avoid them being double-scheduled.
-      ImmutableSet.Builder<IInstanceKey> excludeBuilder = ImmutableSet.builder();
+      ImmutableSet.Builder<InstanceKey> excludeBuilder = ImmutableSet.builder();
 
-      for (IAssignedTask task: tasks) {
-        IInstanceKey key = InstanceKeys.from(task.getTask().getJob(), task.getInstanceId());
+      for (AssignedTask task: tasks) {
+        InstanceKey key = InstanceKeys.from(task.getTask().getJob(), task.getInstanceId());
         Optional<String> maybeAgentId = updateAgentReserver.getAgent(key);
         if (maybeAgentId.isPresent()) {
           excludeBuilder.add(key);
@@ -258,7 +258,7 @@ public interface TaskAssigner {
       // Return only the tasks that didn't have reservations. Offers on agents that were reserved
       // might not have been seen by Aurora yet, so we need to wait until the reservation expires
       // before giving up and falling back to the first-fit algorithm.
-      Set<IInstanceKey> toBeExcluded = excludeBuilder.build();
+      Set<InstanceKey> toBeExcluded = excludeBuilder.build();
       return Iterables.filter(tasks, t -> !toBeExcluded.contains(
           InstanceKeys.from(t.getTask().getJob(), t.getInstanceId())));
     }
@@ -269,7 +269,7 @@ public interface TaskAssigner {
         MutableStoreProvider storeProvider,
         ResourceRequest resourceRequest,
         TaskGroupKey groupKey,
-        Iterable<IAssignedTask> tasks,
+        Iterable<AssignedTask> tasks,
         Map<String, TaskGroupKey> preemptionReservations) {
 
       if (Iterables.isEmpty(tasks)) {
@@ -279,7 +279,7 @@ public interface TaskAssigner {
       TierInfo tierInfo = tierManager.getTier(groupKey.getTask());
       ImmutableSet.Builder<String> assignmentResult = ImmutableSet.builder();
 
-      Iterable<IAssignedTask> nonReservedTasks = maybeAssignReserved(
+      Iterable<AssignedTask> nonReservedTasks = maybeAssignReserved(
           tasks,
           storeProvider,
           tierInfo,
@@ -287,10 +287,10 @@ public interface TaskAssigner {
           groupKey,
           assignmentResult);
 
-      Iterator<IAssignedTask> remainingTasks = nonReservedTasks.iterator();
+      Iterator<AssignedTask> remainingTasks = nonReservedTasks.iterator();
       // Make sure we still have tasks to process after reservations are processed.
       if (remainingTasks.hasNext()) {
-        IAssignedTask task = remainingTasks.next();
+        AssignedTask task = remainingTasks.next();
         for (HostOffer offer : offerManager.getOffers(groupKey)) {
 
           if (!offer.hasCpuAndMem()) {

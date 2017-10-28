@@ -21,8 +21,8 @@ import com.google.common.collect.ImmutableList;
 import org.apache.aurora.gen.MaintenanceMode;
 import org.apache.aurora.scheduler.base.Conversions;
 import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
-import org.apache.aurora.scheduler.storage.entities.IAttribute;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
+import org.apache.aurora.gen.Attribute;
+import org.apache.aurora.gen.HostAttributes;
 import org.apache.mesos.v1.Protos;
 
 /**
@@ -42,14 +42,14 @@ public interface AttributeStore {
    * @param host host name.
    * @return attributes associated with {@code host}, if the host is known.
    */
-  Optional<IHostAttributes> getHostAttributes(String host);
+  Optional<HostAttributes> getHostAttributes(String host);
 
   /**
    * Fetches all attributes in the store.
    *
    * @return All host attributes.
    */
-  Set<IHostAttributes> getHostAttributes();
+  Set<HostAttributes> getHostAttributes();
 
   /**
    * Attributes are considered mostly ephemeral and extremely low risk when inconsistency
@@ -67,9 +67,9 @@ public interface AttributeStore {
      *
      * @param hostAttributes The attribute we are going to save.
      * @return {@code true} if the operation changed the attributes stored for the given
-     *         {@link IHostAttributes#getHost() host}, or {@code false} if the save was a no-op.
+     *         {@link HostAttributes#getHost() host}, or {@code false} if the save was a no-op.
      */
-    boolean saveHostAttributes(IHostAttributes hostAttributes);
+    boolean saveHostAttributes(HostAttributes hostAttributes);
   }
 
   final class Util {
@@ -84,8 +84,8 @@ public interface AttributeStore {
      * @return Attributes associated with {@code host}, or an empty iterable if the host is
      *         unknown.
      */
-    public static Iterable<IAttribute> attributesOrNone(StoreProvider store, String host) {
-      Optional<IHostAttributes> attributes = store.getAttributeStore().getHostAttributes(host);
+    public static Iterable<Attribute> attributesOrNone(StoreProvider store, String host) {
+      Optional<HostAttributes> attributes = store.getAttributeStore().getHostAttributes(host);
       return attributes.isPresent()
           ? attributes.get().getAttributes() : ImmutableList.of();
     }
@@ -100,14 +100,14 @@ public interface AttributeStore {
      *         the {@code host}, or {@link Optional#absent() none} if the host is unknown and
      *         attributes should not be saved.
      */
-    public static Optional<IHostAttributes> mergeMode(
+    public static Optional<HostAttributes> mergeMode(
         AttributeStore store,
         String host,
         MaintenanceMode mode) {
 
-      Optional<IHostAttributes> stored = store.getHostAttributes(host);
+      Optional<HostAttributes> stored = store.getHostAttributes(host);
       if (stored.isPresent()) {
-        return Optional.of(IHostAttributes.build(stored.get().newBuilder().setMode(mode)));
+        return Optional.of(stored.get().mutate().setMode(mode).build());
       } else {
         return Optional.absent();
       }
@@ -120,12 +120,12 @@ public interface AttributeStore {
      * @param offer Offer to merge.
      * @return attributes from {@code offer} and the existing (or default) maintenance mode.
      */
-    public static IHostAttributes mergeOffer(AttributeStore store, Protos.Offer offer) {
-      IHostAttributes fromOffer = Conversions.getAttributes(offer);
+    public static HostAttributes mergeOffer(AttributeStore store, Protos.Offer offer) {
+      HostAttributes fromOffer = Conversions.getAttributes(offer);
       MaintenanceMode mode = store.getHostAttributes(fromOffer.getHost())
-          .transform(IHostAttributes::getMode)
+          .transform(HostAttributes::getMode)
           .or(MaintenanceMode.NONE);
-      return IHostAttributes.build(fromOffer.newBuilder().setMode(mode));
+      return fromOffer.mutate().setMode(mode).build();
     }
   }
 }

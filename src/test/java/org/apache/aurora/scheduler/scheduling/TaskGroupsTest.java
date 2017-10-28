@@ -33,8 +33,8 @@ import org.apache.aurora.scheduler.events.PubsubEvent;
 import org.apache.aurora.scheduler.events.PubsubEvent.TaskStateChange;
 import org.apache.aurora.scheduler.scheduling.TaskGroups.TaskGroupBatchWorker;
 import org.apache.aurora.scheduler.scheduling.TaskGroups.TaskGroupsSettings;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.storage.testing.StorageTestUtil;
 import org.apache.aurora.scheduler.testing.FakeScheduledExecutor;
 import org.apache.aurora.scheduler.testing.FakeStatsProvider;
@@ -52,7 +52,7 @@ import static org.junit.Assert.assertEquals;
 public class TaskGroupsTest extends EasyMockTest {
   private static final Amount<Long, Time> FIRST_SCHEDULE_DELAY = Amount.of(1L, Time.MILLISECONDS);
   private static final Amount<Long, Time> RESCHEDULE_DELAY = FIRST_SCHEDULE_DELAY;
-  private static final IJobKey JOB_A = IJobKey.build(new JobKey("role", "test", "jobA"));
+  private static final JobKey JOB_A = JobKey.build(new JobKey("role", "test", "jobA"));
   private static final String TASK_A_ID = "a";
   private static final Set<String> SCHEDULED_RESULT = ImmutableSet.of(TASK_A_ID);
 
@@ -104,7 +104,7 @@ public class TaskGroupsTest extends EasyMockTest {
 
   @Test
   public void testTaskDeletedBeforeEvaluating() throws Exception {
-    final IScheduledTask task = makeTask(TASK_A_ID);
+    final ScheduledTask task = makeTask(TASK_A_ID);
     expect(rateLimiter.acquire()).andReturn(0.5D);
     expect(taskScheduler.schedule(anyObject(), eq(ImmutableSet.of(TASK_A_ID))))
         .andAnswer(() -> {
@@ -165,7 +165,7 @@ public class TaskGroupsTest extends EasyMockTest {
     taskGroups.taskChangedState(TaskStateChange.transition(makeTask(JOB_A, "a1", 1), INIT));
     taskGroups.taskChangedState(TaskStateChange.transition(makeTask(JOB_A, "a2", 2), INIT));
     taskGroups.taskChangedState(TaskStateChange.transition(
-        makeTask(IJobKey.build(JOB_A.newBuilder().setName("jobB")), "b0", 0), INIT));
+        makeTask(JobKey.build(JOB_A.newBuilder().setName("jobB")), "b0", 0), INIT));
 
     clock.advance(FIRST_SCHEDULE_DELAY);
     assertEquals(2L, statsProvider.getLongValue(TaskGroups.SCHEDULE_ATTEMPTS_BLOCKS));
@@ -175,17 +175,17 @@ public class TaskGroupsTest extends EasyMockTest {
   public void testNonPendingIgnored() {
     control.replay();
 
-    IScheduledTask task =
-        IScheduledTask.build(makeTask(TASK_A_ID).newBuilder().setStatus(ASSIGNED));
+    ScheduledTask task =
+        ScheduledTask.build(makeTask(TASK_A_ID).newBuilder().setStatus(ASSIGNED));
     taskGroups.taskChangedState(TaskStateChange.initialized(task));
   }
 
-  private static IScheduledTask makeTask(String id) {
+  private static ScheduledTask makeTask(String id) {
     return makeTask(JOB_A, id, 0);
   }
 
-  private static IScheduledTask makeTask(IJobKey jobKey, String id, int instanceId) {
-    return IScheduledTask.build(new ScheduledTask()
+  private static ScheduledTask makeTask(JobKey jobKey, String id, int instanceId) {
+    return ScheduledTask.build(new ScheduledTask()
         .setStatus(ScheduleStatus.PENDING)
         .setAssignedTask(new AssignedTask()
             .setInstanceId(instanceId)

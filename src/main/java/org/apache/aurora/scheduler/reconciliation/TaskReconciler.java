@@ -35,7 +35,7 @@ import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.mesos.Driver;
 import org.apache.aurora.scheduler.reconciliation.ReconciliationModule.BackgroundWorker;
 import org.apache.aurora.scheduler.storage.Storage;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.ScheduledTask;
 import org.apache.mesos.v1.Protos;
 import org.apache.mesos.v1.Protos.TaskStatus;
 
@@ -155,12 +155,12 @@ public class TaskReconciler extends AbstractIdleService {
   }
 
   private void doExplicitReconcile(int batchSize) {
-    Iterable<List<IScheduledTask>> activeBatches = Iterables.partition(
+    Iterable<List<ScheduledTask>> activeBatches = Iterables.partition(
         Storage.Util.fetchTasks(storage, Query.unscoped().byStatus(Tasks.SLAVE_ASSIGNED_STATES)),
         batchSize);
 
     long delay = 0;
-    for (List<IScheduledTask> batch : activeBatches) {
+    for (List<ScheduledTask> batch : activeBatches) {
       executor.schedule(() -> driver.reconcileTasks(
           batch.stream().map(TASK_TO_PROTO::apply).collect(Collectors.toList())),
           delay,
@@ -176,7 +176,7 @@ public class TaskReconciler extends AbstractIdleService {
   }
 
   @VisibleForTesting
-  static final Function<IScheduledTask, TaskStatus> TASK_TO_PROTO = t -> TaskStatus.newBuilder()
+  static final Function<ScheduledTask, TaskStatus> TASK_TO_PROTO = t -> TaskStatus.newBuilder()
       // TODO(maxim): State is required by protobuf but ignored by Mesos for reconciliation
       // purposes. This is the artifact of the native API. The new HTTP Mesos API will be
       // accepting task IDs instead. AURORA-1326 tracks solution on the scheduler side.

@@ -17,7 +17,7 @@ import java.util.Map;
 
 import com.google.common.base.Optional;
 
-import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
+import org.apache.aurora.gen.ResourceAggregate;
 
 /**
  * Point of storage for quota records.
@@ -29,14 +29,14 @@ public interface QuotaStore {
    * @param role Role to fetch quota for.
    * @return Optional quota associated with {@code role}.
    */
-  Optional<IResourceAggregate> fetchQuota(String role);
+  Optional<ResourceAggregate> fetchQuota(String role);
 
   /**
    * Fetches all allocated quotas.
    *
    * @return All allocated quotas.
    */
-  Map<String, IResourceAggregate> fetchQuotas();
+  Map<String, ResourceAggregate> fetchQuotas();
 
   interface Mutable extends QuotaStore {
 
@@ -58,6 +58,6 @@ public interface QuotaStore {
      * @param role Role to create or update a quota record for.
      * @param quota ResourceAggregate to save.
      */
-    void saveQuota(String role, IResourceAggregate quota);
+    void saveQuota(String role, ResourceAggregate quota);
   }
 }

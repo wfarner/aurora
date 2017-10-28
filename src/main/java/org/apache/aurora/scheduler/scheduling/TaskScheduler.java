@@ -46,9 +46,9 @@ import org.apache.aurora.scheduler.preemptor.Preemptor;
 import org.apache.aurora.scheduler.resources.ResourceBag;
 import org.apache.aurora.scheduler.state.TaskAssigner;
 import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.AssignedTask;
+import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.gen.TaskConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -139,7 +139,7 @@ public interface TaskScheduler extends EventSubscriber {
       ImmutableSet<IAssignedTask> assignedTasks =
           ImmutableSet.copyOf(Iterables.transform(
               store.getTaskStore().fetchTasks(Query.taskScoped(taskIds).byStatus(PENDING)),
-              IScheduledTask::getAssignedTask));
+              ScheduledTask::getAssignedTask));
 
       if (Iterables.isEmpty(assignedTasks)) {
         LOG.warn("Failed to look up all tasks in a scheduling round: {}", taskIdValues);
@@ -163,12 +163,12 @@ public interface TaskScheduler extends EventSubscriber {
       }
 
       // This is safe after all checks above.
-      ITaskConfig task = assignedTasks.stream().findFirst().get().getTask();
+      TaskConfig task = assignedTasks.stream().findFirst().get().getTask();
       AttributeAggregate aggregate = AttributeAggregate.getJobActiveState(store, task.getJob());
 
       // Valid Docker tasks can have a container but no executor config
       ResourceBag overhead = ResourceBag.EMPTY;
-      if (task.isSetExecutorConfig()) {
+      if (task.hasExecutorConfig()) {
         overhead = executorSettings.getExecutorOverhead(task.getExecutorConfig().getName())
             .orElseThrow(
                 () -> new IllegalArgumentException("Cannot find executor configuration"));

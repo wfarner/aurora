@@ -21,7 +21,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 
 import org.apache.aurora.scheduler.TierInfo;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
+import org.apache.aurora.gen.AssignedTask;
 import org.apache.mesos.v1.Protos.Offer;
 import org.apache.mesos.v1.Protos.Resource;
 

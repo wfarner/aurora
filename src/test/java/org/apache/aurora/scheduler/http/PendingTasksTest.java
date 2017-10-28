@@ -31,8 +31,8 @@ import org.apache.aurora.scheduler.filter.SchedulingFilter.Veto;
 import org.apache.aurora.scheduler.metadata.NearestFit;
 import org.apache.aurora.scheduler.scheduling.TaskGroup;
 import org.apache.aurora.scheduler.scheduling.TaskGroups;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.ScheduledTask;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.node.ArrayNode;
@@ -84,8 +84,8 @@ public class PendingTasksTest extends EasyMockTest {
   @Test
   public void testNoOffers() throws IOException {
     // Making a task that is not in PENDING state.
-    IJobKey jobKey = IJobKey.build(new JobKey("role", "test", "nonPendingJob"));
-    IScheduledTask task = TestUtils.makeTask(jobKey, "task0", 0,
+    JobKey jobKey = JobKey.build(new JobKey("role", "test", "nonPendingJob"));
+    ScheduledTask task = TestUtils.makeTask(jobKey, "task0", 0,
         ScheduleStatus.ASSIGNED, 10, 10, 10);
 
     PubsubEvent.TaskStateChange taskStateChange = PubsubEvent.TaskStateChange.transition(
@@ -112,15 +112,15 @@ public class PendingTasksTest extends EasyMockTest {
   @Test
   public void testOffers() throws IOException {
     // Making pending tasks.
-    IJobKey jobKey0 = IJobKey.build(new JobKey("role", "test", "jobA"));
-    IJobKey jobKey1 = IJobKey.build(new JobKey("role", "test", "jobB"));
+    JobKey jobKey0 = JobKey.build(new JobKey("role", "test", "jobA"));
+    JobKey jobKey1 = JobKey.build(new JobKey("role", "test", "jobB"));
     // Task of jobA
-    IScheduledTask task0 = TestUtils.makeTask(jobKey0, "task0", 0,
+    ScheduledTask task0 = TestUtils.makeTask(jobKey0, "task0", 0,
         ScheduleStatus.PENDING, 1000, 1000000, 10);
     // Tasks of jobB with two different TaskConfigs and thus two different TaskGroupKeys
-    IScheduledTask task1 = TestUtils.makeTask(jobKey1, "task1", 0,
+    ScheduledTask task1 = TestUtils.makeTask(jobKey1, "task1", 0,
         ScheduleStatus.PENDING, 1000, 10, 1000000);
-    IScheduledTask task2 = TestUtils.makeTask(jobKey1, "task2", 1,
+    ScheduledTask task2 = TestUtils.makeTask(jobKey1, "task2", 1,
         ScheduleStatus.PENDING, 100, 1, 100000);
 
     PubsubEvent.TaskStateChange taskStateChange0 = PubsubEvent.TaskStateChange.transition(

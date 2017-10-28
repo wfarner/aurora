@@ -18,8 +18,8 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 import org.apache.aurora.scheduler.storage.db.views.DbJobConfiguration;
-import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
+import org.apache.aurora.gen.JobConfiguration;
+import org.apache.aurora.gen.JobKey;
 import org.apache.ibatis.annotations.Param;
 
 /**
@@ -27,14 +27,14 @@ import org.apache.ibatis.annotations.Param;
  */
 interface CronJobMapper {
 
-  void merge(@Param("job") IJobConfiguration job, @Param("task_config_id") long taskConfigId);
+  void merge(@Param("job") JobConfiguration job, @Param("task_config_id") long taskConfigId);
 
-  void delete(@Param("job") IJobKey job);
+  void delete(@Param("job") JobKey job);
 
   void truncate();
 
   List<DbJobConfiguration> selectAll();
 
   @Nullable
-  DbJobConfiguration select(@Param("job") IJobKey job);
+  DbJobConfiguration select(@Param("job") JobKey job);
 }

@@ -41,7 +41,7 @@ import org.apache.aurora.scheduler.events.PubsubEventModule;
 import org.apache.aurora.scheduler.mesos.Driver;
 import org.apache.aurora.scheduler.state.PubsubTestUtil;
 import org.apache.aurora.scheduler.storage.Storage;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.storage.testing.StorageTestUtil;
 import org.apache.aurora.scheduler.testing.FakeScheduledExecutor;
 import org.apache.aurora.scheduler.testing.FakeStatsProvider;
@@ -97,8 +97,8 @@ public class KillRetryTest extends EasyMockTest {
     PubsubTestUtil.startPubsub(injector);
   }
 
-  private static IScheduledTask makeTask(String id, ScheduleStatus status) {
-    return IScheduledTask.build(new ScheduledTask()
+  private static ScheduledTask makeTask(String id, ScheduleStatus status) {
+    return ScheduledTask.build(new ScheduledTask()
         .setStatus(status)
         .setAssignedTask(new AssignedTask().setTaskId(id)));
   }

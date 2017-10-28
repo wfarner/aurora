@@ -29,7 +29,7 @@ import org.apache.aurora.common.util.testing.FakeClock;
 import org.apache.aurora.scheduler.base.Query;
 import org.apache.aurora.scheduler.sla.MetricCalculator.MetricCalculatorSettings;
 import org.apache.aurora.scheduler.sla.SlaGroup.GroupType;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.storage.testing.StorageTestUtil;
 import org.easymock.Capture;
 import org.easymock.CaptureType;
@@ -86,10 +86,10 @@ public class MetricCalculatorTest extends EasyMockTest {
         .andReturn(EasyMock.anyObject())
         .anyTimes();
 
-    IScheduledTask task1 = makeTask(ImmutableMap.of(clock.nowMillis() - 1000, PENDING), 0);
-    IScheduledTask task2 = makeTask(ImmutableMap.of(clock.nowMillis() - 2000, PENDING), 1);
-    IScheduledTask task3 = makeTask(ImmutableMap.of(clock.nowMillis() - 3000, PENDING), 2);
-    IScheduledTask task4 = makeTask(ImmutableMap.of(clock.nowMillis() - 4000, PENDING), 3, false);
+    ScheduledTask task1 = makeTask(ImmutableMap.of(clock.nowMillis() - 1000, PENDING), 0);
+    ScheduledTask task2 = makeTask(ImmutableMap.of(clock.nowMillis() - 2000, PENDING), 1);
+    ScheduledTask task3 = makeTask(ImmutableMap.of(clock.nowMillis() - 3000, PENDING), 2);
+    ScheduledTask task4 = makeTask(ImmutableMap.of(clock.nowMillis() - 4000, PENDING), 3, false);
 
     clock.advance(Amount.of(10L, Time.SECONDS));
     storageUtil.expectTaskFetch(Query.unscoped(), task1, task2, task3, task4);
@@ -106,7 +106,7 @@ public class MetricCalculatorTest extends EasyMockTest {
   }
 
   private Set<String> generateMetricNames(
-      Set<IScheduledTask> tasks,
+      Set<ScheduledTask> tasks,
       Set<Multimap<AlgorithmType, SlaGroup.GroupType>> definitions) {
 
     ImmutableSet.Builder<String> names = ImmutableSet.builder();

@@ -30,7 +30,7 @@ from apache.aurora.config.schema.base import (
 )
 from apache.thermos.config.loader import ThermosTaskValidator
 
-from gen.apache.aurora.api.constants import AURORA_EXECUTOR_NAME, GOOD_IDENTIFIER_PATTERN_PYTHON
+from gen.apache.aurora.api.constants import AURORA_EXECUTOR_NAME, GOOD_IDENTIFIER_PATTERN
 from gen.apache.aurora.api.ttypes import (
     AppcImage,
     Constraint,
@@ -229,7 +229,7 @@ def filter_aliased_fields(job):
 
 
 def assert_valid_field(field, identifier):
-  VALID_IDENTIFIER = re.compile(GOOD_IDENTIFIER_PATTERN_PYTHON)
+  VALID_IDENTIFIER = re.compile(GOOD_IDENTIFIER_PATTERN)
   if not isinstance(identifier, Compatibility.string):
     raise InvalidConfig("%s must be a string" % field)
   if not VALID_IDENTIFIER.match(identifier):

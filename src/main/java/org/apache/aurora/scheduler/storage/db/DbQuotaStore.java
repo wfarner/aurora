@@ -23,7 +23,7 @@ import org.apache.aurora.scheduler.storage.QuotaStore;
 import org.apache.aurora.scheduler.storage.db.views.DBResourceAggregate;
 import org.apache.aurora.scheduler.storage.db.views.DBSaveQuota;
 import org.apache.aurora.scheduler.storage.db.views.Pairs;
-import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
+import org.apache.aurora.gen.ResourceAggregate;
 
 import static java.util.Objects.requireNonNull;
 
@@ -43,14 +43,14 @@ class DbQuotaStore implements QuotaStore.Mutable {
 
   @Timed("quota_store_fetch_quota")
   @Override
-  public Optional<IResourceAggregate> fetchQuota(String role) {
+  public Optional<ResourceAggregate> fetchQuota(String role) {
     return Optional.fromNullable(mapper.select(role))
         .transform(DBResourceAggregate::toImmutable);
   }
 
   @Timed("quota_store_fetch_quotas")
   @Override
-  public Map<String, IResourceAggregate> fetchQuotas() {
+  public Map<String, ResourceAggregate> fetchQuotas() {
     return Pairs.toMap(mapper.selectAll().stream()
         .map(DBSaveQuota::toImmutable)
         .collect(Collectors.toList()));
@@ -70,7 +70,7 @@ class DbQuotaStore implements QuotaStore.Mutable {
 
   @Timed("quota_store_save_quota")
   @Override
-  public void saveQuota(String role, IResourceAggregate quota) {
+  public void saveQuota(String role, ResourceAggregate quota) {
     mapper.delete(role);
     InsertResult quotaInsert = new InsertResult();
     mapper.insert(role, quota.newBuilder(), quotaInsert);

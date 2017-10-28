@@ -47,38 +47,43 @@ public class JsonCodecTest {
   @Test
   public void testJsonCodecRoundtrip() throws Exception {
     Codec<ServiceInstance> codec = STANDARD_JSON_CODEC;
-    ServiceInstance instance1 = new ServiceInstance(
-        new Endpoint("foo", 1000),
-        ImmutableMap.of("http", new Endpoint("foo", 8080)),
-        Status.ALIVE)
-        .setShard(0);
+    ServiceInstance instance1 = ServiceInstance.builder()
+        .setServiceEndpoint(endpoint("foo", 1000))
+        .setAdditionalEndpoints(ImmutableMap.of("http", endpoint("foo", 8080)))
+        .setStatus(Status.ALIVE)
+        .setShard(0)
+        .build();
     byte[] data = Encoding.serializeServiceInstance(instance1, codec);
-    assertTrue(Encoding.deserializeServiceInstance(data, codec).getServiceEndpoint().isSetPort());
-    assertTrue(Encoding.deserializeServiceInstance(data, codec).isSetShard());
+    assertTrue(Encoding.deserializeServiceInstance(data, codec).getServiceEndpoint().hasPort());
+    assertTrue(Encoding.deserializeServiceInstance(data, codec).hasShard());
 
-    ServiceInstance instance2 = new ServiceInstance(
-        new Endpoint("foo", 1000),
-        ImmutableMap.of("http-admin1", new Endpoint("foo", 8080)),
-        Status.ALIVE);
+    ServiceInstance instance2 = ServiceInstance.builder()
+        .setServiceEndpoint(endpoint("foo", 1000))
+        .setAdditionalEndpoints(ImmutableMap.of("http-admin1", endpoint("foo", 8080)))
+        .setStatus(Status.ALIVE)
+        .build();
     data = Encoding.serializeServiceInstance(instance2, codec);
-    assertTrue(Encoding.deserializeServiceInstance(data, codec).getServiceEndpoint().isSetPort());
-    assertFalse(Encoding.deserializeServiceInstance(data, codec).isSetShard());
+    assertTrue(Encoding.deserializeServiceInstance(data, codec).getServiceEndpoint().hasPort());
+    assertFalse(Encoding.deserializeServiceInstance(data, codec).hasShard());
 
-    ServiceInstance instance3 = new ServiceInstance(
-        new Endpoint("foo", 1000),
-        ImmutableMap.<String, Endpoint>of(),
-        Status.ALIVE);
+    ServiceInstance instance3 = ServiceInstance.builder()
+        .setServiceEndpoint(endpoint("foo", 1000))
+        .setAdditionalEndpoints(ImmutableMap.of())
+        .setStatus(Status.ALIVE)
+        .build();
     data = Encoding.serializeServiceInstance(instance3, codec);
-    assertTrue(Encoding.deserializeServiceInstance(data, codec).getServiceEndpoint().isSetPort());
-    assertFalse(Encoding.deserializeServiceInstance(data, codec).isSetShard());
+    assertTrue(Encoding.deserializeServiceInstance(data, codec).getServiceEndpoint().hasPort());
+    assertFalse(Encoding.deserializeServiceInstance(data, codec).hasShard());
   }
 
   @Test
   public void testJsonCompatibility() throws IOException {
-    ServiceInstance instance = new ServiceInstance(
-        new Endpoint("foo", 1000),
-        ImmutableMap.of("http", new Endpoint("foo", 8080)),
-        Status.ALIVE).setShard(42);
+    ServiceInstance instance = ServiceInstance.builder()
+        .setServiceEndpoint(endpoint("foo", 1000))
+        .setAdditionalEndpoints(ImmutableMap.of("http", endpoint("foo", 8080)))
+        .setStatus(Status.ALIVE)
+        .setShard(42)
+        .build();
 
     ByteArrayOutputStream results = new ByteArrayOutputStream();
     STANDARD_JSON_CODEC.serialize(instance, results);
@@ -98,8 +103,11 @@ public class JsonCodecTest {
     EasyMock.expectLastCall().andThrow(new JsonIOException("error"));
     PowerMock.replay(gson);
 
-    ServiceInstance instance =
-        new ServiceInstance(new Endpoint("foo", 1000), ImmutableMap.of(), Status.ALIVE);
+    ServiceInstance instance = ServiceInstance.builder()
+        .setServiceEndpoint(endpoint("foo", 1000))
+        .setAdditionalEndpoints(ImmutableMap.of())
+        .setStatus(Status.ALIVE)
+        .build();
 
     try {
       new JsonCodec(gson).serialize(instance, new ByteArrayOutputStream());
@@ -116,8 +124,11 @@ public class JsonCodecTest {
     String minimal = "{\"serviceEndpoint\":{\"host\":\"foo\",\"port\":1000},\"status\":\"ALIVE\"}";
     ByteArrayInputStream source = new ByteArrayInputStream(minimal.getBytes(Charsets.UTF_8));
     ServiceInstance actual = STANDARD_JSON_CODEC.deserialize(source);
-    ServiceInstance expected =
-        new ServiceInstance(new Endpoint("foo", 1000), ImmutableMap.of(), Status.ALIVE);
+    ServiceInstance expected = ServiceInstance.builder()
+        .setServiceEndpoint(endpoint("foo", 1000))
+        .setAdditionalEndpoints(ImmutableMap.of())
+        .setStatus(Status.ALIVE)
+        .build();
     assertEquals(expected, actual);
   }
 
@@ -147,5 +158,9 @@ public class JsonCodecTest {
     } catch (IOException e) {
       // Expected.
     }
+  }
+
+  private static Endpoint endpoint(String host, int port) {
+    return Endpoint.builder().setHost(host).setPort(port).build();
   }
 }

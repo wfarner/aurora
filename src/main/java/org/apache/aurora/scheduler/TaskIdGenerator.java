@@ -19,7 +19,7 @@ import java.util.UUID;
 import javax.inject.Inject;
 
 import org.apache.aurora.common.util.Clock;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.TaskConfig;
 
 /**
  * A function that generates universally-unique (not guaranteed, but highly confident) task IDs.
@@ -34,7 +34,7 @@ public interface TaskIdGenerator {
    * @param instanceId Instance ID for the task.
    * @return A universally-unique ID for the task.
    */
-  String generate(ITaskConfig task, int instanceId);
+  String generate(TaskConfig task, int instanceId);
 
   class TaskIdGeneratorImpl implements TaskIdGenerator {
     private final Clock clock;
@@ -45,7 +45,7 @@ public interface TaskIdGenerator {
     }
 
     @Override
-    public String generate(ITaskConfig task, int instanceId) {
+    public String generate(TaskConfig task, int instanceId) {
       String sep = "-";
       return new StringBuilder()
           .append(task.getJob().getRole())

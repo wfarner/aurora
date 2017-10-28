@@ -22,8 +22,8 @@ import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
 
 import org.apache.aurora.scheduler.storage.AttributeStore;
-import org.apache.aurora.scheduler.storage.entities.IAttribute;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
+import org.apache.aurora.gen.Attribute;
+import org.apache.aurora.gen.HostAttributes;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -51,7 +51,7 @@ class DbAttributeStore implements AttributeStore.Mutable {
   @Override
   public boolean saveHostAttributes(IHostAttributes hostAttributes) {
     checkNotBlank(hostAttributes.getHost());
-    checkArgument(hostAttributes.isSetMode());
+    checkArgument(hostAttributes.hasMode());
 
     if (Iterables.any(hostAttributes.getAttributes(), EMPTY_VALUES)) {
       throw new IllegalArgumentException(

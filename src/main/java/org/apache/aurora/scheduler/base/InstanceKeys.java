@@ -18,11 +18,11 @@ import java.util.Objects;
 import com.google.common.base.Preconditions;
 
 import org.apache.aurora.gen.InstanceKey;
-import org.apache.aurora.scheduler.storage.entities.IInstanceKey;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
+import org.apache.aurora.gen.InstanceKey;
+import org.apache.aurora.gen.JobKey;
 
 /**
- * Utility function for {@link IInstanceKey instance keys}.
+ * Utility function for {@link InstanceKey instance keys}.
  */
 public final class InstanceKeys {
   private InstanceKeys() {
@@ -36,10 +36,10 @@ public final class InstanceKeys {
    * @param instanceId Instance id.
    * @return Instance ID.
    */
-  public static IInstanceKey from(IJobKey job, int instanceId) {
+  public static InstanceKey from(JobKey job, int instanceId) {
     Objects.requireNonNull(job);
     Preconditions.checkArgument(instanceId >= 0);
-    return IInstanceKey.build(new InstanceKey(job.newBuilder(), instanceId));
+    return InstanceKey.build(new InstanceKey(job.newBuilder(), instanceId));
   }
 
   /**
@@ -48,7 +48,7 @@ public final class InstanceKeys {
    * @param instance Instance key.
    * @return String representation of the instance key.
    */
-  public static String toString(IInstanceKey instance) {
+  public static String toString(InstanceKey instance) {
     return JobKeys.canonicalString(instance.getJobKey()) + "/" + instance.getInstanceId();
   }
 }

@@ -41,14 +41,14 @@ import org.apache.aurora.scheduler.quota.QuotaManager.QuotaManagerImpl;
 import org.apache.aurora.scheduler.resources.ResourceType;
 import org.apache.aurora.scheduler.storage.JobUpdateStore;
 import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
-import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdate;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateSummary;
-import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.JobConfiguration;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.JobUpdate;
+import org.apache.aurora.gen.JobUpdateKey;
+import org.apache.aurora.gen.JobUpdateSummary;
+import org.apache.aurora.gen.ResourceAggregate;
+import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.storage.testing.StorageTestUtil;
 import org.easymock.IExpectationSetters;
 import org.junit.Before;
@@ -73,9 +73,9 @@ public class QuotaManagerImplTest extends EasyMockTest {
   private static final String ROLE = "test";
   private static final String ENV = "test_env";
   private static final String JOB_NAME = "job";
-  private static final IJobUpdateKey UPDATE_KEY =
-      IJobUpdateKey.build(new JobUpdateKey(JobKeys.from(ROLE, ENV, JOB_NAME).newBuilder(), "u1"));
-  private static final IResourceAggregate QUOTA = aggregate(1.0, 100L, 200L);
+  private static final JobUpdateKey UPDATE_KEY =
+      JobUpdateKey.build(new JobUpdateKey(JobKeys.from(ROLE, ENV, JOB_NAME).newBuilder(), "u1"));
+  private static final ResourceAggregate QUOTA = aggregate(1.0, 100L, 200L);
   private static final Query.Builder ACTIVE_QUERY = Query.roleScoped(ROLE).active();
 
   private StorageTestUtil storageUtil;
@@ -94,10 +94,10 @@ public class QuotaManagerImplTest extends EasyMockTest {
 
   @Test
   public void testGetQuotaInfo() {
-    IScheduledTask prodSharedTask = prodTask("foo1", 3, 3, 3);
-    IScheduledTask prodDedicatedTask = prodDedicatedTask("foo2", 5, 5, 5);
-    IScheduledTask nonProdSharedTask = nonProdTask("bar1", 2, 2, 2);
-    IScheduledTask nonProdDedicatedTask = nonProdDedicatedTask("bar2", 7, 7, 7);
+    ScheduledTask prodSharedTask = prodTask("foo1", 3, 3, 3);
+    ScheduledTask prodDedicatedTask = prodDedicatedTask("foo2", 5, 5, 5);
+    ScheduledTask nonProdSharedTask = nonProdTask("bar1", 2, 2, 2);
+    ScheduledTask nonProdDedicatedTask = nonProdDedicatedTask("bar2", 7, 7, 7);
 
     expectQuota(aggregate(4, 4, 4));
     expectTasks(prodSharedTask, nonProdSharedTask, prodDedicatedTask, nonProdDedicatedTask);
@@ -115,8 +115,8 @@ public class QuotaManagerImplTest extends EasyMockTest {
 
   @Test
   public void testGetQuotaInfoWithCronTasks() {
-    IScheduledTask prodTask = prodTask("pc", 6, 6, 6);
-    IScheduledTask nonProdTask = prodTask("npc", 7, 7, 7);
+    ScheduledTask prodTask = prodTask("pc", 6, 6, 6);
+    ScheduledTask nonProdTask = prodTask("npc", 7, 7, 7);
 
     expectQuota(aggregate(4, 4, 4));
     expectTasks(prodTask, nonProdTask);
@@ -135,8 +135,8 @@ public class QuotaManagerImplTest extends EasyMockTest {
     expectCronJobs(
         createJob(prodTask("pc", 3, 3, 3), 1),
         createJob(nonProdTask("npc", 5, 5, 5), 2),
-        createJob(IScheduledTask.build(ignoredProdTask), 2),
-        createJob(IScheduledTask.build(ignoredNonProdTask), 3));
+        createJob(ScheduledTask.build(ignoredProdTask), 2),
+        createJob(ScheduledTask.build(ignoredNonProdTask), 3));
 
     control.replay();
 
@@ -147,10 +147,10 @@ public class QuotaManagerImplTest extends EasyMockTest {
 
   @Test
   public void testGetQuotaInfoPartialUpdate() {
-    IScheduledTask prodTask = prodTask("foo", 3, 3, 3);
-    IScheduledTask updatingProdTask = createTask(JOB_NAME, "id1", 3, 3, 3, true, 1);
-    IScheduledTask updatingFilteredProdTask = createTask(JOB_NAME, "id0", 3, 3, 3, true, 0);
-    IScheduledTask nonProdTask = createTask("bar", "id1", 2, 2, 2, false, 0);
+    ScheduledTask prodTask = prodTask("foo", 3, 3, 3);
+    ScheduledTask updatingProdTask = createTask(JOB_NAME, "id1", 3, 3, 3, true, 1);
+    ScheduledTask updatingFilteredProdTask = createTask(JOB_NAME, "id0", 3, 3, 3, true, 0);
+    ScheduledTask nonProdTask = createTask("bar", "id1", 2, 2, 2, false, 0);
 
     expectQuota(aggregate(4, 4, 4));
     expectTasks(prodTask, updatingProdTask, updatingFilteredProdTask, nonProdTask);
@@ -479,9 +479,9 @@ public class QuotaManagerImplTest extends EasyMockTest {
     expectQuota(aggregate(6, 6, 6)).times(2);
     expectTasks(prodTask("foo", 2, 2, 2), prodTask(JOB_NAME, 2, 2, 2)).times(2);
 
-    ITaskConfig config = taskConfig(2, 2, 2, true);
-    List<IJobUpdateSummary> summaries = buildJobUpdateSummaries(UPDATE_KEY);
-    IJobUpdate update = buildJobUpdate(summaries.get(0), config, 1, config, 1);
+    TaskConfig config = taskConfig(2, 2, 2, true);
+    List<JobUpdateSummary> summaries = buildJobUpdateSummaries(UPDATE_KEY);
+    JobUpdate update = buildJobUpdate(summaries.get(0), config, 1, config, 1);
     JobUpdate builder = update.newBuilder();
     builder.getInstructions().unsetDesiredState();
 
@@ -489,7 +489,7 @@ public class QuotaManagerImplTest extends EasyMockTest {
         .andReturn(summaries).times(2);
 
     expect(jobUpdateStore.fetchJobUpdate(UPDATE_KEY))
-        .andReturn(Optional.of(IJobUpdate.build(builder))).times(2);
+        .andReturn(Optional.of(JobUpdate.build(builder))).times(2);
 
     expectNoCronJobs().times(2);
 
@@ -508,9 +508,9 @@ public class QuotaManagerImplTest extends EasyMockTest {
     expectQuota(aggregate(6, 6, 6)).times(2);
     expectTasks(prodTask("foo", 2, 2, 2), prodTask(JOB_NAME, 2, 2, 2)).times(2);
 
-    ITaskConfig config = taskConfig(2, 2, 2, true);
-    List<IJobUpdateSummary> summaries = buildJobUpdateSummaries(UPDATE_KEY);
-    IJobUpdate update = buildJobUpdate(summaries.get(0), config, 1, config, 1);
+    TaskConfig config = taskConfig(2, 2, 2, true);
+    List<JobUpdateSummary> summaries = buildJobUpdateSummaries(UPDATE_KEY);
+    JobUpdate update = buildJobUpdate(summaries.get(0), config, 1, config, 1);
     JobUpdate builder = update.newBuilder();
     builder.getInstructions().setInitialState(ImmutableSet.of());
 
@@ -518,7 +518,7 @@ public class QuotaManagerImplTest extends EasyMockTest {
         .andReturn(summaries).times(2);
 
     expect(jobUpdateStore.fetchJobUpdate(UPDATE_KEY))
-        .andReturn(Optional.of(IJobUpdate.build(builder))).times(2);
+        .andReturn(Optional.of(JobUpdate.build(builder))).times(2);
 
     expectNoCronJobs().times(2);
 
@@ -537,9 +537,9 @@ public class QuotaManagerImplTest extends EasyMockTest {
     expectQuota(aggregate(6, 6, 6)).times(2);
     expectTasks(prodTask("foo", 2, 2, 2), prodTask("bar", 2, 2, 2)).times(2);
 
-    ITaskConfig config = taskConfig(2, 2, 2, true);
-    List<IJobUpdateSummary> summaries = buildJobUpdateSummaries(UPDATE_KEY);
-    IJobUpdate update = buildJobUpdate(summaries.get(0), config, 1, config, 1);
+    TaskConfig config = taskConfig(2, 2, 2, true);
+    List<JobUpdateSummary> summaries = buildJobUpdateSummaries(UPDATE_KEY);
+    JobUpdate update = buildJobUpdate(summaries.get(0), config, 1, config, 1);
     JobUpdate builder = update.newBuilder();
     builder.getInstructions().unsetDesiredState();
 
@@ -547,7 +547,7 @@ public class QuotaManagerImplTest extends EasyMockTest {
         .andReturn(summaries).times(2);
 
     expect(jobUpdateStore.fetchJobUpdate(UPDATE_KEY))
-        .andReturn(Optional.of(IJobUpdate.build(builder))).times(2);
+        .andReturn(Optional.of(JobUpdate.build(builder))).times(2);
 
     expectNoCronJobs().times(2);
 
@@ -570,8 +570,8 @@ public class QuotaManagerImplTest extends EasyMockTest {
         createTask(JOB_NAME, "id12", 2, 2, 2, true, 12)).times(2);
     expectNoJobUpdates().times(2);
 
-    ITaskConfig config = taskConfig(1, 1, 1, true);
-    IJobUpdate update = buildJobUpdate(
+    TaskConfig config = taskConfig(1, 1, 1, true);
+    JobUpdate update = buildJobUpdate(
         buildJobUpdateSummaries(UPDATE_KEY).get(0),
         taskConfig(2, 2, 2, true),
         1,
@@ -595,8 +595,8 @@ public class QuotaManagerImplTest extends EasyMockTest {
     expectTasks(prodTask("foo", 2, 2, 2), prodTask(JOB_NAME, 2, 2, 2)).times(2);
     expectNoJobUpdates().times(2);
 
-    ITaskConfig config = taskConfig(2, 2, 2, true);
-    IJobUpdate update = buildJobUpdate(
+    TaskConfig config = taskConfig(2, 2, 2, true);
+    JobUpdate update = buildJobUpdate(
         buildJobUpdateSummaries(UPDATE_KEY).get(0),
         config,
         1,
@@ -623,8 +623,8 @@ public class QuotaManagerImplTest extends EasyMockTest {
         createTask(JOB_NAME, "id2", 2, 2, 2, true, 1)).times(2);
     expectNoJobUpdates().times(2);
 
-    ITaskConfig config = taskConfig(2, 2, 2, true);
-    IJobUpdate update = buildJobUpdate(
+    TaskConfig config = taskConfig(2, 2, 2, true);
+    JobUpdate update = buildJobUpdate(
         buildJobUpdateSummaries(UPDATE_KEY).get(0),
         config,
         1,
@@ -644,8 +644,8 @@ public class QuotaManagerImplTest extends EasyMockTest {
 
   @Test
   public void testCheckQuotaNewUpdateSkippedForNonProdDesiredState() {
-    ITaskConfig config = taskConfig(2, 2, 2, false);
-    IJobUpdate update = buildJobUpdate(
+    TaskConfig config = taskConfig(2, 2, 2, false);
+    JobUpdate update = buildJobUpdate(
         buildJobUpdateSummaries(UPDATE_KEY).get(0),
         taskConfig(2, 2, 2, true),
         1,
@@ -660,8 +660,8 @@ public class QuotaManagerImplTest extends EasyMockTest {
 
   @Test
   public void testCheckQuotaNewUpdateSkippedForDedicatedDesiredState() {
-    ITaskConfig config = taskConfig(2, 2, 2, false);
-    IJobUpdate update = buildJobUpdate(
+    TaskConfig config = taskConfig(2, 2, 2, false);
+    JobUpdate update = buildJobUpdate(
         buildJobUpdateSummaries(UPDATE_KEY).get(0),
         prodDedicatedTask("dedicatedJob", 1, 1, 1).getAssignedTask().getTask(),
         1,
@@ -676,8 +676,8 @@ public class QuotaManagerImplTest extends EasyMockTest {
 
   @Test
   public void testCheckQuotaNewUpdateSkippedForEmptyDesiredState() {
-    ITaskConfig config = taskConfig(2, 2, 2, true);
-    IJobUpdate update = buildJobUpdate(
+    TaskConfig config = taskConfig(2, 2, 2, true);
+    JobUpdate update = buildJobUpdate(
         buildJobUpdateSummaries(UPDATE_KEY).get(0),
         config,
         1,
@@ -689,7 +689,7 @@ public class QuotaManagerImplTest extends EasyMockTest {
     control.replay();
 
     QuotaCheckResult checkQuota =
-        quotaManager.checkJobUpdate(IJobUpdate.build(updateBuilder), storeProvider);
+        quotaManager.checkJobUpdate(JobUpdate.build(updateBuilder), storeProvider);
     assertEquals(SUFFICIENT_QUOTA, checkQuota.getResult());
   }
 
@@ -697,7 +697,7 @@ public class QuotaManagerImplTest extends EasyMockTest {
   public void testSaveQuotaPasses() throws Exception {
     expectNoJobUpdates();
     expectNoCronJobs();
-    IScheduledTask prodTask = prodTask("foo", 1, 1, 1);
+    ScheduledTask prodTask = prodTask("foo", 1, 1, 1);
     expectTasks(prodTask);
     expectQuota(aggregate(1, 1, 1));
 
@@ -733,7 +733,7 @@ public class QuotaManagerImplTest extends EasyMockTest {
   public void testSaveQuotaFailsWhenBelowCurrentReservation() throws Exception {
     expectNoJobUpdates();
     expectNoCronJobs();
-    IScheduledTask prodTask = prodTask("foo", 10, 100, 100);
+    ScheduledTask prodTask = prodTask("foo", 10, 100, 100);
     expectTasks(prodTask);
     expectQuota(aggregate(20, 200, 200));
 
@@ -748,7 +748,7 @@ public class QuotaManagerImplTest extends EasyMockTest {
     expectNoTasks().times(2);
     expectNoJobUpdates().times(2);
 
-    IJobConfiguration job = createJob(prodTask("pc", 4, 4, 4), 1);
+    JobConfiguration job = createJob(prodTask("pc", 4, 4, 4), 1);
     expectCronJobs(job, createJob(nonProdTask("npc", 7, 7, 7), 1)).times(2);
     expectCronJob(job);
 
@@ -768,7 +768,7 @@ public class QuotaManagerImplTest extends EasyMockTest {
     expectNoTasks().times(2);
     expectNoJobUpdates().times(2);
 
-    IJobConfiguration job = createJob(prodTask("pc", 4, 4, 4), 1);
+    JobConfiguration job = createJob(prodTask("pc", 4, 4, 4), 1);
     expectCronJobs(job, createJob(nonProdTask("npc", 7, 7, 7), 1)).times(2);
     expectCronJob(job);
 
@@ -788,7 +788,7 @@ public class QuotaManagerImplTest extends EasyMockTest {
     expectNoTasks().times(2);
     expectNoJobUpdates().times(2);
 
-    IJobConfiguration job = createJob(prodTask("pc", 4, 4, 4), 1);
+    JobConfiguration job = createJob(prodTask("pc", 4, 4, 4), 1);
     expectCronJobs(job).times(2);
     expectCronJob(job);
 
@@ -830,28 +830,28 @@ public class QuotaManagerImplTest extends EasyMockTest {
     assertEquals(SUFFICIENT_QUOTA, checkQuota.getResult());
   }
 
-  private IExpectationSetters<?> expectTasks(IScheduledTask... tasks) {
+  private IExpectationSetters<?> expectTasks(ScheduledTask... tasks) {
     return storageUtil.expectTaskFetch(ACTIVE_QUERY, tasks);
   }
 
-  private void expectJobUpdates(ITaskConfig initial, ITaskConfig desired) {
+  private void expectJobUpdates(TaskConfig initial, TaskConfig desired) {
     expectJobUpdates(initial, 1, desired, 1, 1);
   }
 
-  private void expectJobUpdates(ITaskConfig initial, ITaskConfig desired, int times) {
+  private void expectJobUpdates(TaskConfig initial, TaskConfig desired, int times) {
     expectJobUpdates(initial, 1, desired, 1, times);
   }
 
   private void expectJobUpdates(
-      ITaskConfig initial,
+      TaskConfig initial,
       int intialInstances,
-      ITaskConfig desired,
+      TaskConfig desired,
       int desiredInstances,
       int times) {
 
-    IJobUpdateKey key = IJobUpdateKey.build(new JobUpdateKey(initial.getJob().newBuilder(), "u1"));
-    List<IJobUpdateSummary> summaries = buildJobUpdateSummaries(key);
-    IJobUpdate update =
+    JobUpdateKey key = JobUpdateKey.build(new JobUpdateKey(initial.getJob().newBuilder(), "u1"));
+    List<JobUpdateSummary> summaries = buildJobUpdateSummaries(key);
+    JobUpdate update =
         buildJobUpdate(summaries.get(0), initial, intialInstances, desired, desiredInstances);
 
     expect(jobUpdateStore.fetchJobUpdateSummaries(updateQuery(initial.getJob().getRole())))
@@ -862,19 +862,19 @@ public class QuotaManagerImplTest extends EasyMockTest {
 
   }
 
-  private List<IJobUpdateSummary> buildJobUpdateSummaries(IJobUpdateKey key) {
-    return ImmutableList.of(IJobUpdateSummary.build(
+  private List<JobUpdateSummary> buildJobUpdateSummaries(JobUpdateKey key) {
+    return ImmutableList.of(JobUpdateSummary.build(
         new JobUpdateSummary().setKey(key.newBuilder())));
   }
 
-  private IJobUpdate buildJobUpdate(
-      IJobUpdateSummary summary,
-      ITaskConfig initial,
+  private JobUpdate buildJobUpdate(
+      JobUpdateSummary summary,
+      TaskConfig initial,
       int intialInstances,
-      ITaskConfig desired,
+      TaskConfig desired,
       int desiredInstances) {
 
-    return IJobUpdate.build(new JobUpdate()
+    return JobUpdate.build(new JobUpdate()
         .setSummary(summary.newBuilder())
         .setInstructions(new JobUpdateInstructions()
             .setDesiredState(new InstanceTaskConfig()
@@ -898,61 +898,61 @@ public class QuotaManagerImplTest extends EasyMockTest {
     return expect(storageUtil.jobStore.fetchJobs()).andReturn(ImmutableSet.of());
   }
 
-  private IExpectationSetters<?> expectCronJobs(IJobConfiguration... jobs) {
-    ImmutableSet.Builder<IJobConfiguration> builder = ImmutableSet.builder();
-    for (IJobConfiguration job : jobs) {
+  private IExpectationSetters<?> expectCronJobs(JobConfiguration... jobs) {
+    ImmutableSet.Builder<JobConfiguration> builder = ImmutableSet.builder();
+    for (JobConfiguration job : jobs) {
       builder.add(job);
     }
 
     return expect(storageUtil.jobStore.fetchJobs()).andReturn(builder.build());
   }
 
-  private IExpectationSetters<?> expectCronJob(IJobConfiguration job) {
+  private IExpectationSetters<?> expectCronJob(JobConfiguration job) {
     return expect(storageUtil.jobStore.fetchJob(job.getKey())).andReturn(Optional.of(job));
   }
 
   private IExpectationSetters<?> expectNoCronJob() {
-    return expect(storageUtil.jobStore.fetchJob(anyObject(IJobKey.class)))
+    return expect(storageUtil.jobStore.fetchJob(anyObject(JobKey.class)))
         .andReturn(Optional.absent());
   }
 
-  private IExpectationSetters<Optional<IResourceAggregate>> expectQuota(IResourceAggregate quota) {
+  private IExpectationSetters<Optional<ResourceAggregate>> expectQuota(IResourceAggregate quota) {
     return expect(storageUtil.quotaStore.fetchQuota(ROLE))
         .andReturn(Optional.of(quota));
   }
 
-  private ITaskConfig taskConfig(int cpus, int ramMb, int diskMb, boolean production) {
+  private TaskConfig taskConfig(int cpus, int ramMb, int diskMb, boolean production) {
     return createTask(JOB_NAME, "newId", cpus, ramMb, diskMb, production, 0)
         .getAssignedTask()
         .getTask();
   }
 
-  private IScheduledTask prodTask(String jobName, int cpus, int ramMb, int diskMb) {
+  private ScheduledTask prodTask(String jobName, int cpus, int ramMb, int diskMb) {
     return createTask(jobName, jobName + "id1", cpus, ramMb, diskMb, true, 0);
   }
 
-  private IScheduledTask prodDedicatedTask(String jobName, int cpus, int ramMb, int diskMb) {
+  private ScheduledTask prodDedicatedTask(String jobName, int cpus, int ramMb, int diskMb) {
     return makeDedicated(prodTask(jobName, cpus, ramMb, diskMb));
   }
 
-  private IScheduledTask nonProdDedicatedTask(String jobName, int cpus, int ramMb, int diskMb) {
+  private ScheduledTask nonProdDedicatedTask(String jobName, int cpus, int ramMb, int diskMb) {
     return makeDedicated(nonProdTask(jobName, cpus, ramMb, diskMb));
   }
 
-  private static IScheduledTask makeDedicated(IScheduledTask task) {
+  private static ScheduledTask makeDedicated(ScheduledTask task) {
     ScheduledTask builder = task.newBuilder();
     builder.getAssignedTask().getTask().setConstraints(ImmutableSet.of(
         new Constraint(
             "dedicated",
             TaskConstraint.value(new ValueConstraint(false, ImmutableSet.of("host"))))));
-    return IScheduledTask.build(builder);
+    return ScheduledTask.build(builder);
   }
 
-  private IScheduledTask nonProdTask(String jobName, int cpus, int ramMb, int diskMb) {
+  private ScheduledTask nonProdTask(String jobName, int cpus, int ramMb, int diskMb) {
     return createTask(jobName, jobName + "id1", cpus, ramMb, diskMb, false, 0);
   }
 
-  private IScheduledTask createTask(
+  private ScheduledTask createTask(
       String jobName,
       String taskId,
       int cpus,
@@ -967,12 +967,12 @@ public class QuotaManagerImplTest extends EasyMockTest {
     builder.getAssignedTask().getTask()
         .setResources(ImmutableSet.of(numCpus(cpus), ramMb(ramMb), diskMb(diskMb), namedPort("a")))
         .setProduction(production);
-    return IScheduledTask.build(builder);
+    return ScheduledTask.build(builder);
   }
 
-  private IJobConfiguration createJob(IScheduledTask scheduledTask, int instanceCount) {
+  private JobConfiguration createJob(ScheduledTask scheduledTask, int instanceCount) {
     TaskConfig task = scheduledTask.newBuilder().getAssignedTask().getTask();
-    return IJobConfiguration.build(new JobConfiguration()
+    return JobConfiguration.build(new JobConfiguration()
         .setKey(task.getJob())
         .setTaskConfig(task)
         .setInstanceCount(instanceCount));

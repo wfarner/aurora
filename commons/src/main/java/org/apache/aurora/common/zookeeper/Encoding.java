@@ -68,8 +68,11 @@ public class Encoding {
       Status status,
       Codec<ServiceInstance> codec) throws IOException {
 
-    ServiceInstance serviceInstance = new ServiceInstance(
-        new Endpoint(address.getHostName(), address.getPort()), additionalEndpoints, status);
+    ServiceInstance serviceInstance =
+         ServiceInstance.builder()
+        .setServiceEndpoint(new Endpoint(address.getHostName(), address.getPort()))
+        .setAdditionalEndpoints( additionalEndpoints)
+        .setStatus( status).build();
     return serializeServiceInstance(serviceInstance, codec);
   }
 

@@ -22,7 +22,7 @@ import org.apache.aurora.scheduler.offers.OfferManager;
 import org.apache.aurora.scheduler.resources.ResourceTestUtil;
 import org.apache.aurora.scheduler.resources.ResourceType;
 import org.apache.aurora.scheduler.stats.SlotSizeCounter.MachineResource;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
+import org.apache.aurora.gen.HostAttributes;
 import org.apache.mesos.v1.Protos;
 import org.junit.Before;
 import org.junit.Test;

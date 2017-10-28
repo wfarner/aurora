@@ -22,8 +22,8 @@ import com.google.common.collect.Iterables;
 
 import org.apache.aurora.gen.AssignedTask;
 import org.apache.aurora.scheduler.TierInfo;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
-import org.apache.aurora.scheduler.storage.entities.IResource;
+import org.apache.aurora.gen.AssignedTask;
+import org.apache.aurora.gen.Resource;
 import org.apache.mesos.v1.Protos;
 import org.apache.mesos.v1.Protos.Offer;
 import org.apache.mesos.v1.Protos.Value.Scalar;
@@ -101,13 +101,13 @@ public class ResourceManagerTest {
   @Test
   public void testGetTaskResources() {
     assertEquals(
-        IResource.build(numCpus(1.0)),
+        Resource.build(numCpus(1.0)),
         Iterables.getOnlyElement(ResourceManager.getTaskResources(makeTask("id", JOB), CPUS)));
     assertEquals(
-        IResource.build(namedPort("http")),
+        Resource.build(namedPort("http")),
         Iterables.getOnlyElement(ResourceManager.getTaskResources(makeTask("id", JOB), PORTS)));
     assertEquals(
-        ImmutableSet.of(IResource.build(numCpus(1.0)), IResource.build(ramMb(1024))),
+        ImmutableSet.of(Resource.build(numCpus(1.0)), IResource.build(ramMb(1024))),
         ImmutableSet.copyOf(ResourceManager.getTaskResources(
             makeTask("id", JOB).getAssignedTask().getTask(),
             EnumSet.of(CPUS, RAM_MB))));
@@ -143,8 +143,8 @@ public class ResourceManagerTest {
     assertEquals(
         8.0,
         ResourceManager.quantityOf(ImmutableSet.of(
-            IResource.build(numCpus(3.0)),
-            IResource.build(numCpus(5.0)))),
+            Resource.build(numCpus(3.0)),
+            Resource.build(numCpus(5.0)))),
         0.0);
   }
 
@@ -154,9 +154,9 @@ public class ResourceManagerTest {
         8.0,
         ResourceManager.quantityOf(
             ImmutableSet.of(
-                IResource.build(numCpus(3.0)),
-                IResource.build(numCpus(5.0)),
-                IResource.build(ramMb(128))),
+                Resource.build(numCpus(3.0)),
+                Resource.build(numCpus(5.0)),
+                Resource.build(ramMb(128))),
             CPUS),
         0.0);
   }
@@ -166,9 +166,9 @@ public class ResourceManagerTest {
     assertEquals(
         bag(2.0, 32, 64),
         ResourceManager.bagFromResources(ImmutableSet.of(
-            IResource.build(numCpus(2.0)),
-            IResource.build(ramMb(32)),
-            IResource.build(diskMb(64)))));
+            Resource.build(numCpus(2.0)),
+            Resource.build(ramMb(32)),
+            Resource.build(diskMb(64)))));
   }
 
   @Test

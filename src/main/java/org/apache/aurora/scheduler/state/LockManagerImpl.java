@@ -29,8 +29,8 @@ import org.apache.aurora.scheduler.storage.LockStore;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
 import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.ILock;
-import org.apache.aurora.scheduler.storage.entities.ILockKey;
+import org.apache.aurora.gen.Lock;
+import org.apache.aurora.gen.LockKey;
 
 import static java.util.Objects.requireNonNull;
 
@@ -52,7 +52,7 @@ public class LockManagerImpl implements LockManager {
   }
 
   @Override
-  public ILock acquireLock(IJobKey job, final String user) throws LockException {
+  public Lock acquireLock(JobKey job, final String user) throws LockException {
     return storage.write(storeProvider -> {
 
       LockStore.Mutable lockStore = storeProvider.getLockStore();
@@ -79,13 +79,13 @@ public class LockManagerImpl implements LockManager {
   }
 
   @Override
-  public void releaseLock(IJobKey job) {
+  public void releaseLock(JobKey job) {
     storage.write((NoResult.Quiet) storeProvider -> {
       storeProvider.getLockStore().removeLock(ILockKey.build(LockKey.job(job.newBuilder())));
     });
   }
 
-  private static String formatLockKey(ILockKey lockKey) {
+  private static String formatLockKey(LockKey lockKey) {
     return lockKey.getSetField() == _Fields.JOB
         ? JobKeys.canonicalString(lockKey.getJob())
         : "Unknown lock key type: " + lockKey.getSetField();

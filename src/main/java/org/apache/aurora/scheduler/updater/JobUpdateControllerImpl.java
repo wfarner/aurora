@@ -55,18 +55,19 @@ import org.apache.aurora.scheduler.storage.JobUpdateStore;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
 import org.apache.aurora.scheduler.storage.TaskStore;
-import org.apache.aurora.scheduler.storage.entities.IInstanceKey;
-import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdate;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateEvent;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateInstructions;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateQuery;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateSummary;
-import org.apache.aurora.scheduler.storage.entities.ILock;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.InstanceKey;
+import org.apache.aurora.gen.JobInstanceUpdateEvent;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.JobUpdate;
+import org.apache.aurora.gen.JobUpdateDetails;
+import org.apache.aurora.gen.JobUpdateEvent;
+import org.apache.aurora.gen.JobUpdateInstructions;
+import org.apache.aurora.gen.JobUpdateKey;
+import org.apache.aurora.gen.JobUpdateQuery;
+import org.apache.aurora.gen.JobUpdateSummary;
+import org.apache.aurora.gen.Lock;
+import org.apache.aurora.gen.LockKey;
+import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.updater.StateEvaluator.Failure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -124,7 +125,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
 
   // Currently-active updaters. An active updater is one that is rolling forward or back. Paused
   // and completed updates are represented only in storage, not here.
-  private final Map<IJobKey, UpdateFactory.Update> updates =
+  private final Map<JobKey, UpdateFactory.Update> updates =
       Collections.synchronizedMap(Maps.newHashMap());
 
   @Inject
@@ -152,25 +153,25 @@ class JobUpdateControllerImpl implements JobUpdateController {
   }
 
   @Override
-  public void start(final IJobUpdate update, final AuditData auditData)
+  public void start(final JobUpdate update, final AuditData auditData)
       throws UpdateStateException {
 
     requireNonNull(update);
     requireNonNull(auditData);
 
     storage.write((NoResult<UpdateStateException>) storeProvider -> {
-      IJobUpdateSummary summary = update.getSummary();
-      IJobUpdateInstructions instructions = update.getInstructions();
-      IJobKey job = summary.getKey().getJob();
+      JobUpdateSummary summary = update.getSummary();
+      JobUpdateInstructions instructions = update.getInstructions();
+      JobKey job = summary.getKey().getJob();
 
       // Validate the update configuration by making sure we can create an updater for it.
       updateFactory.newUpdate(update.getInstructions(), true);
 
-      if (instructions.getInitialState().isEmpty() && !instructions.isSetDesiredState()) {
+      if (instructions.getInitialState().isEmpty() && !instructions.hasDesiredState()) {
         throw new IllegalArgumentException("Update instruction is a no-op.");
       }
 
-      List<IJobUpdateSummary> activeJobUpdates =
+      List<JobUpdateSummary> activeJobUpdates =
           storeProvider.getJobUpdateStore().fetchJobUpdateSummaries(queryActiveByJob(job));
       if (!activeJobUpdates.isEmpty()) {
         if (activeJobUpdates.size() > 1) {
@@ -179,7 +180,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
               String.format("Multiple active updates exist for this job. %s", activeJobUpdates));
         }
 
-        IJobUpdateSummary activeJobUpdate = activeJobUpdates.get(0);
+        JobUpdateSummary activeJobUpdate = activeJobUpdates.get(0);
         throw new UpdateInProgressException("An active update already exists for this job, "
             + "please terminate it before starting another. "
             + "Active updates are those in states " + Updates.ACTIVE_JOB_UPDATE_STATES,
@@ -187,7 +188,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
       }
 
       LOG.info("Starting update for job " + job);
-      ILock lock;
+      Lock lock;
       try {
         lock = lockManager.acquireLock(job, auditData.getUser());
       } catch (LockException e) {
@@ -212,7 +213,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
   }
 
   @Override
-  public void assertNotUpdating(IJobKey job) throws JobUpdatingException {
+  public void assertNotUpdating(JobKey job) throws JobUpdatingException {
     requireNonNull(job);
 
     if (storage.read(p -> !p.getJobUpdateStore()
@@ -223,7 +224,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
   }
 
   @Override
-  public void pause(final IJobUpdateKey key, AuditData auditData) throws UpdateStateException {
+  public void pause(final JobUpdateKey key, AuditData auditData) throws UpdateStateException {
     requireNonNull(key);
     LOG.info("Attempting to pause update " + key);
     unscopedChangeUpdateStatus(
@@ -232,22 +233,22 @@ class JobUpdateControllerImpl implements JobUpdateController {
   }
 
   @Override
-  public void resume(final IJobUpdateKey key, final AuditData auditData)
+  public void resume(final JobUpdateKey key, final AuditData auditData)
       throws UpdateStateException {
 
     requireNonNull(key);
     requireNonNull(auditData);
     LOG.info("Attempting to resume update " + key);
     storage.write((NoResult<UpdateStateException>) storeProvider -> {
-      IJobUpdateDetails details = Iterables.getOnlyElement(
+      JobUpdateDetails details = Iterables.getOnlyElement(
           storeProvider.getJobUpdateStore().fetchJobUpdateDetails(queryByUpdate(key)), null);
 
       if (details == null) {
         throw new UpdateStateException("Update does not exist: " + key);
       }
 
-      IJobUpdate update = details.getUpdate();
-      IJobUpdateKey key1 = update.getSummary().getKey();
+      JobUpdate update = details.getUpdate();
+      JobUpdateKey key1 = update.getSummary().getKey();
       Function<JobUpdateStatus, JobUpdateStatus> stateChange =
           isCoordinatedAndPulseExpired(key1, update.getInstructions())
               ? GET_BLOCKED_RESUME_STATE
@@ -262,14 +263,14 @@ class JobUpdateControllerImpl implements JobUpdateController {
   }
 
   @Override
-  public void abort(IJobUpdateKey key, AuditData auditData) throws UpdateStateException {
+  public void abort(JobUpdateKey key, AuditData auditData) throws UpdateStateException {
     unscopedChangeUpdateStatus(
         key,
         Functions.compose(createAuditedEvent(auditData), Functions.constant(ABORTED)));
   }
 
   @Override
-  public void rollback(IJobUpdateKey key, AuditData auditData) throws UpdateStateException {
+  public void rollback(JobUpdateKey key, AuditData auditData) throws UpdateStateException {
     unscopedChangeUpdateStatus(
         key,
         Functions.compose(createAuditedEvent(auditData), Functions.constant(ROLLING_BACK)));
@@ -281,10 +282,10 @@ class JobUpdateControllerImpl implements JobUpdateController {
     return status -> addAuditData(newEvent(status), auditData);
   }
 
-  private static final Ordering<IJobUpdateEvent> CHRON_ORDERING =
-      Ordering.from(Comparator.comparingLong(IJobUpdateEvent::getTimestampMs));
+  private static final Ordering<JobUpdateEvent> CHRON_ORDERING =
+      Ordering.from(Comparator.comparingLong(JobUpdateEvent::getTimestampMs));
 
-  private long inferLastPulseTimestamp(IJobUpdateDetails details) {
+  private long inferLastPulseTimestamp(JobUpdateDetails details) {
     // Pulse timestamps are not durably stored by design. However, on system recovery,
     // setting the timestamp of the last pulse to 0L (aka no pulse) is not correct.
     // By inspecting the job update events we can infer a reasonable time stamp to initialize to.
@@ -293,7 +294,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
     // most likely behaviour of a healthy system.
 
     // This is safe because we always write at least one job update event on job update creation
-    IJobUpdateEvent mostRecent = CHRON_ORDERING.max(details.getUpdateEvents());
+    JobUpdateEvent mostRecent = CHRON_ORDERING.max(details.getUpdateEvents());
 
     long ts = 0L;
 
@@ -307,12 +308,12 @@ class JobUpdateControllerImpl implements JobUpdateController {
   @Override
   public void systemResume() {
     storage.write((NoResult.Quiet) storeProvider -> {
-      for (IJobUpdateDetails details
+      for (JobUpdateDetails details
           : storeProvider.getJobUpdateStore().fetchJobUpdateDetails(ACTIVE_QUERY)) {
 
-        IJobUpdateSummary summary = details.getUpdate().getSummary();
-        IJobUpdateInstructions instructions = details.getUpdate().getInstructions();
-        IJobUpdateKey key = summary.getKey();
+        JobUpdateSummary summary = details.getUpdate().getSummary();
+        JobUpdateInstructions instructions = details.getUpdate().getInstructions();
+        JobUpdateKey key = summary.getKey();
         JobUpdateStatus status = summary.getState().getStatus();
 
         if (isCoordinatedUpdate(instructions)) {
@@ -336,7 +337,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
   }
 
   @Override
-  public JobUpdatePulseStatus pulse(final IJobUpdateKey key) throws UpdateStateException {
+  public JobUpdatePulseStatus pulse(final JobUpdateKey key) throws UpdateStateException {
     final PulseState state = pulseHandler.pulseAndGet(key);
     if (state == null) {
       LOG.info("Not pulsing inactive job update: " + key);
@@ -369,7 +370,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
   }
 
   @Override
-  public void instanceChangedState(final IScheduledTask updatedTask) {
+  public void instanceChangedState(final ScheduledTask updatedTask) {
     instanceChanged(
         InstanceKeys.from(
             updatedTask.getAssignedTask().getTask().getJob(),
@@ -378,15 +379,15 @@ class JobUpdateControllerImpl implements JobUpdateController {
   }
 
   @Override
-  public void instanceDeleted(IInstanceKey instance) {
+  public void instanceDeleted(InstanceKey instance) {
     // This is primarily used to detect when an instance was stuck in PENDING and killed, which
     // results in deletion.
     instanceChanged(instance, Optional.absent());
   }
 
-  private void instanceChanged(final IInstanceKey instance, final Optional<IScheduledTask> state) {
+  private void instanceChanged(final InstanceKey instance, final Optional<ScheduledTask> state) {
     batchWorker.execute(storeProvider -> {
-      IJobKey job = instance.getJobKey();
+      JobKey job = instance.getJobKey();
       UpdateFactory.Update update = updates.get(job);
       if (update != null) {
         if (update.getUpdater().containsInstance(instance.getInstanceId())) {
@@ -409,13 +410,13 @@ class JobUpdateControllerImpl implements JobUpdateController {
     });
   }
 
-  private IJobUpdateSummary getOnlyMatch(JobUpdateStore store, IJobUpdateQuery query) {
+  private JobUpdateSummary getOnlyMatch(JobUpdateStore store, IJobUpdateQuery query) {
     return Iterables.getOnlyElement(store.fetchJobUpdateSummaries(query));
   }
 
   @VisibleForTesting
-  static IJobUpdateQuery queryActiveByJob(IJobKey job) {
-    return IJobUpdateQuery.build(new JobUpdateQuery()
+  static JobUpdateQuery queryActiveByJob(JobKey job) {
+    return JobUpdateQuery.build(new JobUpdateQuery()
         .setJobKey(job.newBuilder())
         .setUpdateStatuses(Updates.ACTIVE_JOB_UPDATE_STATES));
   }
@@ -431,13 +432,13 @@ class JobUpdateControllerImpl implements JobUpdateController {
    *                              if the proposed state transition is not allowed.
    */
   private void unscopedChangeUpdateStatus(
-      final IJobUpdateKey key,
+      final JobUpdateKey key,
       final Function<? super JobUpdateStatus, JobUpdateEvent> stateChange)
       throws UpdateStateException {
 
     storage.write((NoResult<UpdateStateException>) storeProvider -> {
 
-      IJobUpdateSummary update = Iterables.getOnlyElement(
+      JobUpdateSummary update = Iterables.getOnlyElement(
           storeProvider.getJobUpdateStore().fetchJobUpdateSummaries(queryByUpdate(key)), null);
       if (update == null) {
         throw new UpdateStateException("Update does not exist " + key);
@@ -449,7 +450,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
 
   private void changeUpdateStatus(
       MutableStoreProvider storeProvider,
-      IJobUpdateSummary updateSummary,
+      JobUpdateSummary updateSummary,
       JobUpdateEvent event) throws UpdateStateException {
 
     if (updateSummary.getState().getStatus() == event.getStatus()) {
@@ -462,7 +463,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
 
   private void recordAndChangeJobUpdateStatus(
       MutableStoreProvider storeProvider,
-      IJobUpdateKey key,
+      JobUpdateKey key,
       JobUpdateEvent event) throws UpdateStateException {
 
     changeJobUpdateStatus(storeProvider, key, event, true);
@@ -470,7 +471,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
 
   private void changeJobUpdateStatus(
       MutableStoreProvider storeProvider,
-      IJobUpdateKey key,
+      JobUpdateKey key,
       JobUpdateEvent proposedEvent,
       boolean record) throws UpdateStateException {
 
@@ -481,7 +482,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
     if (record) {
       updateStore.saveJobUpdateEvent(
           key,
-          IJobUpdateEvent.build(proposedEvent.setTimestampMs(clock.nowMillis()).setStatus(status)));
+          JobUpdateEvent.build(proposedEvent.setTimestampMs(clock.nowMillis()).setStatus(status)));
     }
 
     if (JobUpdateStore.TERMINAL_STATES.contains(status)) {
@@ -492,7 +493,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
     }
 
     MonitorAction action = JobUpdateStateMachine.getActionForStatus(status);
-    IJobKey job = key.getJob();
+    JobKey job = key.getJob();
     if (action == STOP_WATCHING) {
       updates.remove(job);
     } else if (action == ROLL_FORWARD || action == ROLL_BACK) {
@@ -502,7 +503,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
         checkState(!updates.containsKey(job), "Updater already exists for %s", job);
       }
 
-      IJobUpdate jobUpdate = updateStore.fetchJobUpdate(key).get();
+      JobUpdate jobUpdate = updateStore.fetchJobUpdate(key).get();
       UpdateFactory.Update update;
       try {
         update = updateFactory.newUpdate(jobUpdate.getInstructions(), action == ROLL_FORWARD);
@@ -524,9 +525,9 @@ class JobUpdateControllerImpl implements JobUpdateController {
     }
   }
 
-  private static Optional<IScheduledTask> getActiveInstance(
+  private static Optional<ScheduledTask> getActiveInstance(
       TaskStore taskStore,
-      IJobKey job,
+      JobKey job,
       int instanceId) {
 
     return Optional.fromNullable(Iterables.getOnlyElement(
@@ -536,13 +537,13 @@ class JobUpdateControllerImpl implements JobUpdateController {
   private static final Set<InstanceUpdateStatus> NOOP_INSTANCE_UPDATE =
       ImmutableSet.of(InstanceUpdateStatus.WORKING, InstanceUpdateStatus.SUCCEEDED);
 
-  private static boolean isCoordinatedUpdate(IJobUpdateInstructions instructions) {
+  private static boolean isCoordinatedUpdate(JobUpdateInstructions instructions) {
     return instructions.getSettings().getBlockIfNoPulsesAfterMs() > 0;
   }
 
   private boolean isCoordinatedAndPulseExpired(
-      IJobUpdateKey key,
-      IJobUpdateInstructions instructions) {
+      JobUpdateKey key,
+      JobUpdateInstructions instructions) {
 
     if (isCoordinatedUpdate(instructions)) {
       PulseState pulseState = pulseHandler.get(key);
@@ -563,15 +564,15 @@ class JobUpdateControllerImpl implements JobUpdateController {
   private void evaluateUpdater(
       final MutableStoreProvider storeProvider,
       final UpdateFactory.Update update,
-      IJobUpdateSummary summary,
-      Map<Integer, Optional<IScheduledTask>> changedInstance) throws UpdateStateException {
+      JobUpdateSummary summary,
+      Map<Integer, Optional<ScheduledTask>> changedInstance) throws UpdateStateException {
 
     JobUpdateStatus updaterStatus = summary.getState().getStatus();
-    final IJobUpdateKey key = summary.getKey();
+    final JobUpdateKey key = summary.getKey();
 
     JobUpdateStore.Mutable updateStore = storeProvider.getJobUpdateStore();
 
-    IJobUpdateInstructions instructions = updateStore.fetchJobUpdateInstructions(key).get();
+    JobUpdateInstructions instructions = updateStore.fetchJobUpdateInstructions(key).get();
     if (isCoordinatedAndPulseExpired(key, instructions)) {
       // Move coordinated update into awaiting pulse state.
       JobUpdateStatus blockedStatus = getBlockedState(summary.getState().getStatus());
@@ -582,7 +583,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
       return;
     }
 
-    InstanceStateProvider<Integer, Optional<IScheduledTask>> stateProvider =
+    InstanceStateProvider<Integer, Optional<ScheduledTask>> stateProvider =
         instanceId -> getActiveInstance(storeProvider.getTaskStore(), key.getJob(), instanceId);
 
     EvaluationResult<Integer> result = update.getUpdater().evaluate(changedInstance, stateProvider);
@@ -656,7 +657,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
     } else {
       LOG.info("Executing side-effects for update of " + key + ": " + result.getSideEffects());
       for (Map.Entry<Integer, SideEffect> entry : result.getSideEffects().entrySet()) {
-        IInstanceKey instance = InstanceKeys.from(key.getJob(), entry.getKey());
+        InstanceKey instance = InstanceKeys.from(key.getJob(), entry.getKey());
 
         Optional<InstanceAction> action = entry.getValue().getAction();
         if (action.isPresent()) {
@@ -717,8 +718,8 @@ class JobUpdateControllerImpl implements JobUpdateController {
           .build();
 
   @VisibleForTesting
-  static IJobUpdateQuery queryByUpdate(IJobUpdateKey key) {
-    return IJobUpdateQuery.build(new JobUpdateQuery().setKey(key.newBuilder()));
+  static JobUpdateQuery queryByUpdate(JobUpdateKey key) {
+    return JobUpdateQuery.build(new JobUpdateQuery().setKey(key.newBuilder()));
   }
 
   private static JobUpdateEvent newEvent(JobUpdateStatus status) {
@@ -730,13 +731,13 @@ class JobUpdateControllerImpl implements JobUpdateController {
         .setUser(auditData.getUser());
   }
 
-  private Runnable getDeferredEvaluator(final IInstanceKey instance, final IJobUpdateKey key) {
+  private Runnable getDeferredEvaluator(final InstanceKey instance, final JobUpdateKey key) {
     return shutdownOnError(
         lifecycle,
         LOG,
         String.format(FATAL_ERROR_FORMAT, "Key: " + key + " Instance key: " + instance),
         () -> storage.write((NoResult.Quiet) storeProvider -> {
-          IJobUpdateSummary summary =
+          JobUpdateSummary summary =
               getOnlyMatch(storeProvider.getJobUpdateStore(), queryByUpdate(key));
           JobUpdateStatus status = summary.getState().getStatus();
           // Suppress this evaluation if the updater is not currently active.
@@ -768,20 +769,20 @@ class JobUpdateControllerImpl implements JobUpdateController {
     // Currently active coordinated update pulse states. A pulse state is added when a coordinated
     // update is created and removed only when an update reaches terminal state. A PAUSED update
     // pulse state is still retained in the map and accepts pulses.
-    private final Map<IJobUpdateKey, PulseState> pulseStates = Maps.newHashMap();
+    private final Map<JobUpdateKey, PulseState> pulseStates = Maps.newHashMap();
 
     PulseHandler(Clock clock) {
       this.clock = requireNonNull(clock);
     }
 
-    synchronized void initializePulseState(IJobUpdate update, JobUpdateStatus status, long ts) {
+    synchronized void initializePulseState(JobUpdate update, JobUpdateStatus status, long ts) {
       pulseStates.put(update.getSummary().getKey(), new PulseState(
           status,
           update.getInstructions().getSettings().getBlockIfNoPulsesAfterMs(),
           ts));
     }
 
-    synchronized PulseState pulseAndGet(IJobUpdateKey key) {
+    synchronized PulseState pulseAndGet(JobUpdateKey key) {
       PulseState state = pulseStates.get(key);
       if (state != null) {
         state = pulseStates.put(key, new PulseState(
@@ -792,7 +793,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
       return state;
     }
 
-    synchronized void updatePulseStatus(IJobUpdateKey key, JobUpdateStatus status) {
+    synchronized void updatePulseStatus(JobUpdateKey key, JobUpdateStatus status) {
       PulseState state = pulseStates.get(key);
       if (state != null) {
         pulseStates.put(key, new PulseState(
@@ -802,11 +803,11 @@ class JobUpdateControllerImpl implements JobUpdateController {
       }
     }
 
-    synchronized void remove(IJobUpdateKey key) {
+    synchronized void remove(JobUpdateKey key) {
       pulseStates.remove(key);
     }
 
-    synchronized PulseState get(IJobUpdateKey key) {
+    synchronized PulseState get(JobUpdateKey key) {
       return pulseStates.get(key);
     }
   }

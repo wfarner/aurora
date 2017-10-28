@@ -40,11 +40,11 @@ import org.apache.aurora.scheduler.mesos.MesosTaskFactory;
 import org.apache.aurora.scheduler.offers.OfferManager;
 import org.apache.aurora.scheduler.resources.ResourceBag;
 import org.apache.aurora.scheduler.state.TaskAssigner.FirstFitTaskAssigner;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.IInstanceKey;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.AssignedTask;
+import org.apache.aurora.gen.HostAttributes;
+import org.apache.aurora.gen.InstanceKey;
+import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.testing.FakeStatsProvider;
 import org.apache.aurora.scheduler.updater.UpdateAgentReserver;
 import org.apache.mesos.v1.Protos.AgentID;
@@ -92,14 +92,14 @@ public class FirstFitTaskAssignerTest extends EasyMockTest {
           .setHost(MESOS_OFFER.getHostname())
           .setAttributes(ImmutableSet.of(
               new Attribute("host", ImmutableSet.of(MESOS_OFFER.getHostname()))))));
-  private static final IScheduledTask TASK = makeTask("id", JOB);
+  private static final ScheduledTask TASK = makeTask("id", JOB);
   private static final TaskGroupKey GROUP_KEY = TaskGroupKey.from(TASK.getAssignedTask().getTask());
   private static final TaskInfo TASK_INFO = TaskInfo.newBuilder()
       .setName("taskName")
       .setTaskId(TaskID.newBuilder().setValue(Tasks.id(TASK)))
       .setAgentId(MESOS_OFFER.getAgentId())
       .build();
-  private static final IInstanceKey INSTANCE_KEY =
+  private static final InstanceKey INSTANCE_KEY =
       InstanceKeys.from(JOB, TASK.getAssignedTask().getInstanceId());
   private static final Map<String, TaskGroupKey> NO_RESERVATION = ImmutableMap.of();
   private static final UnusedResource UNUSED = new UnusedResource(
@@ -295,7 +295,7 @@ public class FirstFitTaskAssignerTest extends EasyMockTest {
             TaskGroupKey.from(TASK.getAssignedTask().getTask()),
             ImmutableSet.of(TASK.getAssignedTask()),
             ImmutableMap.of(SLAVE_ID, TaskGroupKey.from(
-                ITaskConfig.build(new TaskConfig().setJob(new JobKey("other", "e", "n")))))));
+                TaskConfig.build(new TaskConfig().setJob(new JobKey("other", "e", "n")))))));
     assertEquals(0, statsProvider.getLongValue(ASSIGNER_EVALUATED_OFFERS));
   }
 

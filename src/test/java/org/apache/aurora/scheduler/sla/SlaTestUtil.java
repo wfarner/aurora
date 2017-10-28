@@ -23,8 +23,8 @@ import org.apache.aurora.gen.ScheduleStatus;
 import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.gen.TaskEvent;
 import org.apache.aurora.scheduler.base.TaskTestUtil;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
-import org.apache.aurora.scheduler.storage.entities.ITaskEvent;
+import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.gen.TaskEvent;
 
 final class SlaTestUtil {
 
@@ -32,18 +32,18 @@ final class SlaTestUtil {
     // Utility class.
   }
 
-  static IScheduledTask makeTask(Map<Long, ScheduleStatus> events, int instanceId) {
+  static ScheduledTask makeTask(Map<Long, ScheduleStatus> events, int instanceId) {
     return makeTask(events, instanceId, true);
   }
 
-  static IScheduledTask makeTask(Map<Long, ScheduleStatus> events, int instanceId, boolean isProd) {
+  static ScheduledTask makeTask(Map<Long, ScheduleStatus> events, int instanceId, boolean isProd) {
     List<ITaskEvent> taskEvents = makeEvents(events);
     ScheduledTask builder = TaskTestUtil.makeTask("task_id", TaskTestUtil.JOB).newBuilder()
         .setStatus(Iterables.getLast(taskEvents).getStatus())
         .setTaskEvents(ITaskEvent.toBuildersList(taskEvents));
     builder.getAssignedTask().setInstanceId(instanceId);
     builder.getAssignedTask().getTask().setProduction(isProd);
-    return IScheduledTask.build(builder);
+    return ScheduledTask.build(builder);
   }
 
   private static List<ITaskEvent> makeEvents(Map<Long, ScheduleStatus> events) {

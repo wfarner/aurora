@@ -29,10 +29,10 @@ import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.base.TaskTestUtil;
 import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
-import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.JobConfiguration;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.storage.testing.StorageEntityUtil;
 import org.junit.Before;
 import org.junit.Test;
@@ -41,11 +41,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 public abstract class AbstractCronJobStoreTest {
-  protected static final IJobConfiguration JOB_A = makeJob("a");
-  protected static final IJobConfiguration JOB_B = makeJob("b");
+  protected static final JobConfiguration JOB_A = makeJob("a");
+  protected static final JobConfiguration JOB_B = makeJob("b");
 
-  private static final IJobKey KEY_A = JOB_A.getKey();
-  private static final IJobKey KEY_B = JOB_B.getKey();
+  private static final JobKey KEY_A = JOB_A.getKey();
+  private static final JobKey KEY_B = JOB_B.getKey();
 
   protected Injector injector;
   protected Storage storage;
@@ -81,19 +81,19 @@ public abstract class AbstractCronJobStoreTest {
 
   @Test
   public void testJobStoreSameEnvironment() {
-    IJobConfiguration templateConfig = makeJob("labrat");
+    JobConfiguration templateConfig = makeJob("labrat");
     JobConfiguration prodBuilder = templateConfig.newBuilder();
     prodBuilder.getKey().setEnvironment("prod");
-    IJobConfiguration prod = IJobConfiguration.build(prodBuilder);
+    JobConfiguration prod = JobConfiguration.build(prodBuilder);
     JobConfiguration stagingBuilder = templateConfig.newBuilder();
     stagingBuilder.getKey().setEnvironment("staging");
-    IJobConfiguration staging = IJobConfiguration.build(stagingBuilder);
+    JobConfiguration staging = JobConfiguration.build(stagingBuilder);
 
     saveAcceptedJob(prod);
     saveAcceptedJob(staging);
 
     assertNull(fetchJob(
-        IJobKey.build(templateConfig.getKey().newBuilder().setEnvironment("test"))).orNull());
+        JobKey.build(templateConfig.getKey().newBuilder().setEnvironment("test"))).orNull());
     assertEquals(prod, fetchJob(prod.getKey()).orNull());
     assertEquals(staging, fetchJob(staging.getKey()).orNull());
 
@@ -106,7 +106,7 @@ public abstract class AbstractCronJobStoreTest {
   public void testTaskConfigDedupe() {
     // Test for regression of AURORA-1392.
 
-    IScheduledTask instance = TaskTestUtil.makeTask("a", JOB_A.getTaskConfig());
+    ScheduledTask instance = TaskTestUtil.makeTask("a", JOB_A.getTaskConfig());
     storage.write((NoResult.Quiet)
         storeProvider -> storeProvider.getUnsafeTaskStore().saveTasks(ImmutableSet.of(instance)));
 
@@ -115,7 +115,7 @@ public abstract class AbstractCronJobStoreTest {
     storage.write(storeProvider ->
         storeProvider.getUnsafeTaskStore().mutateTask(
             Tasks.id(instance),
-            task -> IScheduledTask.build(task.newBuilder().setStatus(ScheduleStatus.RUNNING))));
+            task -> ScheduledTask.build(task.newBuilder().setStatus(ScheduleStatus.RUNNING))));
   }
 
   @Test
@@ -124,18 +124,18 @@ public abstract class AbstractCronJobStoreTest {
     // backfilling fields upon storage recovery.
 
     saveAcceptedJob(JOB_A);
-    IJobConfiguration jobAUpdated =
-        IJobConfiguration.build(JOB_A.newBuilder().setCronSchedule("changed"));
+    JobConfiguration jobAUpdated =
+        JobConfiguration.build(JOB_A.newBuilder().setCronSchedule("changed"));
     saveAcceptedJob(jobAUpdated);
     assertEquals(jobAUpdated, fetchJob(KEY_A).orNull());
   }
 
-  private static IJobConfiguration makeJob(String name) {
-    IJobKey job = JobKeys.from("role-" + name, "env-" + name, name);
-    ITaskConfig config = TaskTestUtil.makeConfig(job);
+  private static JobConfiguration makeJob(String name) {
+    JobKey job = JobKeys.from("role-" + name, "env-" + name, name);
+    TaskConfig config = TaskTestUtil.makeConfig(job);
 
     return StorageEntityUtil.assertFullyPopulated(
-        IJobConfiguration.build(
+        JobConfiguration.build(
             new JobConfiguration()
                 .setKey(job.newBuilder())
                 .setOwner(new Identity().setUser("user"))
@@ -145,21 +145,21 @@ public abstract class AbstractCronJobStoreTest {
                 .setInstanceCount(5)));
   }
 
-  private Set<IJobConfiguration> fetchJobs() {
+  private Set<JobConfiguration> fetchJobs() {
     return storage.read(
         storeProvider -> ImmutableSet.copyOf(storeProvider.getCronJobStore().fetchJobs()));
   }
 
-  private Optional<IJobConfiguration> fetchJob(IJobKey jobKey) {
+  private Optional<JobConfiguration> fetchJob(JobKey jobKey) {
     return storage.read(storeProvider -> storeProvider.getCronJobStore().fetchJob(jobKey));
   }
 
-  protected void saveAcceptedJob(IJobConfiguration jobConfig) {
+  protected void saveAcceptedJob(JobConfiguration jobConfig) {
     storage.write((NoResult.Quiet)
         storeProvider -> storeProvider.getCronJobStore().saveAcceptedJob(jobConfig));
   }
 
-  private void removeJob(IJobKey jobKey) {
+  private void removeJob(JobKey jobKey) {
     storage.write(
         (NoResult.Quiet) storeProvider -> storeProvider.getCronJobStore().removeJob(jobKey));
   }

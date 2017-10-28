@@ -25,7 +25,7 @@ import org.apache.aurora.scheduler.filter.AttributeAggregate;
 import org.apache.aurora.scheduler.offers.OfferManager;
 import org.apache.aurora.scheduler.state.StateManager;
 import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
+import org.apache.aurora.gen.AssignedTask;
 import org.apache.mesos.v1.Protos.AgentID;
 
 import static java.util.Objects.requireNonNull;

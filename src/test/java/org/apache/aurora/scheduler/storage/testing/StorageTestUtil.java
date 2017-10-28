@@ -30,7 +30,7 @@ import org.apache.aurora.scheduler.storage.Storage.NonVolatileStorage;
 import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
 import org.apache.aurora.scheduler.storage.Storage.Work;
 import org.apache.aurora.scheduler.storage.TaskStore;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.ScheduledTask;
 import org.easymock.Capture;
 import org.easymock.IExpectationSetters;
 
@@ -110,12 +110,12 @@ public class StorageTestUtil {
 
   public IExpectationSetters<?> expectTaskFetch(
       Query.Builder query,
-      ImmutableSet<IScheduledTask> result) {
+      ImmutableSet<ScheduledTask> result) {
 
     return expect(taskStore.fetchTasks(query)).andReturn(result);
   }
 
-  public IExpectationSetters<?> expectTaskFetch(String taskId, IScheduledTask result) {
+  public IExpectationSetters<?> expectTaskFetch(String taskId, ScheduledTask result) {
     return expect(taskStore.fetchTask(taskId)).andReturn(Optional.of(result));
   }
 
@@ -123,7 +123,7 @@ public class StorageTestUtil {
     return expect(taskStore.fetchTask(taskId)).andReturn(Optional.absent());
   }
 
-  public IExpectationSetters<?> expectTaskFetch(Query.Builder query, IScheduledTask... result) {
-    return expectTaskFetch(query, ImmutableSet.<IScheduledTask>builder().add(result).build());
+  public IExpectationSetters<?> expectTaskFetch(Query.Builder query, ScheduledTask... result) {
+    return expectTaskFetch(query, ImmutableSet.<ScheduledTask>builder().add(result).build());
   }
 }

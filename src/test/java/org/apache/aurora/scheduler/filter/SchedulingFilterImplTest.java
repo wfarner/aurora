@@ -47,10 +47,10 @@ import org.apache.aurora.scheduler.mesos.TaskExecutors;
 import org.apache.aurora.scheduler.resources.ResourceBag;
 import org.apache.aurora.scheduler.resources.ResourceManager;
 import org.apache.aurora.scheduler.resources.ResourceType;
-import org.apache.aurora.scheduler.storage.entities.IAttribute;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.Attribute;
+import org.apache.aurora.gen.HostAttributes;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.TaskConfig;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -80,8 +80,8 @@ public class SchedulingFilterImplTest extends EasyMockTest {
   private static final String RACK_ATTRIBUTE = "rack";
   private static final String HOST_ATTRIBUTE = "host";
 
-  private static final IJobKey JOB_A = JobKeys.from("roleA", "env", "jobA");
-  private static final IJobKey JOB_B = JobKeys.from("roleB", "env", "jobB");
+  private static final JobKey JOB_A = JobKeys.from("roleA", "env", "jobA");
+  private static final JobKey JOB_B = JobKeys.from("roleB", "env", "jobB");
 
   private static final int DEFAULT_CPUS = 4;
   private static final long DEFAULT_RAM = 1000;
@@ -116,16 +116,16 @@ public class SchedulingFilterImplTest extends EasyMockTest {
   public void testSufficientPorts() {
     control.replay();
 
-    ITaskConfig noPortTask = resetPorts(
+    TaskConfig noPortTask = resetPorts(
         makeTask(DEFAULT_CPUS, DEFAULT_RAM, DEFAULT_DISK),
         ImmutableSet.of());
-    ITaskConfig onePortTask = resetPorts(
+    TaskConfig onePortTask = resetPorts(
         makeTask(DEFAULT_CPUS, DEFAULT_RAM, DEFAULT_DISK),
         ImmutableSet.of("one"));
-    ITaskConfig twoPortTask = resetPorts(
+    TaskConfig twoPortTask = resetPorts(
         makeTask(DEFAULT_CPUS, DEFAULT_RAM, DEFAULT_DISK),
         ImmutableSet.of("one", "two"));
-    ITaskConfig threePortTask = resetPorts(
+    TaskConfig threePortTask = resetPorts(
         makeTask(DEFAULT_CPUS, DEFAULT_RAM, DEFAULT_DISK),
         ImmutableSet.of("one", "two", "three"));
 
@@ -233,7 +233,7 @@ public class SchedulingFilterImplTest extends EasyMockTest {
 
     Instant start = Instant.ofEpochMilli(Amount.of(9L, Time.MINUTES).as(Time.MILLISECONDS));
 
-    ITaskConfig task = makeTask();
+    TaskConfig task = makeTask();
     UnusedResource unusedResource = new UnusedResource(
         DEFAULT_OFFER,
         hostAttributes(HOST_A),
@@ -257,7 +257,7 @@ public class SchedulingFilterImplTest extends EasyMockTest {
 
     Instant start = Instant.ofEpochMilli(Amount.of(100L, Time.MINUTES).as(Time.MILLISECONDS));
 
-    ITaskConfig task = makeTask();
+    TaskConfig task = makeTask();
     UnusedResource unusedResource = new UnusedResource(
         DEFAULT_OFFER,
         hostAttributes(HOST_A),
@@ -345,7 +345,7 @@ public class SchedulingFilterImplTest extends EasyMockTest {
     return valueAttribute(DEDICATED_ATTRIBUTE, value, values);
   }
 
-  private String dedicatedFor(IJobKey job) {
+  private String dedicatedFor(JobKey job) {
     return job.getRole() + "/" + job.getName();
   }
 
@@ -460,7 +460,7 @@ public class SchedulingFilterImplTest extends EasyMockTest {
     Constraint jvmConstraint = makeConstraint("jvm", "1.6");
     Constraint zoneConstraint = makeConstraint("zone", "c");
 
-    ITaskConfig task = makeTask(JOB_A, jvmConstraint, zoneConstraint);
+    TaskConfig task = makeTask(JOB_A, jvmConstraint, zoneConstraint);
     assertEquals(
         ImmutableSet.of(),
         defaultFilter.filter(
@@ -535,7 +535,7 @@ public class SchedulingFilterImplTest extends EasyMockTest {
         SchedulingFilterImpl.scale(excess, resourceType.getScalingRange()));
   }
 
-  private ITaskConfig checkConstraint(
+  private TaskConfig checkConstraint(
       IHostAttributes hostAttributes,
       String constraintName,
       boolean expected,
@@ -545,8 +545,8 @@ public class SchedulingFilterImplTest extends EasyMockTest {
     return checkConstraint(JOB_A, hostAttributes, constraintName, expected, value, vs);
   }
 
-  private ITaskConfig checkConstraint(
-      IJobKey job,
+  private TaskConfig checkConstraint(
+      JobKey job,
       IHostAttributes hostAttributes,
       String constraintName,
       boolean expected,
@@ -563,8 +563,8 @@ public class SchedulingFilterImplTest extends EasyMockTest {
             ImmutableSet.<String>builder().add(value).addAll(Arrays.asList(vs)).build()));
   }
 
-  private ITaskConfig checkConstraint(
-      IJobKey job,
+  private TaskConfig checkConstraint(
+      JobKey job,
       AttributeAggregate aggregate,
       IHostAttributes hostAttributes,
       String constraintName,
@@ -572,7 +572,7 @@ public class SchedulingFilterImplTest extends EasyMockTest {
       ValueConstraint value) {
 
     Constraint constraint = new Constraint(constraintName, TaskConstraint.value(value));
-    ITaskConfig task = makeTask(job, constraint);
+    TaskConfig task = makeTask(job, constraint);
     assertEquals(
         expected,
         defaultFilter.filter(
@@ -582,7 +582,7 @@ public class SchedulingFilterImplTest extends EasyMockTest {
 
     Constraint negated = constraint.deepCopy();
     negated.getConstraint().getValue().setNegated(!value.isNegated());
-    ITaskConfig negatedTask = makeTask(job, negated);
+    TaskConfig negatedTask = makeTask(job, negated);
     assertEquals(
         !expected,
         defaultFilter.filter(
@@ -592,24 +592,24 @@ public class SchedulingFilterImplTest extends EasyMockTest {
     return task;
   }
 
-  private void assertNoVetoes(ITaskConfig task, IHostAttributes hostAttributes) {
+  private void assertNoVetoes(TaskConfig task, IHostAttributes hostAttributes) {
     assertVetoes(task, hostAttributes, empty());
   }
 
   private void assertNoVetoes(
-      ITaskConfig task,
+      TaskConfig task,
       IHostAttributes attributes,
       AttributeAggregate jobState) {
 
     assertVetoes(task, attributes, jobState);
   }
 
-  private void assertVetoes(ITaskConfig task, IHostAttributes hostAttributes, Veto... vetoes) {
+  private void assertVetoes(TaskConfig task, IHostAttributes hostAttributes, Veto... vetoes) {
     assertVetoes(task, hostAttributes, empty(), vetoes);
   }
 
   private void assertVetoes(
-      ITaskConfig task,
+      TaskConfig task,
       IHostAttributes hostAttributes,
       AttributeAggregate jobState,
       Veto... vetoes) {
@@ -654,40 +654,40 @@ public class SchedulingFilterImplTest extends EasyMockTest {
     return new Constraint(name, TaskConstraint.limit(new LimitConstraint(value)));
   }
 
-  private ITaskConfig makeTask(IJobKey job, Constraint... constraint) {
-    return ITaskConfig.build(makeTask(job, DEFAULT_CPUS, DEFAULT_RAM, DEFAULT_DISK)
+  private TaskConfig makeTask(JobKey job, Constraint... constraint) {
+    return TaskConfig.build(makeTask(job, DEFAULT_CPUS, DEFAULT_RAM, DEFAULT_DISK)
         .newBuilder()
         .setConstraints(Sets.newHashSet(constraint)));
   }
 
-  private ITaskConfig hostLimitTask(IJobKey job, int maxPerHost) {
+  private TaskConfig hostLimitTask(JobKey job, int maxPerHost) {
     return makeTask(job, limitConstraint(HOST_ATTRIBUTE, maxPerHost));
   }
 
-  private ITaskConfig hostLimitTask(int maxPerHost) {
+  private TaskConfig hostLimitTask(int maxPerHost) {
     return hostLimitTask(JOB_A, maxPerHost);
   }
 
-  private ITaskConfig rackLimitTask(IJobKey job, int maxPerRack) {
+  private TaskConfig rackLimitTask(JobKey job, int maxPerRack) {
     return makeTask(job, limitConstraint(RACK_ATTRIBUTE, maxPerRack));
   }
 
-  private ITaskConfig makeTask(IJobKey job, int cpus, long ramMb, long diskMb) {
-    return ITaskConfig.build(new TaskConfig()
+  private TaskConfig makeTask(JobKey job, int cpus, long ramMb, long diskMb) {
+    return TaskConfig.build(new TaskConfig()
         .setJob(job.newBuilder())
         .setResources(ImmutableSet.of(numCpus(cpus), ramMb(ramMb), diskMb(diskMb)))
         .setExecutorConfig(new ExecutorConfig(apiConstants.AURORA_EXECUTOR_NAME, "config")));
   }
 
-  private ITaskConfig makeTask(int cpus, long ramMb, long diskMb) {
+  private TaskConfig makeTask(int cpus, long ramMb, long diskMb) {
     return makeTask(JOB_A, cpus, ramMb, diskMb);
   }
 
-  private ITaskConfig makeTask() {
+  private TaskConfig makeTask() {
     return makeTask(DEFAULT_CPUS, DEFAULT_RAM, DEFAULT_DISK);
   }
 
-  private ResourceBag bag(ITaskConfig task) {
+  private ResourceBag bag(TaskConfig task) {
     return ResourceManager.bagFromResources(task.getResources())
         .add(TaskExecutors.NO_OVERHEAD_EXECUTOR.getExecutorOverhead(
             task.getExecutorConfig().getName()).get());

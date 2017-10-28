@@ -21,7 +21,7 @@ import com.google.common.collect.ImmutableMap;
 
 import org.apache.aurora.scheduler.resources.ResourceTestUtil;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
-import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
+import org.apache.aurora.gen.ResourceAggregate;
 import org.apache.aurora.scheduler.storage.testing.StorageEntityUtil;
 import org.junit.Before;
 import org.junit.Test;
@@ -32,8 +32,8 @@ public abstract class AbstractQuotaStoreTest {
 
   private static final String ROLE_A = "roleA";
   private static final String ROLE_B = "roleB";
-  private static final IResourceAggregate QUOTA_A = ResourceTestUtil.aggregate(1.0, 2, 3);
-  private static final IResourceAggregate QUOTA_B = ResourceTestUtil.aggregate(2.0, 4, 6);
+  private static final ResourceAggregate QUOTA_A = ResourceTestUtil.aggregate(1.0, 2, 3);
+  private static final ResourceAggregate QUOTA_B = ResourceTestUtil.aggregate(2.0, 4, 6);
 
   private Storage storage;
 
@@ -84,16 +84,16 @@ public abstract class AbstractQuotaStoreTest {
     assertQuotas(ImmutableMap.of(ROLE_A, QUOTA_B));
   }
 
-  private void save(String role, IResourceAggregate quota) {
+  private void save(String role, ResourceAggregate quota) {
     storage.write(
         (NoResult.Quiet) storeProvider -> storeProvider.getQuotaStore().saveQuota(role, quota));
   }
 
-  private Optional<IResourceAggregate> select(String role) {
+  private Optional<ResourceAggregate> select(String role) {
     return storage.read(storeProvider -> storeProvider.getQuotaStore().fetchQuota(role));
   }
 
-  private void assertQuotas(Map<String, IResourceAggregate> quotas) {
+  private void assertQuotas(Map<String, ResourceAggregate> quotas) {
     assertEquals(
         quotas,
         storage.read(storeProvider -> storeProvider.getQuotaStore().fetchQuotas())

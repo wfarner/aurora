@@ -41,7 +41,7 @@ import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.http.AbstractJettyTest;
 import org.apache.aurora.scheduler.http.H2ConsoleModule;
 import org.apache.aurora.scheduler.http.api.ApiModule;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
+import org.apache.aurora.gen.JobKey;
 import org.apache.aurora.scheduler.thrift.aop.AnnotatedAuroraAdmin;
 import org.apache.aurora.scheduler.thrift.aop.MockDecoratedThrift;
 import org.apache.http.HttpResponse;
@@ -103,7 +103,7 @@ public class HttpSecurityIT extends AbstractJettyTest {
   private static final Set<Credentials> VALID_CREDENTIALS =
       ImmutableSet.of(ROOT, WFARNER, UNPRIVILEGED, BACKUP_SERVICE);
 
-  private static final IJobKey ADS_STAGING_JOB = JobKeys.from("ads", "staging", "job");
+  private static final JobKey ADS_STAGING_JOB = JobKeys.from("ads", "staging", "job");
 
   private static final Joiner COMMA_JOINER = Joiner.on(", ");
   private static final String ADMIN_ROLE = "admin";

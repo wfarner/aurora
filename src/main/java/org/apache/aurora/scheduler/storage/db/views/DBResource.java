@@ -15,7 +15,7 @@ package org.apache.aurora.scheduler.storage.db.views;
 
 import org.apache.aurora.gen.Resource;
 import org.apache.aurora.scheduler.resources.ResourceType;
-import org.apache.aurora.scheduler.storage.entities.IResource;
+import org.apache.aurora.gen.Resource;
 
 public final class DBResource {
   private ResourceType type;
@@ -25,7 +25,7 @@ public final class DBResource {
   }
 
   Resource toThrift() {
-    return IResource.newBuilder(
+    return Resource.newBuilder(
         type.getValue(),
         type.getAuroraResourceConverter().parseFrom(value));
   }

@@ -111,7 +111,7 @@ class StreamManagerImpl implements StreamManager {
           vars.deflatedEntriesRead.incrementAndGet();
         }
 
-        if (logEntry.isSetDeduplicatedSnapshot()) {
+        if (logEntry.hasDeduplicatedSnapshot()) {
           logEntry = LogEntry.snapshot(
               snapshotDeduplicator.reduplicate(logEntry.getDeduplicatedSnapshot()));
         }
@@ -244,7 +244,7 @@ class StreamManagerImpl implements StreamManager {
       Preconditions.checkState(!committed.getAndSet(true),
           "Can only call commit once per transaction.");
 
-      if (!transaction.isSetOps()) {
+      if (!transaction.hasOps()) {
         return null;
       }
 
@@ -257,7 +257,7 @@ class StreamManagerImpl implements StreamManager {
     public void add(Op op) {
       Preconditions.checkState(!committed.get());
 
-      Op prior = transaction.isSetOps() ? Iterables.getLast(transaction.getOps(), null) : null;
+      Op prior = transaction.hasOps() ? Iterables.getLast(transaction.getOps(), null) : null;
       if (prior == null || !coalesce(prior, op)) {
         transaction.addToOps(op);
       }
@@ -299,8 +299,8 @@ class StreamManagerImpl implements StreamManager {
     }
 
     private void coalesce(SaveTasks prior, SaveTasks next) {
-      if (next.isSetTasks()) {
-        if (prior.isSetTasks()) {
+      if (next.hasTasks()) {
+        if (prior.hasTasks()) {
           // It is an expected invariant that an operation may reference a task (identified by
           // task ID) no more than one time.  Therefore, to coalesce two SaveTasks operations,
           // the most recent task definition overrides the prior operation.
@@ -319,8 +319,8 @@ class StreamManagerImpl implements StreamManager {
     }
 
     private void coalesce(RemoveTasks prior, RemoveTasks next) {
-      if (next.isSetTaskIds()) {
-        if (prior.isSetTaskIds()) {
+      if (next.hasTaskIds()) {
+        if (prior.hasTaskIds()) {
           prior.setTaskIds(ImmutableSet.<String>builder()
               .addAll(prior.getTaskIds())
               .addAll(next.getTaskIds())

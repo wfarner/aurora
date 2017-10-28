@@ -43,21 +43,21 @@ public @interface ThriftWorkload {
     @Override
     public Integer apply(Result result) {
       int count = 0;
-      if (result.isSetScheduleStatusResult()) {
+      if (result.hasScheduleStatusResult()) {
         count = result.getScheduleStatusResult().getTasksSize();
-      } else if (result.isSetGetPendingReasonResult()) {
+      } else if (result.hasGetPendingReasonResult()) {
         count = result.getGetPendingReasonResult().getReasonsSize();
-      } else if (result.isSetConfigSummaryResult()) {
+      } else if (result.hasConfigSummaryResult()) {
         count = result.getConfigSummaryResult().getSummary().getGroupsSize();
-      } else if (result.isSetRoleSummaryResult()) {
+      } else if (result.hasRoleSummaryResult()) {
         count = result.getRoleSummaryResult().getSummariesSize();
-      } else if (result.isSetJobSummaryResult()) {
+      } else if (result.hasJobSummaryResult()) {
         count = result.getJobSummaryResult().getSummariesSize();
-      } else if (result.isSetGetJobsResult()) {
+      } else if (result.hasGetJobsResult()) {
         count = result.getGetJobsResult().getConfigsSize();
-      } else if (result.isSetGetJobUpdateSummariesResult()) {
+      } else if (result.hasGetJobUpdateSummariesResult()) {
         count = result.getGetJobUpdateSummariesResult().getUpdateSummariesSize();
-      } else if (result.isSetGetJobUpdateDetailsResult()) {
+      } else if (result.hasGetJobUpdateDetailsResult()) {
         count = result.getGetJobUpdateDetailsResult().getDetailsListSize();
       }
       return count;

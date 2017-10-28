@@ -25,15 +25,6 @@ import javax.annotation.Nullable;
 
 import org.apache.aurora.common.quantity.Amount;
 import org.apache.aurora.common.quantity.Data;
-import org.apache.thrift.TBase;
-import org.apache.thrift.TDeserializer;
-import org.apache.thrift.TException;
-import org.apache.thrift.TSerializer;
-import org.apache.thrift.protocol.TBinaryProtocol;
-import org.apache.thrift.protocol.TProtocol;
-import org.apache.thrift.protocol.TProtocolFactory;
-import org.apache.thrift.transport.TIOStreamTransport;
-import org.apache.thrift.transport.TTransport;
 
 import static java.util.Objects.requireNonNull;
 
@@ -41,11 +32,6 @@ import static java.util.Objects.requireNonNull;
  * Codec that works for thrift objects.
  */
 public final class ThriftBinaryCodec {
-
-  /**
-   * Protocol factory used for all thrift encoding and decoding.
-   */
-  public static final TProtocolFactory PROTOCOL_FACTORY = new TBinaryProtocol.Factory();
 
   private ThriftBinaryCodec() {
     // Utility class.

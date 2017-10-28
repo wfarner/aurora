@@ -30,7 +30,7 @@ import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.events.PubsubEvent.TaskStateChange;
 import org.apache.aurora.scheduler.state.StateChangeResult;
 import org.apache.aurora.scheduler.state.StateManager;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.storage.testing.StorageTestUtil;
 import org.easymock.Capture;
 import org.junit.Before;
@@ -83,7 +83,7 @@ public class TaskThrottlerTest extends EasyMockTest {
 
   @Test
   public void testThrottledTask() {
-    IScheduledTask task = makeTask("a", THROTTLED);
+    ScheduledTask task = makeTask("a", THROTTLED);
 
     long penaltyMs = 100;
 
@@ -102,7 +102,7 @@ public class TaskThrottlerTest extends EasyMockTest {
     // Ensures that a sane delay is used when the task's penalty was already expired when
     // the -> THROTTLED transition occurred (such as in the event of a scheduler failover).
 
-    IScheduledTask task = makeTask("a", THROTTLED);
+    ScheduledTask task = makeTask("a", THROTTLED);
 
     long penaltyMs = 100;
 
@@ -125,7 +125,7 @@ public class TaskThrottlerTest extends EasyMockTest {
     return stateChangeCapture;
   }
 
-  private void expectMovedToPending(IScheduledTask task) {
+  private void expectMovedToPending(ScheduledTask task) {
     expect(stateManager.changeState(
         storageUtil.mutableStoreProvider,
         Tasks.id(task),
@@ -135,8 +135,8 @@ public class TaskThrottlerTest extends EasyMockTest {
         .andReturn(StateChangeResult.SUCCESS);
   }
 
-  private IScheduledTask makeTask(String id, ScheduleStatus status) {
-    return IScheduledTask.build(new ScheduledTask()
+  private ScheduledTask makeTask(String id, ScheduleStatus status) {
+    return ScheduledTask.build(new ScheduledTask()
         .setTaskEvents(ImmutableList.of(
             new TaskEvent()
                 .setStatus(status)

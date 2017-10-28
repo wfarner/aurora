@@ -59,7 +59,7 @@ class JsonCodec implements Codec<ServiceInstance> {
       assertRequiredField("host", host);
       assertRequiredField("port", port);
 
-      return new Endpoint(host, port);
+      return Endpoint.builder().setHost(host).setPort(port).build();
     }
   }
 
@@ -71,14 +71,14 @@ class JsonCodec implements Codec<ServiceInstance> {
 
     ServiceInstanceSchema(ServiceInstance instance) {
       serviceEndpoint = new EndpointSchema(instance.getServiceEndpoint());
-      if (instance.isSetAdditionalEndpoints()) {
+      if (instance.hasAdditionalEndpoints()) {
         additionalEndpoints =
             Maps.transformValues(instance.getAdditionalEndpoints(), EndpointSchema::new);
       } else {
         additionalEndpoints = ImmutableMap.of();
       }
       status  = instance.getStatus();
-      shard = instance.isSetShard() ? instance.getShard() : null;
+      shard = instance.hasShard() ? instance.getShard() : null;
     }
 
     ServiceInstance asServiceInstance() {
@@ -88,15 +88,15 @@ class JsonCodec implements Codec<ServiceInstance> {
       Map<String, EndpointSchema> extraEndpoints =
           additionalEndpoints == null ? ImmutableMap.of() : additionalEndpoints;
 
-      ServiceInstance instance =
-          new ServiceInstance(
-              serviceEndpoint.asEndpoint(),
-              Maps.transformValues(extraEndpoints, EndpointSchema::asEndpoint),
-              status);
+      ServiceInstance._Builder instance = ServiceInstance.builder()
+          .setServiceEndpoint(serviceEndpoint.asEndpoint())
+          .setAdditionalEndpoints(
+              Maps.transformValues(extraEndpoints, EndpointSchema::asEndpoint))
+          .setStatus(status);
       if (shard != null) {
         instance.setShard(shard);
       }
-      return instance;
+      return instance.build();
     }
   }
 

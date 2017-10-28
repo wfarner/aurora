@@ -15,7 +15,7 @@ package org.apache.aurora.scheduler.cron;
 
 import java.util.Map;
 
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
+import org.apache.aurora.gen.JobKey;
 
 /**
  * Manages the persistence and scheduling of jobs that should be run periodically on a cron
@@ -28,7 +28,7 @@ public interface CronJobManager {
    * @param jobKey Key of the job to start.
    * @throws CronException If the job could not be started with the cron system.
    */
-  void startJobNow(IJobKey jobKey) throws CronException;
+  void startJobNow(JobKey jobKey) throws CronException;
 
   /**
    * Persist a new cron job to storage and schedule it for future execution.
@@ -53,7 +53,7 @@ public interface CronJobManager {
    * @param jobKey Key of the job to delete.
    * @return true if a job was removed.
    */
-  boolean deleteJob(IJobKey jobKey);
+  boolean deleteJob(JobKey jobKey);
 
   /**
    * A list of the currently scheduled jobs and when they will run according to the underlying
@@ -61,5 +61,5 @@ public interface CronJobManager {
    *
    * @return A map from job to the cron schedule in use for that job.
    */
-  Map<IJobKey, CrontabEntry> getScheduledJobs();
+  Map<JobKey, CrontabEntry> getScheduledJobs();
 }

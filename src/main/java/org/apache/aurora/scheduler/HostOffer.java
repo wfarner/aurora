@@ -25,7 +25,7 @@ import com.google.common.cache.LoadingCache;
 import org.apache.aurora.scheduler.base.Conversions;
 import org.apache.aurora.scheduler.resources.ResourceBag;
 import org.apache.aurora.scheduler.resources.ResourceType;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
+import org.apache.aurora.gen.HostAttributes;
 
 import static java.util.Objects.requireNonNull;
 

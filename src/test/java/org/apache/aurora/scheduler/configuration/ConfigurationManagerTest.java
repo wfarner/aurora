@@ -43,9 +43,9 @@ import org.apache.aurora.scheduler.base.TaskTestUtil;
 import org.apache.aurora.scheduler.configuration.ConfigurationManager.ConfigurationManagerSettings;
 import org.apache.aurora.scheduler.configuration.ConfigurationManager.TaskDescriptionException;
 import org.apache.aurora.scheduler.mesos.TestExecutorSettings;
-import org.apache.aurora.scheduler.storage.entities.IDockerParameter;
+import org.apache.aurora.gen.DockerParameter;
 import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.TaskConfig;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -114,7 +114,7 @@ public class ConfigurationManagerTest {
                   numCpus(1.0),
                   ramMb(1),
                   diskMb(1))));
-  private static final ITaskConfig CONFIG_WITH_CONTAINER =
+  private static final TaskConfig CONFIG_WITH_CONTAINER =
       TaskTestUtil.makeConfig(JobKeys.from("role", "env", "job"));
 
   private static final ConfigurationManager CONFIGURATION_MANAGER = new ConfigurationManager(
@@ -160,7 +160,7 @@ public class ConfigurationManagerTest {
     taskConfig.getContainer().getDocker().setImage(null);
 
     expectTaskDescriptionException("A container must specify an image");
-    CONFIGURATION_MANAGER.validateAndPopulate(ITaskConfig.build(taskConfig));
+    CONFIGURATION_MANAGER.validateAndPopulate(TaskConfig.build(taskConfig));
   }
 
   @Test
@@ -169,7 +169,7 @@ public class ConfigurationManagerTest {
     taskConfig.getContainer().getDocker().addToParameters(new DockerParameter("foo", "bar"));
 
     expectTaskDescriptionException(ConfigurationManager.NO_DOCKER_PARAMETERS);
-    CONFIGURATION_MANAGER.validateAndPopulate(ITaskConfig.build(taskConfig));
+    CONFIGURATION_MANAGER.validateAndPopulate(TaskConfig.build(taskConfig));
   }
 
   @Test
@@ -179,7 +179,7 @@ public class ConfigurationManagerTest {
     builder.unsetExecutorConfig();
 
     expectTaskDescriptionException(ConfigurationManager.EXECUTOR_REQUIRED_WITH_DOCKER);
-    CONFIGURATION_MANAGER.validateAndPopulate(ITaskConfig.build(builder));
+    CONFIGURATION_MANAGER.validateAndPopulate(TaskConfig.build(builder));
   }
 
   @Test
@@ -187,12 +187,12 @@ public class ConfigurationManagerTest {
     TaskConfig builder = CONFIG_WITH_CONTAINER.newBuilder();
     builder.unsetExecutorConfig();
 
-    DOCKER_CONFIGURATION_MANAGER.validateAndPopulate(ITaskConfig.build(builder));
+    DOCKER_CONFIGURATION_MANAGER.validateAndPopulate(TaskConfig.build(builder));
   }
 
   @Test
   public void testInvalidTier() throws TaskDescriptionException {
-    ITaskConfig config = ITaskConfig.build(UNSANITIZED_JOB_CONFIGURATION.deepCopy().getTaskConfig()
+    TaskConfig config = TaskConfig.build(UNSANITIZED_JOB_CONFIGURATION.deepCopy().getTaskConfig()
         .setTier("pr/d"));
 
     expectTaskDescriptionException("Tier contains illegal characters");
@@ -204,8 +204,8 @@ public class ConfigurationManagerTest {
     TaskConfig builder = CONFIG_WITH_CONTAINER.newBuilder();
     builder.getContainer().getDocker().setParameters(ImmutableList.of());
 
-    ITaskConfig result =
-        DOCKER_CONFIGURATION_MANAGER.validateAndPopulate(ITaskConfig.build(builder));
+    TaskConfig result =
+        DOCKER_CONFIGURATION_MANAGER.validateAndPopulate(TaskConfig.build(builder));
 
     // The resulting task config should contain parameters supplied to the ConfigurationManager.
     List<IDockerParameter> params = result.getContainer().getDocker().getParameters();
@@ -220,8 +220,8 @@ public class ConfigurationManagerTest {
     taskConfig.getContainer().getDocker().getParameters().clear();
     taskConfig.getContainer().getDocker().addToParameters(userParameter);
 
-    ITaskConfig result = DOCKER_CONFIGURATION_MANAGER.validateAndPopulate(
-        ITaskConfig.build(taskConfig));
+    TaskConfig result = DOCKER_CONFIGURATION_MANAGER.validateAndPopulate(
+        TaskConfig.build(taskConfig));
 
     // The resulting task config should contain parameters supplied from user config.
     List<IDockerParameter> params = result.getContainer().getDocker().getParameters();
@@ -236,7 +236,7 @@ public class ConfigurationManagerTest {
         .setConstraint(TaskConstraint.value(
             new ValueConstraint(false, ImmutableSet.of(JOB_KEY.getRole() + "/f"))))));
 
-    CONFIGURATION_MANAGER.validateAndPopulate(ITaskConfig.build(builder));
+    CONFIGURATION_MANAGER.validateAndPopulate(TaskConfig.build(builder));
   }
 
   @Test
@@ -246,7 +246,7 @@ public class ConfigurationManagerTest {
         .setName(DEDICATED_ATTRIBUTE)
         .setConstraint(TaskConstraint.value(new ValueConstraint(false, ImmutableSet.of("*/f"))))));
 
-    CONFIGURATION_MANAGER.validateAndPopulate(ITaskConfig.build(builder));
+    CONFIGURATION_MANAGER.validateAndPopulate(TaskConfig.build(builder));
   }
 
   @Test
@@ -257,7 +257,7 @@ public class ConfigurationManagerTest {
         .setConstraint(TaskConstraint.value(new ValueConstraint(false, ImmutableSet.of("r/f"))))));
 
     expectTaskDescriptionException("Only r may use hosts dedicated for that role.");
-    CONFIGURATION_MANAGER.validateAndPopulate(ITaskConfig.build(builder));
+    CONFIGURATION_MANAGER.validateAndPopulate(TaskConfig.build(builder));
   }
 
   @Test
@@ -267,7 +267,7 @@ public class ConfigurationManagerTest {
     builder.addToResources(ramMb(72));
 
     expectTaskDescriptionException("Multiple resource values are not supported for CPU, RAM");
-    DOCKER_CONFIGURATION_MANAGER.validateAndPopulate(ITaskConfig.build(builder));
+    DOCKER_CONFIGURATION_MANAGER.validateAndPopulate(TaskConfig.build(builder));
   }
 
   @Test
@@ -275,7 +275,7 @@ public class ConfigurationManagerTest {
     TaskConfig builder = CONFIG_WITH_CONTAINER.newBuilder();
     builder.addToResources(namedPort("thrift"));
 
-    DOCKER_CONFIGURATION_MANAGER.validateAndPopulate(ITaskConfig.build(builder));
+    DOCKER_CONFIGURATION_MANAGER.validateAndPopulate(TaskConfig.build(builder));
   }
 
   @Test
@@ -296,7 +296,7 @@ public class ConfigurationManagerTest {
             ConfigurationManager.DEFAULT_ALLOWED_JOB_ENVIRONMENTS),
         TaskTestUtil.TIER_MANAGER,
         TaskTestUtil.THRIFT_BACKFILL,
-        TestExecutorSettings.THERMOS_EXECUTOR).validateAndPopulate(ITaskConfig.build(builder));
+        TestExecutorSettings.THERMOS_EXECUTOR).validateAndPopulate(TaskConfig.build(builder));
   }
 
   @Test
@@ -320,7 +320,7 @@ public class ConfigurationManagerTest {
                     ".+"),
             TaskTestUtil.TIER_MANAGER,
             TaskTestUtil.THRIFT_BACKFILL,
-            TestExecutorSettings.THERMOS_EXECUTOR).validateAndPopulate(ITaskConfig.build(builder));
+            TestExecutorSettings.THERMOS_EXECUTOR).validateAndPopulate(TaskConfig.build(builder));
   }
 
   @Test
@@ -333,7 +333,7 @@ public class ConfigurationManagerTest {
 
     expectTaskDescriptionException(NO_CONTAINER_VOLUMES);
 
-    CONFIGURATION_MANAGER.validateAndPopulate(ITaskConfig.build(builder));
+    CONFIGURATION_MANAGER.validateAndPopulate(TaskConfig.build(builder));
   }
 
   @Test
@@ -342,8 +342,8 @@ public class ConfigurationManagerTest {
     builder.addToResources(namedPort("health"));
     builder.unsetTaskLinks();
 
-    ITaskConfig populated =
-        DOCKER_CONFIGURATION_MANAGER.validateAndPopulate(ITaskConfig.build(builder));
+    TaskConfig populated =
+        DOCKER_CONFIGURATION_MANAGER.validateAndPopulate(TaskConfig.build(builder));
     assertEquals(ImmutableSet.of("health", "http"), populated.getTaskLinks().keySet());
   }
 

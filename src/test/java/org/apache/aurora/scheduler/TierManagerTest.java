@@ -20,7 +20,7 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.TierManager.TierManagerImpl;
 import org.apache.aurora.scheduler.base.TaskTestUtil;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.TaskConfig;
 import org.junit.Test;
 
 import static org.apache.aurora.scheduler.TierModule.parseTierConfig;
@@ -44,14 +44,14 @@ public class TierManagerTest {
   public void testGetTierRevocable() {
     assertEquals(
         REVOCABLE_TIER,
-        TIER_MANAGER.getTier(ITaskConfig.build(new TaskConfig().setTier(REVOCABLE_TIER_NAME))));
+        TIER_MANAGER.getTier(TaskConfig.build(new TaskConfig().setTier(REVOCABLE_TIER_NAME))));
   }
 
   @Test
   public void testGetTierRevocableAndProduction() {
     assertEquals(
         REVOCABLE_TIER,
-        TIER_MANAGER.getTier(ITaskConfig.build(new TaskConfig()
+        TIER_MANAGER.getTier(TaskConfig.build(new TaskConfig()
             .setTier(REVOCABLE_TIER_NAME)
             .setProduction(true))));
   }
@@ -60,14 +60,14 @@ public class TierManagerTest {
   public void testGetTierPreemptibleAndProduction() {
     assertEquals(
         DEV_TIER,
-        TIER_MANAGER.getTier(ITaskConfig.build(new TaskConfig()
+        TIER_MANAGER.getTier(TaskConfig.build(new TaskConfig()
             .setTier(PREEMPTIBLE_TIER_NAME)
             .setProduction(true))));
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testGetTierNameMismatch() {
-    TIER_MANAGER.getTier(ITaskConfig.build(new TaskConfig().setTier("Revocable")));
+    TIER_MANAGER.getTier(TaskConfig.build(new TaskConfig().setTier("Revocable")));
   }
 
   @Test

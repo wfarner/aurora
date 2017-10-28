@@ -77,9 +77,9 @@ import org.apache.aurora.scheduler.mesos.DriverSettings;
 import org.apache.aurora.scheduler.mesos.FrameworkInfoFactory;
 import org.apache.aurora.scheduler.mesos.TestExecutorSettings;
 import org.apache.aurora.scheduler.storage.backup.BackupModule;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
-import org.apache.aurora.scheduler.storage.entities.IServerInfo;
+import org.apache.aurora.gen.HostAttributes;
+import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.gen.ServerInfo;
 import org.apache.aurora.scheduler.storage.log.EntrySerializer;
 import org.apache.aurora.scheduler.storage.log.LogStorageModule;
 import org.apache.aurora.scheduler.storage.log.SnapshotStoreImpl;
@@ -301,7 +301,7 @@ public class SchedulerIT extends BaseZooKeeperTest {
         });
   }
 
-  private static IScheduledTask makeTask(String id, ScheduleStatus status) {
+  private static ScheduledTask makeTask(String id, ScheduleStatus status) {
     ScheduledTask builder = TaskTestUtil.addStateTransition(
         TaskTestUtil.makeTask(id, TaskTestUtil.JOB),
         status,
@@ -310,7 +310,7 @@ public class SchedulerIT extends BaseZooKeeperTest {
     builder.getAssignedTask()
         .setSlaveId(HOST_ATTRIBUTES.getSlaveId())
         .setSlaveHost(HOST_ATTRIBUTES.getHost());
-    return IScheduledTask.build(builder);
+    return ScheduledTask.build(builder);
   }
 
   @Test
@@ -323,8 +323,8 @@ public class SchedulerIT extends BaseZooKeeperTest {
         eq(SETTINGS.getMasterUri())))
         .andReturn(driver).anyTimes();
 
-    IScheduledTask snapshotTask = makeTask("snapshotTask", ScheduleStatus.ASSIGNED);
-    IScheduledTask transactionTask = makeTask("transactionTask", ScheduleStatus.RUNNING);
+    ScheduledTask snapshotTask = makeTask("snapshotTask", ScheduleStatus.ASSIGNED);
+    ScheduledTask transactionTask = makeTask("transactionTask", ScheduleStatus.RUNNING);
     Iterable<Entry> recoveredEntries = toEntries(
         LogEntry.snapshot(new Snapshot()
             .setTasks(ImmutableSet.of(snapshotTask.newBuilder()))

@@ -24,9 +24,9 @@ import com.google.common.collect.Iterables;
 import org.apache.aurora.gen.Attribute;
 import org.apache.aurora.scheduler.base.SchedulerException;
 import org.apache.aurora.scheduler.filter.SchedulingFilter.Veto;
-import org.apache.aurora.scheduler.storage.entities.IAttribute;
-import org.apache.aurora.scheduler.storage.entities.IConstraint;
-import org.apache.aurora.scheduler.storage.entities.ITaskConstraint;
+import org.apache.aurora.gen.Attribute;
+import org.apache.aurora.gen.Constraint;
+import org.apache.aurora.gen.TaskConstraint;
 
 /**
  * Filter that determines whether a task's constraints are satisfied.
@@ -49,7 +49,7 @@ final class ConstraintMatcher {
   static Optional<Veto> getVeto(
       AttributeAggregate cachedjobState,
       Iterable<IAttribute> hostAttributes,
-      IConstraint constraint) {
+      Constraint constraint) {
 
     Iterable<IAttribute> sameNameAttributes =
         Iterables.filter(hostAttributes, new NameFilter(constraint.getName()));
@@ -63,7 +63,7 @@ final class ConstraintMatcher {
           Optional.of(IAttribute.build(new Attribute(constraint.getName(), attributeValues)));
     }
 
-    ITaskConstraint taskConstraint = constraint.getConstraint();
+    TaskConstraint taskConstraint = constraint.getConstraint();
     switch (taskConstraint.getSetField()) {
       case VALUE:
         boolean matches = AttributeFilter.matches(

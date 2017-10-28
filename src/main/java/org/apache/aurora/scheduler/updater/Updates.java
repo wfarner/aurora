@@ -21,8 +21,8 @@ import com.google.common.collect.Sets;
 
 import org.apache.aurora.gen.JobUpdateStatus;
 import org.apache.aurora.gen.apiConstants;
-import org.apache.aurora.scheduler.storage.entities.IInstanceTaskConfig;
-import org.apache.aurora.scheduler.storage.entities.IRange;
+import org.apache.aurora.gen.InstanceTaskConfig;
+import org.apache.aurora.gen.Range;
 
 /**
  * Utility functions for job updates.
@@ -48,7 +48,7 @@ public final class Updates {
   public static ImmutableRangeSet<Integer> getInstanceIds(Set<IInstanceTaskConfig> configs) {
     ImmutableRangeSet.Builder<Integer> builder = ImmutableRangeSet.builder();
     for (IInstanceTaskConfig config : configs) {
-      for (IRange range : config.getInstances()) {
+      for (Range range : config.getInstances()) {
         builder.add(Range.closed(range.getFirst(), range.getLast()));
       }
     }

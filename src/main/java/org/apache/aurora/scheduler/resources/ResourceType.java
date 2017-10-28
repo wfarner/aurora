@@ -22,11 +22,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
 import org.apache.aurora.common.quantity.Amount;
-import org.apache.aurora.gen.Resource._Fields;
+import org.apache.aurora.gen.Resource;
+import org.apache.aurora.gen.Resource._Field;
 import org.apache.aurora.scheduler.config.CommandLine;
-import org.apache.aurora.scheduler.storage.entities.IResource;
-import org.apache.mesos.v1.Protos.Resource;
-import org.apache.thrift.TEnum;
 
 import static java.util.Objects.requireNonNull;
 
@@ -44,13 +42,13 @@ import static org.apache.aurora.scheduler.resources.ResourceSettings.NOT_REVOCAB
  * Describes Mesos resource types and their Aurora traits.
  */
 @VisibleForTesting
-public enum ResourceType implements TEnum {
+public enum ResourceType {
 
   /**
    * CPU resource.
    */
   CPUS(
-      _Fields.NUM_CPUS,
+      _Field.NUM_CPUS,
       SCALAR,
       "cpus",
       DOUBLE,
@@ -66,7 +64,7 @@ public enum ResourceType implements TEnum {
    * RAM resource.
    */
   RAM_MB(
-      _Fields.RAM_MB,
+      _Field.RAM_MB,
       SCALAR,
       "mem",
       LONG,
@@ -81,7 +79,7 @@ public enum ResourceType implements TEnum {
    * DISK resource.
    */
   DISK_MB(
-      _Fields.DISK_MB,
+      _Field.DISK_MB,
       SCALAR,
       "disk",
       LONG,
@@ -96,7 +94,7 @@ public enum ResourceType implements TEnum {
    * Port resource.
    */
   PORTS(
-      _Fields.NAMED_PORT,
+      _Field.NAMED_PORT,
       RANGES,
       "ports",
       STRING,
@@ -111,7 +109,7 @@ public enum ResourceType implements TEnum {
    * GPU resource.
    */
   GPUS(
-      _Fields.NUM_GPUS,
+      _Field.NUM_GPUS,
       SCALAR,
       "gpus",
       LONG,
@@ -129,7 +127,7 @@ public enum ResourceType implements TEnum {
   /**
    * Correspondent thrift {@link org.apache.aurora.gen.Resource} enum value.
    */
-  private final _Fields value;
+  private final Resource._Field value;
 
   /**
    * Mesos resource converter.
@@ -185,7 +183,7 @@ public enum ResourceType implements TEnum {
   /**
    * Describes a Resource type.
    *
-   * @param value Correspondent {@link _Fields} value.
+   * @param value Correspondent {@link _Field} value.
    * @param mesosResourceConverter See {@link #getMesosResourceConverter()} for more details.
    * @param mesosName See {@link #getMesosName()} for more details.
    * @param auroraResourceConverter See {@link #getAuroraResourceConverter()} for more details.
@@ -197,7 +195,7 @@ public enum ResourceType implements TEnum {
    * @param isMesosRevocable See {@link #isMesosRevocable()} for more details.
    */
   ResourceType(
-      _Fields value,
+      Resource._Field value,
       MesosResourceConverter mesosResourceConverter,
       String mesosName,
       AuroraResourceConverter<?> auroraResourceConverter,
@@ -225,9 +223,8 @@ public enum ResourceType implements TEnum {
    *
    * @return Enum ID.
    */
-  @Override
   public int getValue() {
-    return value.getThriftFieldId();
+    return value.getId();
   }
 
   /**
@@ -347,11 +344,11 @@ public enum ResourceType implements TEnum {
   /**
    * Returns a {@link ResourceType} for the given resource.
    *
-   * @param resource {@link IResource} to search by.
+   * @param resource {@link Resource} to search by.
    * @return {@link ResourceType}.
    */
-  public static ResourceType fromResource(IResource resource) {
-    ResourceType resourceType = byField.get((int) resource.getSetField().getThriftFieldId());
+  public static ResourceType fromResource(Resource resource) {
+    ResourceType resourceType = byField.get((int) resource.unionField().getId());
     if (resourceType == null) {
       throw new NullPointerException("Unknown resource: " + resource);
     }
@@ -364,7 +361,7 @@ public enum ResourceType implements TEnum {
    * @param resource {@link Resource} to search by.
    * @return {@link ResourceType}.
    */
-  public static ResourceType fromResource(Resource resource) {
+  public static ResourceType fromResource(org.apache.mesos.v1.Protos.Resource resource) {
     ResourceType resourceType = BY_MESOS_NAME.get(resource.getName());
     if (resourceType == null) {
       throw new NullPointerException("Unknown Mesos resource: " + resource);

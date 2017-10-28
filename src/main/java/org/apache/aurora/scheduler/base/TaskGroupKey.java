@@ -15,37 +15,37 @@ package org.apache.aurora.scheduler.base;
 
 import java.util.Objects;
 
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.TaskConfig;
 
 import static java.util.Objects.requireNonNull;
 
 /**
- * Identifier for a group of identical {@link ITaskConfig} instances. Serves as a separation layer
+ * Identifier for a group of identical {@link TaskConfig} instances. Serves as a separation layer
  * between a task configuration and its scheduling purpose representation.
  */
 public final class TaskGroupKey {
-  private final ITaskConfig canonicalTask;
+  private final TaskConfig canonicalTask;
 
-  private TaskGroupKey(ITaskConfig task) {
+  private TaskGroupKey(TaskConfig task) {
     this.canonicalTask = requireNonNull(task);
   }
 
   /**
-   * Creates a {@code TaskGroupKey} from {@link ITaskConfig}.
+   * Creates a {@code TaskGroupKey} from {@link TaskConfig}.
    *
    * @param task Task to create a {@code TaskGroupKey} from.
    * @return An instance of {@code TaskGroupKey}.
    */
-  public static TaskGroupKey from(ITaskConfig task) {
+  public static TaskGroupKey from(TaskConfig task) {
     return new TaskGroupKey(task);
   }
 
   /**
-   * Gets {@link ITaskConfig} the key created from.
+   * Gets {@link TaskConfig} the key created from.
    *
    * @return A task config.
    */
-  public ITaskConfig getTask() {
+  public TaskConfig getTask() {
     return canonicalTask;
   }
 

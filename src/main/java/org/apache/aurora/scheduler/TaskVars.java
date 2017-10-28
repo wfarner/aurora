@@ -46,8 +46,8 @@ import org.apache.aurora.scheduler.filter.SchedulingFilter.VetoGroup;
 import org.apache.aurora.scheduler.filter.SchedulingFilter.VetoType;
 import org.apache.aurora.scheduler.storage.AttributeStore;
 import org.apache.aurora.scheduler.storage.Storage;
-import org.apache.aurora.scheduler.storage.entities.IAttribute;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.Attribute;
+import org.apache.aurora.gen.ScheduledTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,7 +114,7 @@ public class TaskVars extends AbstractIdleService implements EventSubscriber {
   }
 
   @VisibleForTesting
-  static String jobStatName(IScheduledTask task, ScheduleStatus status) {
+  static String jobStatName(ScheduledTask task, ScheduleStatus status) {
     return String.format(
         "tasks_%s_%s",
         status,
@@ -138,7 +138,7 @@ public class TaskVars extends AbstractIdleService implements EventSubscriber {
     getCounter(status).decrement();
   }
 
-  private void updateRackCounters(IScheduledTask task, ScheduleStatus newState) {
+  private void updateRackCounters(ScheduledTask task, ScheduleStatus newState) {
     final String host = task.getAssignedTask().getSlaveHost();
     Optional<String> rack;
     if (Strings.isNullOrEmpty(task.getAssignedTask().getSlaveHost())) {
@@ -167,7 +167,7 @@ public class TaskVars extends AbstractIdleService implements EventSubscriber {
     }
   }
 
-  private void updateJobCounters(IScheduledTask task, ScheduleStatus newState) {
+  private void updateJobCounters(ScheduledTask task, ScheduleStatus newState) {
     if (TRACKED_JOB_STATES.contains(newState)) {
       untrackedCounters.getUnchecked(jobStatName(task, newState)).increment();
     }
@@ -175,7 +175,7 @@ public class TaskVars extends AbstractIdleService implements EventSubscriber {
 
   @Subscribe
   public void taskChangedState(TaskStateChange stateChange) {
-    IScheduledTask task = stateChange.getTask();
+    ScheduledTask task = stateChange.getTask();
     Optional<ScheduleStatus> previousState = stateChange.getOldState();
 
     if (stateChange.isTransition() && !previousState.equals(Optional.of(ScheduleStatus.INIT))) {
@@ -216,7 +216,7 @@ public class TaskVars extends AbstractIdleService implements EventSubscriber {
 
   @Subscribe
   public void tasksDeleted(final TasksDeleted event) {
-    for (IScheduledTask task : event.getTasks()) {
+    for (ScheduledTask task : event.getTasks()) {
       decrementCount(task.getStatus());
     }
   }

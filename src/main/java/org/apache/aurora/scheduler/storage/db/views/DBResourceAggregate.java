@@ -20,8 +20,8 @@ import org.apache.aurora.GuavaUtils;
 import org.apache.aurora.common.collections.Pair;
 import org.apache.aurora.gen.ResourceAggregate;
 import org.apache.aurora.scheduler.resources.ResourceType;
-import org.apache.aurora.scheduler.storage.entities.IResource;
-import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
+import org.apache.aurora.gen.Resource;
+import org.apache.aurora.gen.ResourceAggregate;
 
 import static org.apache.aurora.GuavaUtils.toImmutableSet;
 
@@ -42,7 +42,7 @@ public final class DBResourceAggregate {
         .setResources(resources.stream().map(DBResource::toThrift).collect(toImmutableSet()));
   }
 
-  public static List<Pair<Integer, String>> pairsFromResources(Set<IResource> resources) {
+  public static List<Pair<Integer, String>> pairsFromResources(Set<Resource> resources) {
     return resources.stream()
         .map(e -> Pair.of(
             ResourceType.fromResource(e).getValue(),
@@ -50,7 +50,7 @@ public final class DBResourceAggregate {
         .collect(GuavaUtils.toImmutableList());
   }
 
-  public IResourceAggregate toImmutable() {
-    return IResourceAggregate.build(toThrift());
+  public ResourceAggregate toImmutable() {
+    return ResourceAggregate.build(toThrift());
   }
 }

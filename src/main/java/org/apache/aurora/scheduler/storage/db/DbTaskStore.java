@@ -37,9 +37,9 @@ import org.apache.aurora.scheduler.base.Query.Builder;
 import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.storage.TaskStore;
 import org.apache.aurora.scheduler.storage.db.views.DbScheduledTask;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.gen.TaskConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,7 +48,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * A task store implementation based on a relational database.
  * <p>
- * TODO(wfarner): Consider modifying code generator to support directly producing ITaskConfig, etc
+ * TODO(wfarner): Consider modifying code generator to support directly producing TaskConfig, etc
  * from myBatis (it will set private final fields just fine).  This would reduce memory and time
  * spent translating and copying objects.
  */
@@ -77,7 +77,7 @@ class DbTaskStore implements TaskStore.Mutable {
 
   @Timed("db_storage_fetch_task")
   @Override
-  public Optional<IScheduledTask> fetchTask(String taskId) {
+  public Optional<ScheduledTask> fetchTask(String taskId) {
     requireNonNull(taskId);
     return Optional.fromNullable(taskMapper.selectById(taskId))
         .transform(DbScheduledTask::toImmutable);
@@ -85,13 +85,13 @@ class DbTaskStore implements TaskStore.Mutable {
 
   @Timed("db_storage_fetch_tasks")
   @Override
-  public Iterable<IScheduledTask> fetchTasks(Builder query) {
+  public Iterable<ScheduledTask> fetchTasks(Builder query) {
     requireNonNull(query);
 
     // TODO(wfarner): Consider making slow query logging more reusable, or pushing it down into the
     //                database.
     long start = clock.nowNanos();
-    Iterable<IScheduledTask> result = matches(query);
+    Iterable<ScheduledTask> result = matches(query);
     long durationNanos = clock.nowNanos() - start;
     boolean infoLevel = durationNanos >= slowQueryThresholdNanos;
     long time = Amount.of(durationNanos, Time.NANOSECONDS).as(Time.MILLISECONDS);
@@ -107,13 +107,13 @@ class DbTaskStore implements TaskStore.Mutable {
 
   @Timed("db_storage_get_job_keys")
   @Override
-  public ImmutableSet<IJobKey> getJobKeys() {
-    return IJobKey.setFromBuilders(taskMapper.selectJobKeys());
+  public ImmutableSet<JobKey> getJobKeys() {
+    return JobKey.setFromBuilders(taskMapper.selectJobKeys());
   }
 
   @Timed("db_storage_save_tasks")
   @Override
-  public void saveTasks(Set<IScheduledTask> tasks) {
+  public void saveTasks(Set<ScheduledTask> tasks) {
     if (tasks.isEmpty()) {
       return;
     }
@@ -124,15 +124,15 @@ class DbTaskStore implements TaskStore.Mutable {
     deleteTasks(Tasks.ids(tasks));
 
     // Maintain a cache of all task configs that exist for a job key so that identical entities
-    LoadingCache<ITaskConfig, Long> configCache = CacheBuilder.newBuilder()
-        .build(new CacheLoader<ITaskConfig, Long>() {
+    LoadingCache<TaskConfig, Long> configCache = CacheBuilder.newBuilder()
+        .build(new CacheLoader<TaskConfig, Long>() {
           @Override
-          public Long load(ITaskConfig config) {
+          public Long load(TaskConfig config) {
             return configManager.insert(config);
           }
         });
 
-    for (IScheduledTask task : tasks) {
+    for (ScheduledTask task : tasks) {
       InsertResult result = new InsertResult();
       taskMapper.insertScheduledTask(
           task,
@@ -164,15 +164,15 @@ class DbTaskStore implements TaskStore.Mutable {
 
   @Timed("db_storage_mutate_task")
   @Override
-  public Optional<IScheduledTask> mutateTask(
+  public Optional<ScheduledTask> mutateTask(
       String taskId,
-      Function<IScheduledTask, IScheduledTask> mutator) {
+      Function<ScheduledTask, ScheduledTask> mutator) {
 
     requireNonNull(taskId);
     requireNonNull(mutator);
 
     return fetchTask(taskId).transform(original -> {
-      IScheduledTask maybeMutated = mutator.apply(original);
+      ScheduledTask maybeMutated = mutator.apply(original);
       requireNonNull(maybeMutated);
       if (!original.equals(maybeMutated)) {
         Preconditions.checkState(
@@ -184,9 +184,9 @@ class DbTaskStore implements TaskStore.Mutable {
     });
   }
 
-  private FluentIterable<IScheduledTask> matches(Query.Builder query) {
+  private FluentIterable<ScheduledTask> matches(Query.Builder query) {
     Iterable<DbScheduledTask> results;
-    Predicate<IScheduledTask> filter;
+    Predicate<ScheduledTask> filter;
     if (query.get().getTaskIds().size() == 1) {
       // Optimize queries that are scoped to a single task, as the dynamic SQL used for arbitrary
       // queries comes with a performance penalty.

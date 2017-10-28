@@ -41,9 +41,9 @@ import org.apache.aurora.scheduler.events.EventSink;
 import org.apache.aurora.scheduler.events.PubsubEvent.TaskStateChange;
 import org.apache.aurora.scheduler.events.PubsubEventModule;
 import org.apache.aurora.scheduler.storage.Storage;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.IHostStatus;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.HostAttributes;
+import org.apache.aurora.gen.HostStatus;
+import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.storage.testing.StorageTestUtil;
 import org.apache.aurora.scheduler.testing.FakeStatsProvider;
 import org.apache.mesos.v1.Protos;
@@ -124,19 +124,19 @@ public class MaintenanceControllerImplTest extends EasyMockTest {
     eventSink = PubsubTestUtil.startPubsub(injector);
   }
 
-  private static IScheduledTask makeTask(String host, String taskId) {
+  private static ScheduledTask makeTask(String host, String taskId) {
     ScheduledTask builder = TaskTestUtil.addStateTransition(
         TaskTestUtil.makeTask(taskId, TaskTestUtil.JOB),
         RUNNING,
         1000).newBuilder();
     builder.getAssignedTask().setSlaveHost(host);
-    return IScheduledTask.build(builder);
+    return ScheduledTask.build(builder);
   }
 
   @Test
   public void testMaintenanceCycle() {
-    IScheduledTask task1 = makeTask(HOST_A, "taskA");
-    IScheduledTask task2 = makeTask(HOST_A, "taskB");
+    ScheduledTask task1 = makeTask(HOST_A, "taskA");
+    ScheduledTask task2 = makeTask(HOST_A, "taskB");
 
     expectMaintenanceModeChange(HOST_A, SCHEDULED);
     expectFetchTasksByHost(HOST_A, ImmutableSet.of(task1, task2));
@@ -163,10 +163,10 @@ public class MaintenanceControllerImplTest extends EasyMockTest {
     assertStatus(HOST_A, DRAINING, maintenance.getStatus(A));
     eventSink.post(
         TaskStateChange.transition(
-            IScheduledTask.build(task1.newBuilder().setStatus(KILLED)), RUNNING));
+            ScheduledTask.build(task1.newBuilder().setStatus(KILLED)), RUNNING));
     eventSink.post(
         TaskStateChange.transition(
-            IScheduledTask.build(task2.newBuilder().setStatus(KILLED)), RUNNING));
+            ScheduledTask.build(task2.newBuilder().setStatus(KILLED)), RUNNING));
     assertStatus(HOST_A, NONE, maintenance.endMaintenance(A));
   }
 
@@ -210,7 +210,7 @@ public class MaintenanceControllerImplTest extends EasyMockTest {
     // Make sure a later transition on the host does not cause any ill effects that could surface
     // from stale internal state.
     eventSink.post(TaskStateChange.transition(
-        IScheduledTask.build(makeTask(HOST_A, "taskA").newBuilder().setStatus(KILLED)), RUNNING));
+        ScheduledTask.build(makeTask(HOST_A, "taskA").newBuilder().setStatus(KILLED)), RUNNING));
   }
 
   @Test
@@ -227,7 +227,7 @@ public class MaintenanceControllerImplTest extends EasyMockTest {
 
   @Test
   public void testInverseOfferDrain() {
-    IScheduledTask task1 = makeTask(HOST_A, "taskA");
+    ScheduledTask task1 = makeTask(HOST_A, "taskA");
     expectFetchTasksByHost(HOST_A, ImmutableSet.of(task1));
     expectTaskDraining(task1);
 
@@ -235,7 +235,7 @@ public class MaintenanceControllerImplTest extends EasyMockTest {
     maintenance.drainForInverseOffer(INVERSE_OFFER);
   }
 
-  private void expectTaskDraining(IScheduledTask task) {
+  private void expectTaskDraining(ScheduledTask task) {
     expect(stateManager.changeState(
         storageUtil.mutableStoreProvider,
         Tasks.id(task),
@@ -245,7 +245,7 @@ public class MaintenanceControllerImplTest extends EasyMockTest {
         .andReturn(StateChangeResult.SUCCESS);
   }
 
-  private void expectFetchTasksByHost(String hostName, Set<IScheduledTask> tasks) {
+  private void expectFetchTasksByHost(String hostName, Set<ScheduledTask> tasks) {
     expect(storageUtil.taskStore.fetchTasks(Query.slaveScoped(hostName).active())).andReturn(tasks);
   }
 
@@ -258,7 +258,7 @@ public class MaintenanceControllerImplTest extends EasyMockTest {
     expect(storageUtil.attributeStore.saveHostAttributes(updated)).andReturn(true);
   }
 
-  private void assertStatus(String host, MaintenanceMode mode, Set<IHostStatus> statuses) {
-    assertEquals(ImmutableSet.of(IHostStatus.build(new HostStatus(host, mode))), statuses);
+  private void assertStatus(String host, MaintenanceMode mode, Set<HostStatus> statuses) {
+    assertEquals(ImmutableSet.of(HostStatus.build(new HostStatus(host, mode))), statuses);
   }
 }

@@ -21,8 +21,8 @@ import org.apache.aurora.common.testing.easymock.EasyMockTest;
 import org.apache.aurora.gen.InstanceKey;
 import org.apache.aurora.gen.ScheduleStatus;
 import org.apache.aurora.scheduler.base.TaskTestUtil;
-import org.apache.aurora.scheduler.storage.entities.IInstanceKey;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.InstanceKey;
+import org.apache.aurora.gen.ScheduledTask;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -32,8 +32,8 @@ import static org.easymock.EasyMock.expectLastCall;
 
 public class JobUpdateEventSubscriberTest extends EasyMockTest {
 
-  private static final IScheduledTask TASK = TaskTestUtil.makeTask("id", TaskTestUtil.JOB);
-  private static final IInstanceKey INSTANCE_A = IInstanceKey.build(
+  private static final ScheduledTask TASK = TaskTestUtil.makeTask("id", TaskTestUtil.JOB);
+  private static final InstanceKey INSTANCE_A = IInstanceKey.build(
       new InstanceKey()
           .setJobKey(TaskTestUtil.JOB.newBuilder())
           .setInstanceId(TASK.getAssignedTask().getInstanceId()));
@@ -100,8 +100,8 @@ public class JobUpdateEventSubscriberTest extends EasyMockTest {
   public void testIgnoresPrunedTasks() throws Exception {
     control.replay();
 
-    IScheduledTask task =
-        IScheduledTask.build(TASK.newBuilder().setStatus(ScheduleStatus.FAILED));
+    ScheduledTask task =
+        ScheduledTask.build(TASK.newBuilder().setStatus(ScheduleStatus.FAILED));
     eventBus.post(new TasksDeleted(ImmutableSet.of(task)));
   }
 }

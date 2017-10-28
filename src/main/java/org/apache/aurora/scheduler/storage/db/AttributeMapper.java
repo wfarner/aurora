@@ -19,7 +19,7 @@ import javax.annotation.Nullable;
 
 import org.apache.aurora.gen.HostAttributes;
 import org.apache.aurora.gen.MaintenanceMode;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
+import org.apache.aurora.gen.HostAttributes;
 import org.apache.ibatis.annotations.Param;
 
 /**

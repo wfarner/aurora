@@ -13,15 +13,15 @@
  */
 package org.apache.aurora.scheduler.state;
 
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.ILock;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.Lock;
 
 /**
- * Defines all {@link ILock} primitives like: acquire, release, validate.
+ * Defines all {@link Lock} primitives like: acquire, release, validate.
  */
 public interface LockManager {
   /**
-   * Creates, saves and returns a new {@link ILock} with the specified {@link IJobKey}.
+   * Creates, saves and returns a new {@link Lock} with the specified {@link IJobKey}.
    * This method is not re-entrant, i.e. attempting to acquire a lock with the
    * same key would throw a {@link LockException}.
    *
@@ -30,17 +30,18 @@ public interface LockManager {
    * @return A new ILock instance.
    * @throws LockException In case the lock with specified key already exists.
    */
-  ILock acquireLock(IJobKey job, String user) throws LockException;
+  Lock acquireLock(JobKey job, String user) throws LockException;
 
   /**
    * Releases (removes) the lock associated with {@code job} from the system.
    *
    * @param job the job to unlock.
    */
-  void releaseLock(IJobKey job);
+  void releaseLock(JobKey job);
 
   /**
-   * Thrown when {@link ILock} related operation failed.
+   *
+   * Thrown when {@link Lock} related operation failed.
    */
   class LockException extends Exception {
     public LockException(String msg) {

@@ -31,8 +31,8 @@ import org.apache.aurora.scheduler.cron.SanitizedCronJob;
 import org.apache.aurora.scheduler.storage.CronJobStore;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
-import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
+import org.apache.aurora.gen.JobConfiguration;
+import org.apache.aurora.gen.JobKey;
 import org.quartz.CronTrigger;
 import org.quartz.JobKey;
 import org.quartz.Scheduler;
@@ -64,7 +64,7 @@ class CronJobManagerImpl implements CronJobManager {
   }
 
   @Override
-  public void startJobNow(final IJobKey jobKey) throws CronException {
+  public void startJobNow(final JobKey jobKey) throws CronException {
     requireNonNull(jobKey);
 
     storage.read(storeProvider -> {
@@ -74,7 +74,7 @@ class CronJobManagerImpl implements CronJobManager {
     });
   }
 
-  private void triggerJob(IJobKey jobKey) throws CronException {
+  private void triggerJob(JobKey jobKey) throws CronException {
     try {
       scheduler.triggerJob(Quartz.jobKey(jobKey));
     } catch (SchedulerException e) {
@@ -97,7 +97,7 @@ class CronJobManagerImpl implements CronJobManager {
     requireNonNull(config);
     checkNoRunOverlap(config);
 
-    final IJobKey jobKey = config.getSanitizedConfig().getJobConfig().getKey();
+    final JobKey jobKey = config.getSanitizedConfig().getJobConfig().getKey();
     storage.write((NoResult<CronException>) storeProvider -> {
       checkCronExists(jobKey, storeProvider.getCronJobStore());
 
@@ -113,7 +113,7 @@ class CronJobManagerImpl implements CronJobManager {
     requireNonNull(cronJob);
     checkNoRunOverlap(cronJob);
 
-    final IJobKey jobKey = cronJob.getSanitizedConfig().getJobConfig().getKey();
+    final JobKey jobKey = cronJob.getSanitizedConfig().getJobConfig().getKey();
     storage.write((NoResult<CronException>) storeProvider -> {
       checkNotExists(jobKey, storeProvider.getCronJobStore());
 
@@ -122,32 +122,32 @@ class CronJobManagerImpl implements CronJobManager {
     });
   }
 
-  private void checkNotExists(IJobKey jobKey, CronJobStore cronJobStore) throws CronException {
+  private void checkNotExists(JobKey jobKey, CronJobStore cronJobStore) throws CronException {
     if (cronJobStore.fetchJob(jobKey).isPresent()) {
       throw new CronException(formatMessage("Job already exists for %s.", jobKey));
     }
   }
 
-  private void checkCronExists(IJobKey jobKey, CronJobStore cronJobStore) throws CronException {
+  private void checkCronExists(JobKey jobKey, CronJobStore cronJobStore) throws CronException {
     if (!cronJobStore.fetchJob(jobKey).isPresent()) {
       throw new CronException(formatMessage("No cron job found for %s.", jobKey));
     }
   }
 
-  private void removeJob(IJobKey jobKey, CronJobStore.Mutable jobStore) {
+  private void removeJob(JobKey jobKey, CronJobStore.Mutable jobStore) {
     jobStore.removeJob(jobKey);
     LOG.info(formatMessage("Deleted cron job %s from storage.", jobKey));
   }
 
   private void saveJob(SanitizedCronJob cronJob, CronJobStore.Mutable jobStore) {
-    IJobConfiguration config = cronJob.getSanitizedConfig().getJobConfig();
+    JobConfiguration config = cronJob.getSanitizedConfig().getJobConfig();
 
     jobStore.saveAcceptedJob(config);
     LOG.info(formatMessage("Saved new cron job %s to storage.", config.getKey()));
   }
 
   // TODO(ksweeney): Consider exposing this in the interface and making caller responsible.
-  void scheduleJob(CrontabEntry crontabEntry, IJobKey jobKey) throws CronException {
+  void scheduleJob(CrontabEntry crontabEntry, JobKey jobKey) throws CronException {
     try {
       scheduler.scheduleJob(
           Quartz.jobDetail(jobKey, AuroraCronJob.class),
@@ -159,7 +159,7 @@ class CronJobManagerImpl implements CronJobManager {
   }
 
   @Override
-  public boolean deleteJob(final IJobKey jobKey) {
+  public boolean deleteJob(final JobKey jobKey) {
     requireNonNull(jobKey);
 
     return storage.write(storeProvider -> {
@@ -173,7 +173,7 @@ class CronJobManagerImpl implements CronJobManager {
     });
   }
 
-  private void descheduleJob(IJobKey jobKey) {
+  private void descheduleJob(JobKey jobKey) {
     try {
       // TODO(ksweeney): Consider interrupting the running job here.
       // There's a race here where an old running job could fail to find the old config. That's
@@ -187,10 +187,10 @@ class CronJobManagerImpl implements CronJobManager {
   }
 
   @Override
-  public Map<IJobKey, CrontabEntry> getScheduledJobs() {
+  public Map<JobKey, CrontabEntry> getScheduledJobs() {
     // NOTE: no synchronization is needed here since this is just a dump of internal quartz state
     // for debugging.
-    ImmutableMap.Builder<IJobKey, CrontabEntry> scheduledJobs = ImmutableMap.builder();
+    ImmutableMap.Builder<JobKey, CrontabEntry> scheduledJobs = ImmutableMap.builder();
     try {
       for (JobKey jobKey : scheduler.getJobKeys(GroupMatcher.anyGroup())) {
         // The quartz API allows jobs to have multiple triggers. We don't use that feature but
@@ -210,7 +210,7 @@ class CronJobManagerImpl implements CronJobManager {
     return scheduledJobs.build();
   }
 
-  private static String formatMessage(String format, IJobKey jobKey, Object... args) {
+  private static String formatMessage(String format, JobKey jobKey, Object... args) {
     return String.format(format, JobKeys.canonicalString(jobKey), args);
   }
 }

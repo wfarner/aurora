@@ -67,15 +67,15 @@ import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.db.DbModule;
 import org.apache.aurora.scheduler.storage.db.DbStorage;
 import org.apache.aurora.scheduler.storage.db.DbUtil;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
-import org.apache.aurora.scheduler.storage.entities.ILock;
-import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.HostAttributes;
+import org.apache.aurora.gen.JobConfiguration;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.JobUpdateDetails;
+import org.apache.aurora.gen.JobUpdateKey;
+import org.apache.aurora.gen.Lock;
+import org.apache.aurora.gen.ResourceAggregate;
+import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.storage.mem.MemStorageModule;
 import org.apache.aurora.scheduler.testing.FakeStatsProvider;
 import org.junit.Test;
@@ -91,7 +91,7 @@ import static org.junit.Assert.assertNotNull;
 public class SnapshotStoreImplIT {
 
   private static final long NOW = 10335463456L;
-  private static final IJobKey JOB_KEY = JobKeys.from("role", "env", "job");
+  private static final JobKey JOB_KEY = JobKeys.from("role", "env", "job");
 
   private Storage storage;
   private SnapshotStoreImpl snapshotStore;
@@ -185,9 +185,9 @@ public class SnapshotStoreImplIT {
     assertSnapshotSaveStats(1L);
   }
 
-  private static final IScheduledTask TASK = TaskTestUtil.makeTask("id", JOB_KEY);
-  private static final ITaskConfig TASK_CONFIG = TaskTestUtil.makeConfig(JOB_KEY);
-  private static final IJobConfiguration CRON_JOB = IJobConfiguration.build(new JobConfiguration()
+  private static final ScheduledTask TASK = TaskTestUtil.makeTask("id", JOB_KEY);
+  private static final TaskConfig TASK_CONFIG = TaskTestUtil.makeConfig(JOB_KEY);
+  private static final JobConfiguration CRON_JOB = JobConfiguration.build(new JobConfiguration()
       .setKey(new JobKey("owner", "env", "name"))
       .setOwner(new Identity("user"))
       .setCronSchedule("* * * * *")
@@ -195,7 +195,7 @@ public class SnapshotStoreImplIT {
       .setInstanceCount(1)
       .setTaskConfig(TASK_CONFIG.newBuilder()));
   private static final String ROLE = "role";
-  private static final IResourceAggregate QUOTA =
+  private static final ResourceAggregate QUOTA =
       ThriftBackfill.backfillResourceAggregate(aggregateFromBag(ResourceBag.LARGE).newBuilder());
   private static final IHostAttributes ATTRIBUTES = IHostAttributes.build(
       new HostAttributes("host", ImmutableSet.of(new Attribute("attr", ImmutableSet.of("value"))))
@@ -211,9 +211,9 @@ public class SnapshotStoreImplIT {
       .setToken("lockId")
       .setUser("testUser")
       .setTimestampMs(12345L));
-  private static final IJobUpdateKey UPDATE_ID =
-      IJobUpdateKey.build(new JobUpdateKey(JOB_KEY.newBuilder(), "updateId1"));
-  private static final IJobUpdateDetails UPDATE = IJobUpdateDetails.build(new JobUpdateDetails()
+  private static final JobUpdateKey UPDATE_ID =
+      JobUpdateKey.build(new JobUpdateKey(JOB_KEY.newBuilder(), "updateId1"));
+  private static final JobUpdateDetails UPDATE = IJobUpdateDetails.build(new JobUpdateDetails()
       .setUpdate(new JobUpdate()
           .setInstructions(new JobUpdateInstructions()
               .setDesiredState(new InstanceTaskConfig()

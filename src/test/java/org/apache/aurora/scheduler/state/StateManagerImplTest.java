@@ -36,6 +36,7 @@ import org.apache.aurora.gen.HostAttributes;
 import org.apache.aurora.gen.MaintenanceMode;
 import org.apache.aurora.gen.ScheduleStatus;
 import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.gen.TaskEvent;
 import org.apache.aurora.scheduler.TaskIdGenerator;
 import org.apache.aurora.scheduler.base.Query;
@@ -56,6 +57,7 @@ import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
 import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
 import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
 import org.apache.aurora.scheduler.storage.mem.MemStorageModule;
+import org.apache.aurora.scheduler.storage.db.DbUtil;
 import org.apache.mesos.v1.Protos.AgentID;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
@@ -86,15 +88,18 @@ import static org.junit.Assert.assertEquals;
 
 public class StateManagerImplTest extends EasyMockTest {
 
-  private static final IHostAttributes HOST_A = IHostAttributes.build(
-      new HostAttributes(
-          "hostA",
-          ImmutableSet.of(new Attribute("zone", ImmutableSet.of("1a"))))
-          .setSlaveId("slaveIdA")
-          .setMode(MaintenanceMode.NONE));
-  private static final ITaskConfig NON_SERVICE_CONFIG =
+  private static final HostAttributes HOST_A = HostAttributes.builder()
+      .setHost("hostA")
+      .setAttributes(ImmutableSet.of(Attribute.builder()
+          .setName("zone")
+          .setValues(ImmutableSet.of("1a"))
+          .build()))
+      .setSlaveId("slaveIdA")
+      .setMode(MaintenanceMode.NONE)
+      .build();
+  private static final TaskConfig NON_SERVICE_CONFIG =
       setIsService(TaskTestUtil.makeConfig(TaskTestUtil.JOB), false);
-  private static final ITaskConfig SERVICE_CONFIG = setIsService(NON_SERVICE_CONFIG, true);
+  private static final TaskConfig SERVICE_CONFIG = setIsService(NON_SERVICE_CONFIG, true);
 
   private Driver driver;
   private TaskIdGenerator taskIdGenerator;
@@ -195,19 +200,21 @@ public class StateManagerImplTest extends EasyMockTest {
     control.replay();
 
     insertTask(NON_SERVICE_CONFIG, 3);
-    ScheduledTask expected = new ScheduledTask()
+    ScheduledTask expected = ScheduledTask.builder()
         .setStatus(PENDING)
-        .setTaskEvents(ImmutableList.of(new TaskEvent()
+        .setTaskEvents(ImmutableList.of(TaskEvent.builder()
             .setTimestamp(clock.nowMillis())
             .setScheduler(StateManagerImpl.LOCAL_HOST_SUPPLIER.get())
-            .setStatus(PENDING)))
-        .setAssignedTask(new AssignedTask()
+            .setStatus(PENDING)
+            .build()))
+        .setAssignedTask(AssignedTask.builder()
             .setAssignedPorts(ImmutableMap.of())
             .setInstanceId(3)
             .setTaskId(taskId)
-            .setTask(NON_SERVICE_CONFIG.newBuilder()));
+            .setTask(NON_SERVICE_CONFIG))
+        .build();
     assertEquals(
-        ImmutableSet.of(IScheduledTask.build(expected)),
+        ImmutableSet.of(expected),
         Storage.Util.fetchTask(storage, taskId).asSet());
   }
 
@@ -293,13 +300,13 @@ public class StateManagerImplTest extends EasyMockTest {
     changeState(taskId, KILLING);
   }
 
-  private static ITaskConfig setIsService(ITaskConfig config, boolean service) {
-    return ITaskConfig.build(config.newBuilder().setIsService(service));
+  private static TaskConfig setIsService(TaskConfig config, boolean service) {
+    return config.mutate().setIsService(service).build();
   }
 
   @Test
   public void testThrottleTask() {
-    ITaskConfig task = setIsService(NON_SERVICE_CONFIG, true);
+    TaskConfig task = setIsService(NON_SERVICE_CONFIG, true);
     String taskId = "a";
     expect(taskIdGenerator.generate(task, 0)).andReturn(taskId);
     expectStateTransitions(taskId, INIT, PENDING, ASSIGNED, RUNNING, FAILED);
@@ -349,19 +356,19 @@ public class StateManagerImplTest extends EasyMockTest {
     assignTask(taskId, HOST_A);
     changeState(taskId, RUNNING);
     changeState(taskId, FAILED);
-    IScheduledTask rescheduledTask = Storage.Util.fetchTask(storage, taskId2).get();
+    ScheduledTask rescheduledTask = Storage.Util.fetchTask(storage, taskId2).get();
     assertEquals(taskId, rescheduledTask.getAncestorId());
     assertEquals(1, rescheduledTask.getFailureCount());
   }
 
-  private static ITaskConfig setMaxFailures(ITaskConfig config, int maxFailures) {
-    return ITaskConfig.build(config.newBuilder().setMaxTaskFailures(maxFailures));
+  private static TaskConfig setMaxFailures(TaskConfig config, int maxFailures) {
+    return config.mutate().setMaxTaskFailures(maxFailures).build();
   }
 
   @Test
   public void testCasTaskPresent() {
     String taskId = "a";
-    ITaskConfig config = setMaxFailures(NON_SERVICE_CONFIG, 1);
+    TaskConfig config = setMaxFailures(NON_SERVICE_CONFIG, 1);
     expect(taskIdGenerator.generate(config, 0)).andReturn(taskId);
     expectStateTransitions(taskId, INIT, PENDING, ASSIGNED, FAILED);
 
@@ -412,7 +419,7 @@ public class StateManagerImplTest extends EasyMockTest {
   @Test
   public void testPortResource() throws Exception {
     Set<String> requestedPorts = ImmutableSet.of("one", "two", "three");
-    ITaskConfig task = resetPorts(NON_SERVICE_CONFIG, requestedPorts);
+    TaskConfig task = resetPorts(NON_SERVICE_CONFIG, requestedPorts);
 
     String taskId = "a";
     expect(taskIdGenerator.generate(task, 0)).andReturn(taskId);
@@ -423,7 +430,7 @@ public class StateManagerImplTest extends EasyMockTest {
     insertTask(task, 0);
     assignTask(taskId, HOST_A, ImmutableMap.of("one", 80, "two", 81, "three", 82));
 
-    IScheduledTask actual = Storage.Util.fetchTask(storage, taskId).get();
+    ScheduledTask actual = Storage.Util.fetchTask(storage, taskId).get();
 
     assertEquals(
         requestedPorts,
@@ -435,7 +442,7 @@ public class StateManagerImplTest extends EasyMockTest {
   @Test
   public void testPortResourceResetAfterReschedule() throws Exception {
     Set<String> requestedPorts = ImmutableSet.of("one");
-    ITaskConfig task = resetPorts(NON_SERVICE_CONFIG, requestedPorts);
+    TaskConfig task = resetPorts(NON_SERVICE_CONFIG, requestedPorts);
 
     String taskId = "a";
     expect(taskIdGenerator.generate(task, 0)).andReturn(taskId);
@@ -455,7 +462,7 @@ public class StateManagerImplTest extends EasyMockTest {
 
     assignTask(newTaskId, HOST_A, ImmutableMap.of("one", 86));
 
-    IScheduledTask actual = Storage.Util.fetchTask(storage, newTaskId).get();
+    ScheduledTask actual = Storage.Util.fetchTask(storage, newTaskId).get();
 
     assertEquals(ImmutableMap.of("one", 86), actual.getAssignedTask().getAssignedPorts());
   }
@@ -528,7 +535,7 @@ public class StateManagerImplTest extends EasyMockTest {
     }
   }
 
-  private void insertTask(ITaskConfig task, int instanceId) {
+  private void insertTask(TaskConfig task, int instanceId) {
     storage.write((NoResult.Quiet) storeProvider ->
         stateManager.insertPendingTasks(storeProvider, task, ImmutableSet.of(instanceId)));
   }
@@ -555,16 +562,16 @@ public class StateManagerImplTest extends EasyMockTest {
         Optional.absent());
   }
 
-  private void assignTask(String taskId, IHostAttributes host) {
+  private void assignTask(String taskId, HostAttributes host) {
     assignTask(taskId, host, ImmutableMap.of());
   }
 
-  private void assignTask(String taskId, IHostAttributes host, Map<String, Integer> ports) {
+  private void assignTask(String taskId, HostAttributes host, Map<String, Integer> ports) {
     storage.write(storeProvider -> stateManager.assignTask(
         storeProvider,
         taskId,
         host.getHost(),
         AgentID.newBuilder().setValue(host.getSlaveId()).build(),
-        e -> IAssignedTask.build(e.newBuilder().setAssignedPorts(ports))));
+        e -> e.mutate().setAssignedPorts(ports).build()));
   }
 }

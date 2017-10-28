@@ -35,15 +35,15 @@ import org.apache.aurora.scheduler.configuration.executor.ExecutorSettings;
 import org.apache.aurora.scheduler.resources.AcceptedOffer;
 import org.apache.aurora.scheduler.resources.ResourceBag;
 import org.apache.aurora.scheduler.resources.ResourceManager;
-import org.apache.aurora.scheduler.storage.entities.IAppcImage;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
-import org.apache.aurora.scheduler.storage.entities.IDockerContainer;
-import org.apache.aurora.scheduler.storage.entities.IDockerImage;
-import org.apache.aurora.scheduler.storage.entities.IImage;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IMesosContainer;
-import org.apache.aurora.scheduler.storage.entities.IServerInfo;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.AppcImage;
+import org.apache.aurora.gen.AssignedTask;
+import org.apache.aurora.gen.DockerContainer;
+import org.apache.aurora.gen.DockerImage;
+import org.apache.aurora.gen.Image;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.MesosContainer;
+import org.apache.aurora.gen.ServerInfo;
+import org.apache.aurora.gen.TaskConfig;
 import org.apache.mesos.v1.Protos;
 import org.apache.mesos.v1.Protos.CommandInfo;
 import org.apache.mesos.v1.Protos.ContainerInfo;
@@ -77,7 +77,7 @@ public interface MesosTaskFactory {
    * @return A new task.
    * @throws SchedulerException If the task could not be encoded.
    */
-  TaskInfo createFrom(IAssignedTask task, Offer offer) throws SchedulerException;
+  TaskInfo createFrom(AssignedTask task, Offer offer) throws SchedulerException;
 
   // TODO(wfarner): Move this class to its own file to reduce visibility to package private.
   class MesosTaskFactoryImpl implements MesosTaskFactory {
@@ -101,13 +101,13 @@ public interface MesosTaskFactory {
 
     private final ExecutorSettings executorSettings;
     private final TierManager tierManager;
-    private final IServerInfo serverInfo;
+    private final ServerInfo serverInfo;
 
     @Inject
     MesosTaskFactoryImpl(
         ExecutorSettings executorSettings,
         TierManager tierManager,
-        IServerInfo serverInfo) {
+        ServerInfo serverInfo) {
 
       this.executorSettings = requireNonNull(executorSettings);
       this.tierManager = requireNonNull(tierManager);
@@ -119,31 +119,31 @@ public interface MesosTaskFactory {
       return ExecutorID.newBuilder().setValue(taskPrefix + taskId).build();
     }
 
-    private static String getJobSourceName(IJobKey jobkey) {
+    private static String getJobSourceName(JobKey jobkey) {
       return String.join(".", jobkey.getRole(), jobkey.getEnvironment(), jobkey.getName());
     }
 
-    private static String getJobSourceName(ITaskConfig task) {
+    private static String getJobSourceName(TaskConfig task) {
       return getJobSourceName(task.getJob());
     }
 
-    private static String getExecutorName(IAssignedTask task) {
+    private static String getExecutorName(AssignedTask task) {
       return task.getTask().getExecutorConfig().getName();
     }
 
     @VisibleForTesting
-    static String getInstanceSourceName(ITaskConfig task, int instanceId) {
+    static String getInstanceSourceName(TaskConfig task, int instanceId) {
       return String.join(".", getJobSourceName(task), Integer.toString(instanceId));
     }
 
     @VisibleForTesting
-    static String getInverseJobSourceName(IJobKey job) {
+    static String getInverseJobSourceName(JobKey job) {
       return String.join(".", job.getName(), job.getEnvironment(), job.getRole());
     }
 
-    private static byte[] serializeTask(IAssignedTask task) throws SchedulerException {
+    private static byte[] serializeTask(AssignedTask task) throws SchedulerException {
       try {
-        return ThriftBinaryCodec.encode(task.newBuilder());
+        return ThriftBinaryCodec.encode(task);
       } catch (ThriftBinaryCodec.CodingException e) {
         LOG.error("Unable to serialize task.", e);
         throw new SchedulerException("Internal error.", e);
@@ -151,15 +151,15 @@ public interface MesosTaskFactory {
     }
 
     @Override
-    public TaskInfo createFrom(IAssignedTask task, Offer offer) throws SchedulerException {
+    public TaskInfo createFrom(AssignedTask task, Offer offer) throws SchedulerException {
       requireNonNull(task);
       requireNonNull(offer);
 
-      ITaskConfig config = task.getTask();
+      TaskConfig config = task.getTask();
 
       // Docker-based tasks don't need executors
       ResourceBag executorOverhead = ResourceBag.EMPTY;
-      if (config.isSetExecutorConfig()) {
+      if (config.hasExecutorConfig()) {
         executorOverhead =
             executorSettings.getExecutorOverhead(getExecutorName(task)).orElse(ResourceBag.EMPTY);
       }
@@ -195,7 +195,7 @@ public interface MesosTaskFactory {
         configureDiscoveryInfos(task, taskBuilder);
       }
 
-      if (config.getContainer().isSetMesos()) {
+      if (config.getContainer().hasMesos()) {
         ExecutorInfo.Builder executorInfoBuilder = configureTaskForExecutor(task, acceptedOffer);
 
         Optional<ContainerInfo.Builder> containerInfoBuilder = configureTaskForImage(
@@ -206,9 +206,9 @@ public interface MesosTaskFactory {
         }
 
         taskBuilder.setExecutor(executorInfoBuilder.build());
-      } else if (config.getContainer().isSetDocker()) {
+      } else if (config.getContainer().hasDocker()) {
         IDockerContainer dockerContainer = config.getContainer().getDocker();
-        if (config.isSetExecutorConfig()) {
+        if (config.hasExecutorConfig()) {
           ExecutorInfo.Builder execBuilder = configureTaskForExecutor(task, acceptedOffer)
               .setContainer(getDockerContainerInfo(
                   dockerContainer,
@@ -231,23 +231,23 @@ public interface MesosTaskFactory {
     }
 
     private Optional<ContainerInfo.Builder> configureTaskForImage(
-        IMesosContainer mesosContainer,
+        MesosContainer mesosContainer,
         String executorName) {
       requireNonNull(mesosContainer);
 
-      if (mesosContainer.isSetImage()) {
+      if (mesosContainer.hasImage()) {
         IImage image = mesosContainer.getImage();
 
         Protos.Image.Builder imageBuilder = Protos.Image.newBuilder();
 
-        if (image.isSetAppc()) {
+        if (image.hasAppc()) {
           IAppcImage appcImage = image.getAppc();
 
           imageBuilder.setType(Protos.Image.Type.APPC);
           imageBuilder.setAppc(Protos.Image.Appc.newBuilder()
               .setName(appcImage.getName())
               .setId(appcImage.getImageId()));
-        } else if (image.isSetDocker()) {
+        } else if (image.hasDocker()) {
           IDockerImage dockerImage = image.getDocker();
 
           imageBuilder.setType(Protos.Image.Type.DOCKER);
@@ -306,7 +306,7 @@ public interface MesosTaskFactory {
 
     @SuppressWarnings("deprecation") // we set the source field for backwards compat.
     private ExecutorInfo.Builder configureTaskForExecutor(
-        IAssignedTask task,
+        AssignedTask task,
         AcceptedOffer acceptedOffer) {
 
       String sourceName = getInstanceSourceName(task.getTask(), task.getInstanceId());
@@ -345,7 +345,7 @@ public interface MesosTaskFactory {
       return builder;
     }
 
-    private void configureTaskLabels(ITaskConfig config, TaskInfo.Builder taskBuilder) {
+    private void configureTaskLabels(TaskConfig config, TaskInfo.Builder taskBuilder) {
       Labels.Builder labelsBuilder = Labels.newBuilder();
       labelsBuilder.addLabels(Label.newBuilder().setKey(TIER_LABEL).setValue(config.getTier()));
 
@@ -357,7 +357,7 @@ public interface MesosTaskFactory {
       taskBuilder.setLabels(labelsBuilder);
     }
 
-    private void configureDiscoveryInfos(IAssignedTask task, TaskInfo.Builder taskBuilder) {
+    private void configureDiscoveryInfos(AssignedTask task, TaskInfo.Builder taskBuilder) {
       DiscoveryInfo.Builder builder = taskBuilder.getDiscoveryBuilder();
       builder.setVisibility(DiscoveryInfo.Visibility.CLUSTER);
       builder.setName(getInverseJobSourceName(task.getTask().getJob()));

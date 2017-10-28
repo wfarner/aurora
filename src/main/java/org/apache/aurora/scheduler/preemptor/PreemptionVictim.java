@@ -19,8 +19,8 @@ import com.google.common.base.MoreObjects;
 
 import org.apache.aurora.scheduler.resources.ResourceBag;
 import org.apache.aurora.scheduler.resources.ResourceManager;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.AssignedTask;
+import org.apache.aurora.gen.TaskConfig;
 
 import static java.util.Objects.requireNonNull;
 
@@ -62,7 +62,7 @@ public final class PreemptionVictim {
     return task.getTaskId();
   }
 
-  public ITaskConfig getConfig() {
+  public TaskConfig getConfig() {
     return task.getTask();
   }
 

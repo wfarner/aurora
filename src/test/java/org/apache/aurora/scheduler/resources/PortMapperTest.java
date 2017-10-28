@@ -14,7 +14,7 @@
 package org.apache.aurora.scheduler.resources;
 
 import org.apache.aurora.gen.AssignedTask;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
+import org.apache.aurora.gen.AssignedTask;
 import org.apache.mesos.v1.Protos;
 import org.junit.Test;
 

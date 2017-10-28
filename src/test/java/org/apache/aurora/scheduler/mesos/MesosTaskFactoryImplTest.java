@@ -40,10 +40,10 @@ import org.apache.aurora.scheduler.configuration.executor.ExecutorSettings;
 import org.apache.aurora.scheduler.mesos.MesosTaskFactory.MesosTaskFactoryImpl;
 import org.apache.aurora.scheduler.resources.ResourceBag;
 import org.apache.aurora.scheduler.resources.ResourceType;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IServerInfo;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.AssignedTask;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.ServerInfo;
+import org.apache.aurora.gen.TaskConfig;
 import org.apache.mesos.v1.Protos;
 import org.apache.mesos.v1.Protos.AgentID;
 import org.apache.mesos.v1.Protos.CommandInfo.URI;
@@ -88,7 +88,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class MesosTaskFactoryImplTest extends EasyMockTest {
-  private static final ITaskConfig TASK_CONFIG = ITaskConfig.build(
+  private static final TaskConfig TASK_CONFIG = TaskConfig.build(
       TaskTestUtil.makeConfig(TaskTestUtil.JOB)
           .newBuilder()
           .setContainer(Container.mesos(new MesosContainer())));
@@ -250,7 +250,7 @@ public class MesosTaskFactoryImplTest extends EasyMockTest {
     AssignedTask builder = TASK.newBuilder();
     builder.unsetAssignedPorts();
     builder.setTask(
-        resetPorts(ITaskConfig.build(builder.getTask()), ImmutableSet.of()).newBuilder());
+        resetPorts(TaskConfig.build(builder.getTask()), ImmutableSet.of()).newBuilder());
     IAssignedTask assignedTask = IAssignedTask.build(builder);
     expect(tierManager.getTier(assignedTask.getTask())).andReturn(DEV_TIER);
     taskFactory = new MesosTaskFactoryImpl(config, tierManager, SERVER_INFO);
@@ -258,7 +258,7 @@ public class MesosTaskFactoryImplTest extends EasyMockTest {
     control.replay();
 
     TaskInfo task = taskFactory.createFrom(IAssignedTask.build(builder), OFFER_THERMOS_EXECUTOR);
-    checkTaskResources(ITaskConfig.build(builder.getTask()), task);
+    checkTaskResources(TaskConfig.build(builder.getTask()), task);
     checkDiscoveryInfoUnset(task);
   }
 
@@ -284,11 +284,11 @@ public class MesosTaskFactoryImplTest extends EasyMockTest {
 
     // Simulate the upsizing needed for the task to meet the minimum thermos requirements.
     TaskConfig dummyTask = TASK.getTask().newBuilder();
-    checkTaskResources(ITaskConfig.build(dummyTask), task);
+    checkTaskResources(TaskConfig.build(dummyTask), task);
     checkDiscoveryInfoUnset(task);
   }
 
-  private void checkTaskResources(ITaskConfig task, TaskInfo taskInfo) {
+  private void checkTaskResources(TaskConfig task, TaskInfo taskInfo) {
     ResourceBag taskResources = bagFromMesosResources(taskInfo.getResourcesList());
     ResourceBag executorResources =
         bagFromMesosResources(taskInfo.getExecutor().getResourcesList());
@@ -306,7 +306,7 @@ public class MesosTaskFactoryImplTest extends EasyMockTest {
   private void checkDiscoveryInfo(
       TaskInfo taskInfo,
       Map<String, Integer> assignedPorts,
-      IJobKey job) {
+      JobKey job) {
 
     assertTrue(taskInfo.hasDiscovery());
     Protos.DiscoveryInfo.Builder expectedDiscoveryInfo = Protos.DiscoveryInfo.newBuilder()
@@ -474,7 +474,7 @@ public class MesosTaskFactoryImplTest extends EasyMockTest {
     AssignedTask builder = TASK.newBuilder();
     builder.unsetAssignedPorts();
     builder.setTask(
-        resetPorts(ITaskConfig.build(builder.getTask()), ImmutableSet.of()).newBuilder());
+        resetPorts(TaskConfig.build(builder.getTask()), ImmutableSet.of()).newBuilder());
     IAssignedTask assignedTask = IAssignedTask.build(builder);
     expect(tierManager.getTier(assignedTask.getTask())).andReturn(DEV_TIER);
     taskFactory = new MesosTaskFactoryImpl(config, tierManager, SERVER_INFO);
@@ -482,7 +482,7 @@ public class MesosTaskFactoryImplTest extends EasyMockTest {
     control.replay();
 
     TaskInfo task = taskFactory.createFrom(IAssignedTask.build(builder), OFFER_THERMOS_EXECUTOR);
-    checkTaskResources(ITaskConfig.build(builder.getTask()), task);
+    checkTaskResources(TaskConfig.build(builder.getTask()), task);
     checkDiscoveryInfo(task, ImmutableMap.of(), assignedTask.getTask().getJob());
   }
 

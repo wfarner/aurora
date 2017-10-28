@@ -44,9 +44,9 @@ import org.apache.aurora.scheduler.cron.SanitizedCronJob;
 import org.apache.aurora.scheduler.events.PubsubEvent.EventSubscriber;
 import org.apache.aurora.scheduler.state.StateManager;
 import org.apache.aurora.scheduler.storage.Storage;
-import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.JobConfiguration;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.TaskConfig;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
@@ -92,7 +92,7 @@ class AuroraCronJob implements Job, EventSubscriber {
   private final StateManager stateManager;
   private final BackoffHelper delayedStartBackoff;
   private final BatchWorker<NoResult> batchWorker;
-  private final Set<IJobKey> killFollowups = Sets.newConcurrentHashSet();
+  private final Set<JobKey> killFollowups = Sets.newConcurrentHashSet();
 
   /**
    * Annotation for the max cron batch size.
@@ -140,7 +140,7 @@ class AuroraCronJob implements Job, EventSubscriber {
 
   @VisibleForTesting
   void doExecute(JobExecutionContext context) throws JobExecutionException {
-    final IJobKey key = Quartz.auroraJobKey(context.getJobDetail().getKey());
+    final JobKey key = Quartz.auroraJobKey(context.getJobDetail().getKey());
     final String path = JobKeys.canonicalString(key);
 
     // Prevent a concurrent run for this job in case a previous trigger took longer to run.
@@ -159,7 +159,7 @@ class AuroraCronJob implements Job, EventSubscriber {
     }
 
     CompletableFuture<NoResult> scheduleResult = batchWorker.<NoResult>execute(storeProvider -> {
-      Optional<IJobConfiguration> config = storeProvider.getCronJobStore().fetchJob(key);
+      Optional<JobConfiguration> config = storeProvider.getCronJobStore().fetchJob(key);
       if (!config.isPresent()) {
         LOG.warn("Cron was triggered for {} but no job with that key was found in storage.", path);
         CRON_JOB_MISFIRES.incrementAndGet();
@@ -182,7 +182,7 @@ class AuroraCronJob implements Job, EventSubscriber {
       final Query.Builder activeQuery = Query.jobScoped(key).active();
       Set<String> activeTasks = Tasks.ids(storeProvider.getTaskStore().fetchTasks(activeQuery));
 
-      ITaskConfig task = cronJob.getSanitizedConfig().getJobConfig().getTaskConfig();
+      TaskConfig task = cronJob.getSanitizedConfig().getJobConfig().getTaskConfig();
       Set<Integer> instanceIds = cronJob.getSanitizedConfig().getInstanceIds();
       if (activeTasks.isEmpty()) {
         stateManager.insertPendingTasks(storeProvider, task, instanceIds);

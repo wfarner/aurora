@@ -22,14 +22,14 @@ import com.google.common.collect.Maps;
 
 import org.apache.aurora.scheduler.storage.db.views.DBResourceAggregate;
 import org.apache.aurora.scheduler.storage.db.views.DbTaskConfig;
-import org.apache.aurora.scheduler.storage.entities.IAppcImage;
-import org.apache.aurora.scheduler.storage.entities.IConstraint;
-import org.apache.aurora.scheduler.storage.entities.IDockerContainer;
-import org.apache.aurora.scheduler.storage.entities.IDockerImage;
-import org.apache.aurora.scheduler.storage.entities.IImage;
-import org.apache.aurora.scheduler.storage.entities.IMesosContainer;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
-import org.apache.aurora.scheduler.storage.entities.IValueConstraint;
+import org.apache.aurora.gen.AppcImage;
+import org.apache.aurora.gen.Constraint;
+import org.apache.aurora.gen.DockerContainer;
+import org.apache.aurora.gen.DockerImage;
+import org.apache.aurora.gen.Image;
+import org.apache.aurora.gen.MesosContainer;
+import org.apache.aurora.gen.TaskConfig;
+import org.apache.aurora.gen.ValueConstraint;
 
 import static java.util.Objects.requireNonNull;
 
@@ -43,14 +43,14 @@ class TaskConfigManager {
     this.jobKeyMapper = requireNonNull(jobKeyMapper);
   }
 
-  private Optional<Long> getConfigRow(ITaskConfig config) {
+  private Optional<Long> getConfigRow(TaskConfig config) {
     // NOTE: The 'config' object passed in MUST have all version-relevant fields populated in order
     // to correctly compare with objects loaded from DB. This may not hold true if a 'config' is
     // passed from storage recovery routine during version downgrade and fields are not properly
     // backfilled. See AURORA-1603 for more details.
 
     // We could optimize this slightly by first comparing the un-hydrated row and breaking early.
-    Map<ITaskConfig, DbTaskConfig> rowsByConfig =
+    Map<TaskConfig, DbTaskConfig> rowsByConfig =
         Maps.uniqueIndex(
             configMapper.selectConfigsByJob(config.getJob()),
             DbTaskConfig::toImmutable);
@@ -58,7 +58,7 @@ class TaskConfigManager {
     return Optional.ofNullable(rowsByConfig.get(config)).map(DbTaskConfig::getRowId);
   }
 
-  long insert(ITaskConfig config) {
+  long insert(TaskConfig config) {
     InsertResult configInsert = new InsertResult();
 
     // Determine whether this config is already stored.
@@ -69,12 +69,12 @@ class TaskConfigManager {
 
     jobKeyMapper.merge(config.getJob());
     configMapper.insert(config, configInsert);
-    for (IConstraint constraint : config.getConstraints()) {
+    for (Constraint constraint : config.getConstraints()) {
       InsertResult constraintResult = new InsertResult();
       configMapper.insertConstraint(configInsert.getId(), constraint, constraintResult);
       switch (constraint.getConstraint().getSetField()) {
         case VALUE:
-          IValueConstraint valueConstraint = constraint.getConstraint().getValue();
+          ValueConstraint valueConstraint = constraint.getConstraint().getValue();
           InsertResult valueResult = new InsertResult();
           configMapper.insertValueConstraint(
               constraintResult.getId(),
@@ -119,17 +119,17 @@ class TaskConfigManager {
       configMapper.insertMesosFetcherUris(configInsert.getId(), config.getMesosFetcherUris());
     }
 
-    if (config.getContainer().isSetDocker()) {
+    if (config.getContainer().hasDocker()) {
       IDockerContainer container = config.getContainer().getDocker();
       InsertResult containerInsert = new InsertResult();
       configMapper.insertContainer(configInsert.getId(), container, containerInsert);
       if (!container.getParameters().isEmpty()) {
         configMapper.insertDockerParameters(containerInsert.getId(), container.getParameters());
       }
-    } else if (config.getContainer().isSetMesos()
-        && config.getContainer().getMesos().isSetImage()) {
+    } else if (config.getContainer().hasMesos()
+        && config.getContainer().getMesos().hasImage()) {
 
-      IMesosContainer container = config.getContainer().getMesos();
+      MesosContainer container = config.getContainer().getMesos();
       IImage image = container.getImage();
 
       switch (image.getSetField()) {

@@ -35,8 +35,8 @@ import org.apache.aurora.scheduler.base.Query;
 import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.HostAttributes;
+import org.apache.aurora.gen.ScheduledTask;
 
 import static org.apache.aurora.gen.MaintenanceMode.DRAINED;
 import static org.apache.aurora.gen.MaintenanceMode.DRAINING;
@@ -78,7 +78,7 @@ public class Maintenance {
       return ImmutableMultimap.of();
     }
 
-    ImmutableSet.Builder<IScheduledTask> drainingTasks = ImmutableSet.builder();
+    ImmutableSet.Builder<ScheduledTask> drainingTasks = ImmutableSet.builder();
     drainingTasks.addAll(provider.getTaskStore()
         .fetchTasks(Query.slaveScoped(hosts).byStatus(Tasks.SLAVE_ASSIGNED_STATES)));
     return Multimaps.transformValues(

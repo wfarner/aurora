@@ -46,8 +46,8 @@ import org.apache.aurora.scheduler.events.PubsubEvent.EventSubscriber;
 import org.apache.aurora.scheduler.events.PubsubEvent.TaskStateChange;
 import org.apache.aurora.scheduler.events.PubsubEvent.TasksDeleted;
 import org.apache.aurora.scheduler.storage.Storage;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.AssignedTask;
+import org.apache.aurora.gen.ScheduledTask;
 
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
@@ -60,7 +60,7 @@ import static org.apache.aurora.gen.ScheduleStatus.PENDING;
 /**
  * A collection of task groups, where a task group is a collection of tasks that are known to be
  * equal in the way they schedule. This is expected to be tasks associated with the same job key,
- * who also have {@code equal()} {@link org.apache.aurora.scheduler.storage.entities.ITaskConfig}
+ * who also have {@code equal()} {@link org.apache.aurora.scheduler.storage.entities.TaskConfig}
  * values.
  * <p>
  * This is used to prevent redundant work in trying to schedule tasks as well as to provide
@@ -209,7 +209,7 @@ public class TaskGroups implements EventSubscriber {
   @Subscribe
   public synchronized void taskChangedState(TaskStateChange stateChange) {
     if (stateChange.getNewState() == PENDING) {
-      IScheduledTask task = stateChange.getTask();
+      ScheduledTask task = stateChange.getTask();
       TaskGroupKey key = TaskGroupKey.from(task.getAssignedTask().getTask());
       TaskGroup newGroup = new TaskGroup(key, Tasks.id(task));
       TaskGroup existing = groups.putIfAbsent(key, newGroup);
@@ -236,7 +236,7 @@ public class TaskGroups implements EventSubscriber {
   @Subscribe
   public synchronized void tasksDeleted(TasksDeleted deleted) {
     for (IAssignedTask task
-        : Iterables.transform(deleted.getTasks(), IScheduledTask::getAssignedTask)) {
+        : Iterables.transform(deleted.getTasks(), ScheduledTask::getAssignedTask)) {
       TaskGroup group = groups.get(TaskGroupKey.from(task.getTask()));
       if (group != null) {
         group.remove(ImmutableSet.of(task.getTaskId()));

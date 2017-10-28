@@ -32,7 +32,7 @@ import org.apache.aurora.scheduler.base.TaskTestUtil;
 import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.state.SideEffect.Action;
 import org.apache.aurora.scheduler.state.TaskStateMachine.TaskState;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.ScheduledTask;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -71,7 +71,7 @@ public class TaskStateMachineTest {
   }
 
   private TaskStateMachine makeStateMachine(ScheduledTask builder) {
-    return new TaskStateMachine(IScheduledTask.build(builder));
+    return new TaskStateMachine(ScheduledTask.build(builder));
   }
 
   @Test
@@ -543,7 +543,7 @@ public class TaskStateMachineTest {
             boolean expectException = from.equals(DELETED);
             try {
               machine = new TaskStateMachine(
-                  IScheduledTask.build(makeTask(false).setStatus(from.getStatus().get())));
+                  ScheduledTask.build(makeTask(false).setStatus(from.getStatus().get())));
               if (expectException) {
                 fail();
               }

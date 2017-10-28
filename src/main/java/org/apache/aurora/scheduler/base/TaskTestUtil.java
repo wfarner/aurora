@@ -46,9 +46,9 @@ import org.apache.aurora.scheduler.configuration.ConfigurationManager;
 import org.apache.aurora.scheduler.configuration.ConfigurationManager.ConfigurationManagerSettings;
 import org.apache.aurora.scheduler.configuration.executor.ExecutorConfig;
 import org.apache.aurora.scheduler.configuration.executor.ExecutorSettings;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.storage.log.ThriftBackfill;
 import org.apache.mesos.v1.Protos;
 import org.apache.mesos.v1.Protos.ExecutorID;
@@ -62,7 +62,7 @@ import org.apache.mesos.v1.Protos.ExecutorInfo;
  */
 public final class TaskTestUtil {
 
-  public static final IJobKey JOB = JobKeys.from("role", "devel", "job");
+  public static final JobKey JOB = JobKeys.from("role", "devel", "job");
   public static final TierInfo REVOCABLE_TIER =
       new TierInfo(true /* preemptible */, true /* revocable */);
   public static final TierInfo DEV_TIER =
@@ -110,10 +110,11 @@ public final class TaskTestUtil {
     // Utility class.
   }
 
-  public static ITaskConfig makeConfig(IJobKey job) {
-    return ITaskConfig.build(new TaskConfig()
-        .setJob(job.newBuilder())
-        .setOwner(new Identity().setUser(job.getRole() + "-user"))
+  public static TaskConfig makeConfig(JobKey job) {
+    return TaskConfig
+        .builder()
+        .setJob(job)
+        .setOwner(Identity.builder().setUser(job.getRole() + "-user").build())
         .setIsService(true)
         .setNumCpus(1.0)
         .setRamMb(1024)
@@ -123,58 +124,61 @@ public final class TaskTestUtil {
         .setProduction(true)
         .setTier(PROD_TIER_NAME)
         .setConstraints(ImmutableSet.of(
-            new Constraint(
-                "valueConstraint",
-                TaskConstraint.value(
-                    new ValueConstraint(true, ImmutableSet.of("value1", "value2")))),
-            new Constraint(
-                "limitConstraint",
-                TaskConstraint.limit(new LimitConstraint(5)))))
+            Constraint.builder()
+                .setName("valueConstraint")
+                .setConstraint(TaskConstraint.withValue(ValueConstraint.builder()
+                    .setNegated(true).setValues(ImmutableSet.of("value1", "value2")).build()))
+                .build(),
+            Constraint.builder()
+                .setName("limitConstraint")
+                .setConstraint(TaskConstraint.withLimit(LimitConstraint.builder()
+                    .setLimit(5).build()))
+                .build()))
         .setRequestedPorts(ImmutableSet.of("http"))
         .setTaskLinks(ImmutableMap.of("http", "link", "admin", "otherLink"))
         .setContactEmail("foo@bar.com")
-        .setMetadata(ImmutableSet.of(new Metadata("key", "value")))
+        .setMetadata(ImmutableSet.of(Metadata.builder().setKey("key").setValue("value").build()))
         .setMesosFetcherUris(ImmutableSet.of(
-            new MesosFetcherURI("pathA").setExtract(true).setCache(true),
-            new MesosFetcherURI("pathB").setExtract(true).setCache(true)))
+            MesosFetcherURI.builder().setValue("pathA").setExtract(true).setCache(true).build(),
+            MesosFetcherURI.builder().setValue("pathB").setExtract(true).setCache(true).build()))
         .setExecutorConfig(new org.apache.aurora.gen.ExecutorConfig(
             EXECUTOR_INFO.getName(),
             "config"))
-        .setContainer(Container.docker(
-            new DockerContainer("imagename")
+        .setContainer(Container.withDocker(
+            DockerContainer.builder().setImage("imagename")
                 .setParameters(ImmutableList.of(
                     new DockerParameter("a", "b"),
                     new DockerParameter("c", "d")))))
         .setResources(ImmutableSet.of(
-            Resource.numCpus(1.0),
-            Resource.ramMb(1024),
-            Resource.diskMb(1024),
-            Resource.namedPort("http"))));
+            Resource.withNumCpus(1.0),
+            Resource.withRamMb(1024),
+            Resource.withDiskMb(1024),
+            Resource.withNamedPort("http")));
   }
 
-  public static IScheduledTask makeTask(String id, IJobKey job) {
+  public static ScheduledTask makeTask(String id, JobKey job) {
     return makeTask(id, makeConfig(job));
   }
 
-  public static IScheduledTask makeTask(String id, IJobKey job, int instanceId) {
+  public static ScheduledTask makeTask(String id, JobKey job, int instanceId) {
     return makeTask(id, makeConfig(job), instanceId, Optional.absent());
   }
 
-  public static IScheduledTask makeTask(String id, IJobKey job, int instanceId, String agentId) {
+  public static ScheduledTask makeTask(String id, JobKey job, int instanceId, String agentId) {
     return makeTask(id, makeConfig(job), instanceId, Optional.of(agentId));
   }
 
-  public static IScheduledTask makeTask(String id, ITaskConfig config) {
+  public static ScheduledTask makeTask(String id, TaskConfig config) {
     return makeTask(id, config, 2);
   }
 
-  public static IScheduledTask makeTask(String id, ITaskConfig config, int instanceId) {
+  public static ScheduledTask makeTask(String id, TaskConfig config, int instanceId) {
     return makeTask(id, config, instanceId, Optional.absent());
   }
 
-  public static IScheduledTask makeTask(
+  public static ScheduledTask makeTask(
       String id,
-      ITaskConfig config,
+      TaskConfig config,
       int instanceId,
       Optional<String> agentId) {
 
@@ -187,7 +191,7 @@ public final class TaskTestUtil {
       assignedTask.setSlaveId(agentId.get());
     }
 
-    return IScheduledTask.build(new ScheduledTask()
+    return ScheduledTask.build(new ScheduledTask()
         .setStatus(ScheduleStatus.ASSIGNED)
         .setTaskEvents(ImmutableList.of(
             new TaskEvent(100L, ScheduleStatus.PENDING)
@@ -201,8 +205,8 @@ public final class TaskTestUtil {
         .setAssignedTask(assignedTask));
   }
 
-  public static IScheduledTask addStateTransition(
-      IScheduledTask task,
+  public static ScheduledTask addStateTransition(
+      ScheduledTask task,
       ScheduleStatus status,
       long timestamp) {
 
@@ -212,7 +216,7 @@ public final class TaskTestUtil {
         .setTimestamp(timestamp)
         .setStatus(status)
         .setScheduler("scheduler"));
-    return IScheduledTask.build(builder);
+    return ScheduledTask.build(builder);
   }
 
   public static String tierConfigFile() {

@@ -32,7 +32,7 @@ import org.apache.aurora.gen.Response;
 import org.apache.aurora.gen.ResponseCode;
 import org.apache.aurora.gen.TaskQuery;
 import org.apache.aurora.scheduler.base.JobKeys;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
+import org.apache.aurora.gen.JobKey;
 import org.apache.aurora.scheduler.thrift.Responses;
 import org.apache.aurora.scheduler.thrift.aop.AnnotatedAuroraAdmin;
 import org.apache.aurora.scheduler.thrift.aop.MockDecoratedThrift;
@@ -56,7 +56,7 @@ public class ShiroAuthorizingParamInterceptorTest extends EasyMockTest {
 
   private AnnotatedAuroraAdmin decoratedThrift;
 
-  private static final IJobKey JOB_KEY = JobKeys.from("role", "env", "name");
+  private static final JobKey JOB_KEY = JobKeys.from("role", "env", "name");
 
   @Before
   public void setUp() {

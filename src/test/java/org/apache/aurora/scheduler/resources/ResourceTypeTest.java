@@ -14,7 +14,7 @@
 package org.apache.aurora.scheduler.resources;
 
 import org.apache.aurora.gen.Resource;
-import org.apache.aurora.scheduler.storage.entities.IResource;
+import org.apache.aurora.gen.Resource;
 import org.junit.Test;
 
 import static org.apache.aurora.scheduler.resources.ResourceTestUtil.mesosScalar;
@@ -32,7 +32,7 @@ public class ResourceTypeTest {
 
   @Test
   public void testFindByResource() {
-    assertEquals(CPUS, fromResource(IResource.build(Resource.numCpus(1.0))));
+    assertEquals(CPUS, fromResource(Resource.build(Resource.numCpus(1.0))));
   }
 
   @Test

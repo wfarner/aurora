@@ -21,14 +21,14 @@ import com.google.common.base.Optional;
 
 import org.apache.aurora.gen.JobUpdateStatus;
 import org.apache.aurora.gen.storage.StoredJobUpdateDetails;
-import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdate;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateEvent;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateInstructions;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateQuery;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateSummary;
+import org.apache.aurora.gen.JobInstanceUpdateEvent;
+import org.apache.aurora.gen.JobUpdate;
+import org.apache.aurora.gen.JobUpdateDetails;
+import org.apache.aurora.gen.JobUpdateEvent;
+import org.apache.aurora.gen.JobUpdateInstructions;
+import org.apache.aurora.gen.JobUpdateKey;
+import org.apache.aurora.gen.JobUpdateQuery;
+import org.apache.aurora.gen.JobUpdateSummary;
 
 import static org.apache.aurora.gen.JobUpdateStatus.ABORTED;
 import static org.apache.aurora.gen.JobUpdateStatus.ERROR;
@@ -55,7 +55,7 @@ public interface JobUpdateStore {
    * @param query Query to identify job update summaries with.
    * @return A read-only view of job update summaries.
    */
-  List<IJobUpdateSummary> fetchJobUpdateSummaries(IJobUpdateQuery query);
+  List<JobUpdateSummary> fetchJobUpdateSummaries(JobUpdateQuery query);
 
   /**
    * Fetches a read-only view of job update details matching the {@code query}.
@@ -63,7 +63,7 @@ public interface JobUpdateStore {
    * @param query Query to identify job update details with.
    * @return A read-only list view of job update details matching the query.
    */
-  List<IJobUpdateDetails> fetchJobUpdateDetails(IJobUpdateQuery query);
+  List<JobUpdateDetails> fetchJobUpdateDetails(JobUpdateQuery query);
 
   /**
    * Fetches a read-only view of job update details.
@@ -71,7 +71,7 @@ public interface JobUpdateStore {
    * @param key Update identifier.
    * @return A read-only view of job update details.
    */
-  Optional<IJobUpdateDetails> fetchJobUpdateDetails(IJobUpdateKey key);
+  Optional<JobUpdateDetails> fetchJobUpdateDetails(JobUpdateKey key);
 
   /**
    * Fetches a read-only view of a job update.
@@ -79,7 +79,7 @@ public interface JobUpdateStore {
    * @param key Update identifier.
    * @return A read-only view of job update.
    */
-  Optional<IJobUpdate> fetchJobUpdate(IJobUpdateKey key);
+  Optional<JobUpdate> fetchJobUpdate(JobUpdateKey key);
 
   /**
    * Fetches a read-only view of the instructions for a job update.
@@ -87,7 +87,7 @@ public interface JobUpdateStore {
    * @param key Update identifier.
    * @return A read-only view of job update instructions.
    */
-  Optional<IJobUpdateInstructions> fetchJobUpdateInstructions(IJobUpdateKey key);
+  Optional<JobUpdateInstructions> fetchJobUpdateInstructions(JobUpdateKey key);
 
   /**
    * Fetches a read-only view of all job update details available in the store.
@@ -105,7 +105,7 @@ public interface JobUpdateStore {
    * @param instanceId Instance to fetch events for.
    * @return Instance events in {@code key} that affected {@code instanceId}.
    */
-  List<IJobInstanceUpdateEvent> fetchInstanceEvents(IJobUpdateKey key, int instanceId);
+  List<JobInstanceUpdateEvent> fetchInstanceEvents(JobUpdateKey key, int instanceId);
 
   interface Mutable extends JobUpdateStore {
 
@@ -114,22 +114,22 @@ public interface JobUpdateStore {
      *
      * <p>
      * Note: This call must be followed by the
-     * {@link #saveJobUpdateEvent(IJobUpdateKey, IJobUpdateEvent)} before fetching a saved update as
+     * {@link #saveJobUpdateEvent(JobUpdateKey, JobUpdateEvent)} before fetching a saved update as
      * it does not save the following required fields:
      * <ul>
-     *   <li>{@link org.apache.aurora.gen.JobUpdateState#status}</li>
-     *   <li>{@link org.apache.aurora.gen.JobUpdateState#createdTimestampMs}</li>
-     *   <li>{@link org.apache.aurora.gen.JobUpdateState#lastModifiedTimestampMs}</li>
+     *   <li>{@link org.apache.aurora.gen.JobUpdateState#getStatus()}</li>
+     *   <li>{@link org.apache.aurora.gen.JobUpdateState#getCreatedTimestampMs()}</li>
+     *   <li>{@link org.apache.aurora.gen.JobUpdateState#getLastModifiedTimestampMs()}</li>
      * </ul>
      * The above fields are auto-populated from the update events and any attempt to fetch an update
-     * without having at least one {@link IJobUpdateEvent} present in the store will return empty.
+     * without having at least one {@link JobUpdateEvent} present in the store will return empty.
      *
      * @param update Update to save.
      * @param lockToken Optional UUID identifying the lock associated with this update.
      *                  The {@code lockToken} can be absent when terminal updates are re-inserted
      *                  during snapshot restore.
      */
-    void saveJobUpdate(IJobUpdate update, Optional<String> lockToken);
+    void saveJobUpdate(JobUpdate update, Optional<String> lockToken);
 
     /**
      * Saves a new job update event.
@@ -137,7 +137,7 @@ public interface JobUpdateStore {
      * @param key Update identifier.
      * @param event Job update event to save.
      */
-    void saveJobUpdateEvent(IJobUpdateKey key, IJobUpdateEvent event);
+    void saveJobUpdateEvent(JobUpdateKey key, JobUpdateEvent event);
 
     /**
      * Saves a new job instance update event.
@@ -145,7 +145,7 @@ public interface JobUpdateStore {
      * @param key Update identifier.
      * @param event Job instance update event.
      */
-    void saveJobInstanceUpdateEvent(IJobUpdateKey key, IJobInstanceUpdateEvent event);
+    void saveJobInstanceUpdateEvent(JobUpdateKey key, JobInstanceUpdateEvent event);
 
     /**
      * Deletes all updates and update events from the store.
@@ -164,6 +164,6 @@ public interface JobUpdateStore {
      *                                will be pruned.
      * @return Set of pruned update keys.
      */
-    Set<IJobUpdateKey> pruneHistory(int perJobRetainCount, long historyPruneThresholdMs);
+    Set<JobUpdateKey> pruneHistory(int perJobRetainCount, long historyPruneThresholdMs);
   }
 }

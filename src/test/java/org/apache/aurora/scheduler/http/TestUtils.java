@@ -19,8 +19,8 @@ import org.apache.aurora.gen.AssignedTask;
 import org.apache.aurora.gen.ScheduleStatus;
 import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.gen.TaskConfig;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.ScheduledTask;
 
 public final class TestUtils {
 
@@ -39,10 +39,10 @@ public final class TestUtils {
    * @return Task.
    */
   @VisibleForTesting
-  public static IScheduledTask makeTask(
-      IJobKey jobKey, String id, int instanceId,
+  public static ScheduledTask makeTask(
+      JobKey jobKey, String id, int instanceId,
       ScheduleStatus taskStatus, double numCPUs, long ramMB, long diskMB) {
-    return IScheduledTask.build(new ScheduledTask()
+    return ScheduledTask.build(new ScheduledTask()
         .setStatus(taskStatus)
         .setAssignedTask(new AssignedTask()
             .setInstanceId(instanceId)

@@ -15,7 +15,7 @@ package org.apache.aurora.scheduler.storage.db;
 
 import com.google.inject.Inject;
 
-import org.apache.aurora.scheduler.storage.entities.ILockKey;
+import org.apache.aurora.gen.LockKey;
 
 import static java.util.Objects.requireNonNull;
 
@@ -39,8 +39,8 @@ class LockKeyMapper {
     this.jobKeyMapper = requireNonNull(jobKeyMapper);
   }
 
-  public void insert(ILockKey key) {
-    if (key.isSetJob()) {
+  public void insert(LockKey key) {
+    if (key.hasJob()) {
       jobKeyMapper.merge(requireNonNull(key.getJob()));
     } else {
       throw new IllegalArgumentException("Unsupported lock type on LockKey.");

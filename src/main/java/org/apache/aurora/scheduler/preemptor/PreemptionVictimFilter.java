@@ -41,8 +41,8 @@ import org.apache.aurora.scheduler.resources.ResourceBag;
 import org.apache.aurora.scheduler.resources.ResourceManager;
 import org.apache.aurora.scheduler.resources.ResourceType;
 import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.HostAttributes;
+import org.apache.aurora.gen.TaskConfig;
 
 import static java.util.Objects.requireNonNull;
 
@@ -61,7 +61,7 @@ import static org.apache.aurora.scheduler.resources.ResourceManager.getNonRevoca
  *    the candidate.
  *  </li>
  *  <li>Both candidate and victim are owned by the same user and the
- *    {@link ITaskConfig#getPriority} of a victim is lower OR a victim is non-production and the
+ *    {@link TaskConfig#getPriority} of a victim is lower OR a victim is non-production and the
  *    candidate is production.
  *  </li>
  * </ol>
@@ -78,7 +78,7 @@ public interface PreemptionVictimFilter {
    * @return A set of {@code PreemptionVictim} instances to preempt for a given task.
    */
   Optional<ImmutableSet<PreemptionVictim>> filterPreemptionVictims(
-      ITaskConfig pendingTask,
+      TaskConfig pendingTask,
       Iterable<PreemptionVictim> victims,
       AttributeAggregate attributeAggregate,
       Optional<HostOffer> offer,
@@ -115,7 +115,7 @@ public interface PreemptionVictimFilter {
           public ResourceBag apply(PreemptionVictim victim) {
             ResourceBag bag = victim.getResourceBag();
 
-            if (victim.getConfig().isSetExecutorConfig()) {
+            if (victim.getConfig().hasExecutorConfig()) {
               // Be pessimistic about revocable resource available if config is not available
               bag.add(executorSettings.getExecutorOverhead(
                   victim.getConfig().getExecutorConfig().getName()).orElse(EMPTY));
@@ -187,7 +187,7 @@ public interface PreemptionVictimFilter {
 
     @Override
     public Optional<ImmutableSet<PreemptionVictim>> filterPreemptionVictims(
-        ITaskConfig pendingTask,
+        TaskConfig pendingTask,
         Iterable<PreemptionVictim> possibleVictims,
         AttributeAggregate jobState,
         Optional<HostOffer> offer,
@@ -222,7 +222,7 @@ public interface PreemptionVictimFilter {
         return Optional.absent();
       }
 
-      ResourceBag overhead = pendingTask.isSetExecutorConfig()
+      ResourceBag overhead = pendingTask.hasExecutorConfig()
           ? executorSettings.getExecutorOverhead(
               pendingTask.getExecutorConfig().getName()).orElse(EMPTY)
           : EMPTY;
@@ -258,7 +258,7 @@ public interface PreemptionVictimFilter {
      * @return A filter that will compare the priorities and resources required by other tasks
      *     with {@code preemptableTask}.
      */
-    private Predicate<PreemptionVictim> preemptionFilter(final ITaskConfig pendingTask) {
+    private Predicate<PreemptionVictim> preemptionFilter(final TaskConfig pendingTask) {
       return possibleVictim -> {
         boolean pendingIsPreemptible = tierManager.getTier(pendingTask).isPreemptible();
         boolean victimIsPreemptible =

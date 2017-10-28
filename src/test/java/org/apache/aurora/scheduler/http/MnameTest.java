@@ -30,8 +30,8 @@ import org.apache.aurora.gen.ScheduleStatus;
 import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.base.Query;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.apache.aurora.gen.AssignedTask;
+import org.apache.aurora.gen.ScheduledTask;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -42,7 +42,7 @@ public class MnameTest extends AbstractJettyTest {
   private static final int PORT = 50000;
   private static final String APP_URI = "http://" + SLAVE_HOST + ":" + PORT + "/";
 
-  private static final IScheduledTask TASK = IScheduledTask.build(
+  private static final ScheduledTask TASK = ScheduledTask.build(
       new ScheduledTask()
           .setStatus(ScheduleStatus.RUNNING)
           .setAssignedTask(
@@ -116,8 +116,8 @@ public class MnameTest extends AbstractJettyTest {
   public void testInstanceNotRunning() {
     storage.expectOperations();
 
-    IScheduledTask pending =
-        IScheduledTask.build(TASK.newBuilder().setStatus(ScheduleStatus.PENDING));
+    ScheduledTask pending =
+        ScheduledTask.build(TASK.newBuilder().setStatus(ScheduleStatus.PENDING));
 
     storage.expectTaskFetch(TASK_QUERY, pending);
 
@@ -134,7 +134,7 @@ public class MnameTest extends AbstractJettyTest {
 
     ScheduledTask builder = TASK.newBuilder();
     builder.getAssignedTask().setAssignedPorts(ImmutableMap.of("telnet", 80));
-    IScheduledTask noHttp = IScheduledTask.build(builder);
+    ScheduledTask noHttp = ScheduledTask.build(builder);
 
     storage.expectTaskFetch(TASK_QUERY, noHttp);
 

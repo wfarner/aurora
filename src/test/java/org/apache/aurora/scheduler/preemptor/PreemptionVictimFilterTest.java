@@ -50,9 +50,9 @@ import org.apache.aurora.scheduler.resources.ResourceBag;
 import org.apache.aurora.scheduler.resources.ResourceTestUtil;
 import org.apache.aurora.scheduler.resources.ResourceType;
 import org.apache.aurora.scheduler.stats.CachedCounters;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.aurora.gen.AssignedTask;
+import org.apache.aurora.gen.HostAttributes;
+import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.storage.testing.StorageTestUtil;
 import org.apache.aurora.scheduler.testing.FakeStatsProvider;
 import org.apache.mesos.v1.Protos;
@@ -137,7 +137,7 @@ public class PreemptionVictimFilterTest extends EasyMockTest {
             tierManager);
 
     return filter.filterPreemptionVictims(
-        ITaskConfig.build(pendingTask.getAssignedTask().getTask()),
+        TaskConfig.build(pendingTask.getAssignedTask().getTask()),
         preemptionVictims(victims),
         empty(),
         offer,
@@ -663,13 +663,13 @@ public class PreemptionVictimFilterTest extends EasyMockTest {
   }
 
   private IExpectationSetters<TierInfo> expectGetTier(ScheduledTask task, TierInfo tier) {
-    return expect(tierManager.getTier(ITaskConfig.build(task.getAssignedTask().getTask())))
+    return expect(tierManager.getTier(TaskConfig.build(task.getAssignedTask().getTask())))
         .andReturn(tier);
   }
 
   private static void setResource(ScheduledTask task, ResourceType type, Double value) {
     task.getAssignedTask().setTask(ResourceTestUtil.resetResource(
-        ITaskConfig.build(task.getAssignedTask().getTask()),
+        TaskConfig.build(task.getAssignedTask().getTask()),
         type,
         value).newBuilder());
   }
