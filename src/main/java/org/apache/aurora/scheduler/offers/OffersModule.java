@@ -164,8 +164,8 @@ public class OffersModule extends AbstractModule {
           bind(Deferment.class).to(Deferment.DelayedDeferment.class);
         }
 
-        bind(OfferManager.class).to(OfferManager.OfferManagerImpl.class);
-        bind(OfferManager.OfferManagerImpl.class).in(Singleton.class);
+        bind(OfferManager.class).to(OfferManagerImpl.class);
+        bind(OfferManagerImpl.class).in(Singleton.class);
         expose(OfferManager.class);
       }
     });

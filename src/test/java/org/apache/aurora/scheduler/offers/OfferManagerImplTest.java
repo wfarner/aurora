@@ -29,11 +29,11 @@ import org.apache.aurora.scheduler.HostOffer;
 import org.apache.aurora.scheduler.async.DelayExecutor;
 import org.apache.aurora.scheduler.base.TaskGroupKey;
 import org.apache.aurora.scheduler.base.Tasks;
+import org.apache.aurora.scheduler.config.CommandLine;
 import org.apache.aurora.scheduler.events.PubsubEvent.DriverDisconnected;
 import org.apache.aurora.scheduler.events.PubsubEvent.HostAttributesChanged;
 import org.apache.aurora.scheduler.mesos.Driver;
 import org.apache.aurora.scheduler.offers.Deferment.Noop;
-import org.apache.aurora.scheduler.offers.OfferManager.OfferManagerImpl;
 import org.apache.aurora.scheduler.resources.ResourceType;
 import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
 import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
@@ -53,11 +53,11 @@ import static org.apache.aurora.gen.MaintenanceMode.DRAINING;
 import static org.apache.aurora.gen.MaintenanceMode.NONE;
 import static org.apache.aurora.scheduler.base.TaskTestUtil.JOB;
 import static org.apache.aurora.scheduler.base.TaskTestUtil.makeTask;
-import static org.apache.aurora.scheduler.offers.OfferManager.OfferManagerImpl.GLOBALLY_BANNED_OFFERS;
-import static org.apache.aurora.scheduler.offers.OfferManager.OfferManagerImpl.OFFER_ACCEPT_RACES;
-import static org.apache.aurora.scheduler.offers.OfferManager.OfferManagerImpl.OFFER_CANCEL_FAILURES;
-import static org.apache.aurora.scheduler.offers.OfferManager.OfferManagerImpl.OUTSTANDING_OFFERS;
-import static org.apache.aurora.scheduler.offers.OfferManager.OfferManagerImpl.STATICALLY_BANNED_OFFERS;
+import static org.apache.aurora.scheduler.offers.HostOffers.GLOBALLY_BANNED_OFFERS;
+import static org.apache.aurora.scheduler.offers.HostOffers.STATICALLY_BANNED_OFFERS;
+import static org.apache.aurora.scheduler.offers.OfferManagerImpl.OFFER_ACCEPT_RACES;
+import static org.apache.aurora.scheduler.offers.OfferManagerImpl.OFFER_CANCEL_FAILURES;
+import static org.apache.aurora.scheduler.offers.OfferManagerImpl.OUTSTANDING_OFFERS;
 import static org.apache.aurora.scheduler.resources.ResourceTestUtil.mesosRange;
 import static org.apache.aurora.scheduler.resources.ResourceTestUtil.mesosScalar;
 import static org.apache.aurora.scheduler.resources.ResourceTestUtil.offer;
@@ -84,11 +84,11 @@ public class OfferManagerImplTest extends EasyMockTest {
   private static final String HOST_B = "HOST_B";
   private static final HostOffer OFFER_B = new HostOffer(
       Offers.makeOffer("OFFER_B", HOST_B),
-      IHostAttributes.build(new HostAttributes().setMode(NONE)));
+      IHostAttributes.build(new HostAttributes().setHost(HOST_B).setMode(NONE)));
   private static final String HOST_C = "HOST_C";
   private static final HostOffer OFFER_C = new HostOffer(
       Offers.makeOffer("OFFER_C", HOST_C),
-      IHostAttributes.build(new HostAttributes().setMode(NONE)));
+      IHostAttributes.build(new HostAttributes().setHost(HOST_C).setMode(NONE)));
   private static final int PORT = 1000;
   private static final Protos.Offer MESOS_OFFER = offer(mesosRange(PORTS, PORT));
   private static final IScheduledTask TASK = makeTask("id", JOB);
@@ -114,6 +114,7 @@ public class OfferManagerImplTest extends EasyMockTest {
 
   @Before
   public void setUp() {
+    CommandLine.initializeForTest();
     driver = createMock(Driver.class);
     OfferSettings offerSettings = new OfferSettings(
         Amount.of(OFFER_FILTER_SECONDS, Time.SECONDS),
@@ -223,14 +224,14 @@ public class OfferManagerImplTest extends EasyMockTest {
     offerManager.banOfferForTaskGroup(OFFER_A_ID, GROUP_KEY);
     assertEquals(0, statsProvider.getLongValue(STATICALLY_BANNED_OFFERS));
     offerManager.addOffer(OFFER_A);
-    assertEquals(OFFER_A, Iterables.getOnlyElement(offerManager.getOffers(GROUP_KEY)));
+    assertEquals(OFFER_A, Iterables.getOnlyElement(offerManager.getOffers(GROUP_KEY, false)));
     assertEquals(OFFER_A, Iterables.getOnlyElement(offerManager.getOffers()));
 
     // Add static ban.
     offerManager.banOfferForTaskGroup(OFFER_A_ID, GROUP_KEY);
     assertEquals(1, statsProvider.getLongValue(STATICALLY_BANNED_OFFERS));
     assertEquals(OFFER_A, Iterables.getOnlyElement(offerManager.getOffers()));
-    assertTrue(Iterables.isEmpty(offerManager.getOffers(GROUP_KEY)));
+    assertTrue(Iterables.isEmpty(offerManager.getOffers(GROUP_KEY, false)));
   }
 
   @Test
@@ -240,13 +241,13 @@ public class OfferManagerImplTest extends EasyMockTest {
     offerManager.addOffer(OFFER_A);
     offerManager.banOfferForTaskGroup(OFFER_A_ID, GROUP_KEY);
     assertEquals(OFFER_A, Iterables.getOnlyElement(offerManager.getOffers()));
-    assertTrue(Iterables.isEmpty(offerManager.getOffers(GROUP_KEY)));
+    assertTrue(Iterables.isEmpty(offerManager.getOffers(GROUP_KEY, false)));
     assertEquals(1, statsProvider.getLongValue(STATICALLY_BANNED_OFFERS));
 
     // Make sure the static ban is cleared when the offers are returned.
     offerManager.cancelOffer(OFFER_A_ID);
     offerManager.addOffer(OFFER_A);
-    assertEquals(OFFER_A, Iterables.getOnlyElement(offerManager.getOffers(GROUP_KEY)));
+    assertEquals(OFFER_A, Iterables.getOnlyElement(offerManager.getOffers(GROUP_KEY, false)));
     assertEquals(0, statsProvider.getLongValue(STATICALLY_BANNED_OFFERS));
   }
 
@@ -257,14 +258,14 @@ public class OfferManagerImplTest extends EasyMockTest {
     offerManager.addOffer(OFFER_A);
     offerManager.banOfferForTaskGroup(OFFER_A_ID, GROUP_KEY);
     assertEquals(OFFER_A, Iterables.getOnlyElement(offerManager.getOffers()));
-    assertTrue(Iterables.isEmpty(offerManager.getOffers(GROUP_KEY)));
+    assertTrue(Iterables.isEmpty(offerManager.getOffers(GROUP_KEY, false)));
     assertEquals(1, statsProvider.getLongValue(STATICALLY_BANNED_OFFERS));
 
     // Make sure the static ban is cleared when driver is disconnected.
     offerManager.driverDisconnected(new DriverDisconnected());
     assertEquals(0, statsProvider.getLongValue(STATICALLY_BANNED_OFFERS));
     offerManager.addOffer(OFFER_A);
-    assertEquals(OFFER_A, Iterables.getOnlyElement(offerManager.getOffers(GROUP_KEY)));
+    assertEquals(OFFER_A, Iterables.getOnlyElement(offerManager.getOffers(GROUP_KEY, false)));
   }
 
   @Test
@@ -326,13 +327,13 @@ public class OfferManagerImplTest extends EasyMockTest {
     offerManager.addOffer(OFFER_A);
     assertEquals(1, statsProvider.getLongValue(OUTSTANDING_OFFERS));
     assertEquals(1, statsProvider.getLongValue(GLOBALLY_BANNED_OFFERS));
-    assertTrue(Iterables.isEmpty(offerManager.getOffers(GROUP_KEY)));
+    assertTrue(Iterables.isEmpty(offerManager.getOffers(GROUP_KEY, false)));
 
     offerManager.cancelOffer(OFFER_A_ID);
     offerManager.addOffer(OFFER_A);
     assertEquals(1, statsProvider.getLongValue(OUTSTANDING_OFFERS));
     assertEquals(0, statsProvider.getLongValue(GLOBALLY_BANNED_OFFERS));
-    assertEquals(OFFER_A, Iterables.getOnlyElement(offerManager.getOffers(GROUP_KEY)));
+    assertEquals(OFFER_A, Iterables.getOnlyElement(offerManager.getOffers(GROUP_KEY, false)));
   }
 
   private static HostOffer setUnavailability(HostOffer offer, long startMs) {
@@ -382,7 +383,7 @@ public class OfferManagerImplTest extends EasyMockTest {
     cpuManager.addOffer(small);
 
     assertEquals(ImmutableList.of(small, medium, large),
-        ImmutableList.copyOf(cpuManager.getOffers(GROUP_KEY)));
+        ImmutableList.copyOf(cpuManager.getOffers(GROUP_KEY, false)));
     assertEquals(ImmutableList.of(small, medium, large),
         ImmutableList.copyOf(cpuManager.getOffers()));
   }
@@ -419,7 +420,7 @@ public class OfferManagerImplTest extends EasyMockTest {
     cpuManager.addOffer(small);
 
     assertEquals(ImmutableList.of(small, medium, large),
-        ImmutableList.copyOf(cpuManager.getOffers(GROUP_KEY)));
+        ImmutableList.copyOf(cpuManager.getOffers(GROUP_KEY, false)));
     assertEquals(ImmutableList.of(small, medium, large),
         ImmutableList.copyOf(cpuManager.getOffers()));
   }
@@ -429,15 +430,15 @@ public class OfferManagerImplTest extends EasyMockTest {
     OfferManager cpuManager = createOrderedManager(ImmutableList.of(OfferOrder.DISK));
 
     HostOffer small = setMode(new HostOffer(
-        offer("host1", mesosScalar(CPUS, 1), mesosScalar(RAM_MB, 1), mesosScalar(DISK_MB, 1.0)),
+        offer("host1", mesosScalar(CPUS, 1), mesosScalar(RAM_MB, 2048), mesosScalar(DISK_MB, 1.0)),
         HOST_ATTRIBUTES_A), DRAINING);
 
     HostOffer medium = setMode(new HostOffer(
-        offer("host2", mesosScalar(CPUS, 1), mesosScalar(RAM_MB, 1), mesosScalar(DISK_MB, 5.0)),
+        offer("host2", mesosScalar(CPUS, 1), mesosScalar(RAM_MB, 2048), mesosScalar(DISK_MB, 5.0)),
         HOST_ATTRIBUTES_A), DRAINING);
 
     HostOffer large = setMode(new HostOffer(
-        offer("host3", mesosScalar(CPUS, 1), mesosScalar(RAM_MB, 1), mesosScalar(DISK_MB, 10.0)),
+        offer("host3", mesosScalar(CPUS, 1), mesosScalar(RAM_MB, 2048), mesosScalar(DISK_MB, 10.0)),
         HOST_ATTRIBUTES_A), DRAINING);
 
     control.replay();
@@ -447,7 +448,7 @@ public class OfferManagerImplTest extends EasyMockTest {
     cpuManager.addOffer(small);
 
     assertEquals(ImmutableList.of(small, medium, large),
-        ImmutableList.copyOf(cpuManager.getOffers(GROUP_KEY)));
+        ImmutableList.copyOf(cpuManager.getOffers(GROUP_KEY, false)));
     assertEquals(ImmutableList.of(small, medium, large),
         ImmutableList.copyOf(cpuManager.getOffers()));
   }
@@ -457,15 +458,15 @@ public class OfferManagerImplTest extends EasyMockTest {
     OfferManager cpuManager = createOrderedManager(ImmutableList.of(OfferOrder.MEMORY));
 
     HostOffer small = setMode(new HostOffer(
-        offer("host1", mesosScalar(CPUS, 10), mesosScalar(RAM_MB, 1.0)),
+        offer("host1", mesosScalar(CPUS, 10), mesosScalar(RAM_MB, 2048.0)),
         HOST_ATTRIBUTES_A), DRAINING);
 
     HostOffer medium = setMode(new HostOffer(
-        offer("host2", mesosScalar(CPUS, 10), mesosScalar(RAM_MB, 5.0)),
+        offer("host2", mesosScalar(CPUS, 10), mesosScalar(RAM_MB, 2049.0)),
         HOST_ATTRIBUTES_A), DRAINING);
 
     HostOffer large = setMode(new HostOffer(
-        offer("host3", mesosScalar(CPUS, 10), mesosScalar(RAM_MB, 10.0)),
+        offer("host3", mesosScalar(CPUS, 10), mesosScalar(RAM_MB, 2050.0)),
         HOST_ATTRIBUTES_A), DRAINING);
 
     control.replay();
@@ -475,7 +476,7 @@ public class OfferManagerImplTest extends EasyMockTest {
     cpuManager.addOffer(small);
 
     assertEquals(ImmutableList.of(small, medium, large),
-        ImmutableList.copyOf(cpuManager.getOffers(GROUP_KEY)));
+        ImmutableList.copyOf(cpuManager.getOffers(GROUP_KEY, false)));
     assertEquals(ImmutableList.of(small, medium, large),
         ImmutableList.copyOf(cpuManager.getOffers()));
   }
@@ -488,23 +489,23 @@ public class OfferManagerImplTest extends EasyMockTest {
     HostOffer small = setMode(new HostOffer(
         offer("host1",
             mesosScalar(CPUS, 1.0),
-            mesosScalar(RAM_MB, 2.0),
-            mesosScalar(DISK_MB, 3.0)),
+            mesosScalar(RAM_MB, 2048.0),
+            mesosScalar(DISK_MB, 1026.0)),
         HOST_ATTRIBUTES_A), DRAINING);
 
     HostOffer medium = setMode(new HostOffer(
         offer("host2",
             mesosScalar(CPUS, 1.0),
-            mesosScalar(RAM_MB, 3.0),
-            mesosScalar(DISK_MB, 2.0)),
+            mesosScalar(RAM_MB, 2049.0),
+            mesosScalar(DISK_MB, 1025.0)),
         HOST_ATTRIBUTES_A), DRAINING);
 
     HostOffer large = setMode(new HostOffer(
         offer("host3",
             mesosScalar(CPUS, 10.0),
             mesosScalar(CPUS, 1.0),
-            mesosScalar(RAM_MB, 1024),
-            mesosScalar(DISK_MB, 1.0)),
+            mesosScalar(RAM_MB, 4096),
+            mesosScalar(DISK_MB, 1024.0)),
         HOST_ATTRIBUTES_A), DRAINING);
 
     control.replay();
@@ -514,7 +515,7 @@ public class OfferManagerImplTest extends EasyMockTest {
     cpuManager.addOffer(small);
 
     assertEquals(ImmutableList.of(small, medium, large),
-        ImmutableList.copyOf(cpuManager.getOffers(GROUP_KEY)));
+        ImmutableList.copyOf(cpuManager.getOffers(GROUP_KEY, false)));
     assertEquals(ImmutableList.of(small, medium, large),
         ImmutableList.copyOf(cpuManager.getOffers()));
   }

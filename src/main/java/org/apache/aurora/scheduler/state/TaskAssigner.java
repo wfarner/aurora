@@ -291,7 +291,7 @@ public interface TaskAssigner {
       // Make sure we still have tasks to process after reservations are processed.
       if (remainingTasks.hasNext()) {
         IAssignedTask task = remainingTasks.next();
-        for (HostOffer offer : offerManager.getOffers(groupKey)) {
+        for (HostOffer offer : offerManager.getOffers(groupKey, tierInfo.isRevocable())) {
 
           if (!offer.hasCpuAndMem()) {
             // This offer lacks any type of CPU or mem resource, and therefore will never match

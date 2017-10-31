@@ -152,7 +152,7 @@ public class ConfigurationManager {
   }
 
   @Nullable
-  private static IConstraint getDedicatedConstraint(ITaskConfig task) {
+  public static IConstraint getDedicatedConstraint(ITaskConfig task) {
     return Iterables.find(task.getConstraints(), getConstraintByName(DEDICATED_ATTRIBUTE), null);
   }
 

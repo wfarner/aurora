@@ -167,7 +167,7 @@ public class FirstFitTaskAssignerTest extends EasyMockTest {
   @Test
   public void testAssignPartialNoVetoes() throws Exception {
     expectNoUpdateReservations(1);
-    expect(offerManager.getOffers(GROUP_KEY)).andReturn(ImmutableSet.of(OFFER));
+    expect(offerManager.getOffers(GROUP_KEY, false)).andReturn(ImmutableSet.of(OFFER));
     offerManager.launchTask(MESOS_OFFER.getId(), TASK_INFO);
     expect(tierManager.getTier(TASK.getAssignedTask().getTask())).andReturn(DEV_TIER);
     expect(filter.filter(UNUSED, resourceRequest)).andReturn(ImmutableSet.of());
@@ -197,7 +197,7 @@ public class FirstFitTaskAssignerTest extends EasyMockTest {
   @Test
   public void testAssignVetoesWithStaticBan() throws Exception {
     expectNoUpdateReservations(1);
-    expect(offerManager.getOffers(GROUP_KEY)).andReturn(ImmutableSet.of(OFFER));
+    expect(offerManager.getOffers(GROUP_KEY, false)).andReturn(ImmutableSet.of(OFFER));
     offerManager.banOfferForTaskGroup(MESOS_OFFER.getId(), GROUP_KEY);
     expect(tierManager.getTier(TASK.getAssignedTask().getTask())).andReturn(DEV_TIER);
     expect(filter.filter(UNUSED, resourceRequest))
@@ -220,7 +220,7 @@ public class FirstFitTaskAssignerTest extends EasyMockTest {
   @Test
   public void testAssignVetoesWithNoStaticBan() throws Exception {
     expectNoUpdateReservations(1);
-    expect(offerManager.getOffers(GROUP_KEY)).andReturn(ImmutableSet.of(OFFER));
+    expect(offerManager.getOffers(GROUP_KEY, false)).andReturn(ImmutableSet.of(OFFER));
     expect(tierManager.getTier(TASK.getAssignedTask().getTask())).andReturn(DEV_TIER);
     expect(filter.filter(UNUSED, resourceRequest))
         .andReturn(ImmutableSet.of(Veto.unsatisfiedLimit("limit")));
@@ -242,7 +242,7 @@ public class FirstFitTaskAssignerTest extends EasyMockTest {
   @Test
   public void testAssignmentClearedOnError() throws Exception {
     expectNoUpdateReservations(1);
-    expect(offerManager.getOffers(GROUP_KEY)).andReturn(ImmutableSet.of(OFFER, OFFER_2));
+    expect(offerManager.getOffers(GROUP_KEY, false)).andReturn(ImmutableSet.of(OFFER, OFFER_2));
     offerManager.launchTask(MESOS_OFFER.getId(), TASK_INFO);
     expectLastCall().andThrow(new OfferManager.LaunchException("expected"));
     expect(tierManager.getTier(TASK.getAssignedTask().getTask())).andReturn(DEV_TIER);
@@ -282,7 +282,7 @@ public class FirstFitTaskAssignerTest extends EasyMockTest {
   public void testAssignmentSkippedForReservedSlave() throws Exception {
     expectNoUpdateReservations(0);
     expect(tierManager.getTier(TASK.getAssignedTask().getTask())).andReturn(DEV_TIER);
-    expect(offerManager.getOffers(GROUP_KEY)).andReturn(ImmutableSet.of(OFFER));
+    expect(offerManager.getOffers(GROUP_KEY, false)).andReturn(ImmutableSet.of(OFFER));
 
     control.replay();
 
@@ -305,7 +305,7 @@ public class FirstFitTaskAssignerTest extends EasyMockTest {
     // and permissive in task->slave direction. In other words, a task with a slave reservation
     // should still be tried against other unreserved slaves.
     expectNoUpdateReservations(1);
-    expect(offerManager.getOffers(GROUP_KEY)).andReturn(ImmutableSet.of(OFFER_2, OFFER));
+    expect(offerManager.getOffers(GROUP_KEY, false)).andReturn(ImmutableSet.of(OFFER_2, OFFER));
     expect(tierManager.getTier(TASK.getAssignedTask().getTask())).andReturn(DEV_TIER);
     expect(filter.filter(
         new UnusedResource(
@@ -347,7 +347,7 @@ public class FirstFitTaskAssignerTest extends EasyMockTest {
         IHostAttributes.build(new HostAttributes()));
 
     expectNoUpdateReservations(2);
-    expect(offerManager.getOffers(GROUP_KEY)).andReturn(ImmutableSet.of(mismatched, OFFER));
+    expect(offerManager.getOffers(GROUP_KEY, false)).andReturn(ImmutableSet.of(mismatched, OFFER));
     expect(tierManager.getTier(TASK.getAssignedTask().getTask())).andReturn(DEV_TIER);
     expect(filter.filter(
         new UnusedResource(
@@ -470,7 +470,7 @@ public class FirstFitTaskAssignerTest extends EasyMockTest {
 
     // Normal scheduling loop for the remaining task...
     expect(updateAgentReserver.getAgent(InstanceKeys.from(JOB, 9999))).andReturn(Optional.absent());
-    expect(offerManager.getOffers(GROUP_KEY)).andReturn(ImmutableSet.of(OFFER));
+    expect(offerManager.getOffers(GROUP_KEY, false)).andReturn(ImmutableSet.of(OFFER));
     expect(updateAgentReserver.getReservations(OFFER.getOffer().getAgentId().getValue()))
         .andReturn(ImmutableSet.of());
     expect(filter.filter(UNUSED, resources))
@@ -506,7 +506,7 @@ public class FirstFitTaskAssignerTest extends EasyMockTest {
         .setAttributes(ImmutableSet.of(
             new Attribute("host", ImmutableSet.of(mesosOffer.getHostname()))))));
 
-    expect(offerManager.getOffers(GROUP_KEY)).andReturn(ImmutableSet.of(offer));
+    expect(offerManager.getOffers(GROUP_KEY, false)).andReturn(ImmutableSet.of(offer));
 
     control.replay();
 

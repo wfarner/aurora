@@ -48,7 +48,9 @@ import org.apache.aurora.scheduler.async.AsyncModule;
 import org.apache.aurora.scheduler.async.DelayExecutor;
 import org.apache.aurora.scheduler.base.TaskTestUtil;
 import org.apache.aurora.scheduler.config.CliOptions;
+import org.apache.aurora.scheduler.config.CommandLine;
 import org.apache.aurora.scheduler.config.types.TimeAmount;
+import org.apache.aurora.scheduler.configuration.ConfigurationManager;
 import org.apache.aurora.scheduler.configuration.executor.ExecutorSettings;
 import org.apache.aurora.scheduler.events.EventSink;
 import org.apache.aurora.scheduler.filter.SchedulingFilter;
@@ -57,6 +59,7 @@ import org.apache.aurora.scheduler.mesos.Driver;
 import org.apache.aurora.scheduler.mesos.TestExecutorSettings;
 import org.apache.aurora.scheduler.offers.Deferment;
 import org.apache.aurora.scheduler.offers.OfferManager;
+import org.apache.aurora.scheduler.offers.OfferManagerImpl;
 import org.apache.aurora.scheduler.offers.OfferOrder;
 import org.apache.aurora.scheduler.offers.OfferSettings;
 import org.apache.aurora.scheduler.offers.OffersModule;
@@ -112,10 +115,11 @@ public class SchedulingBenchmarks {
     private BenchmarkSettings settings;
 
     /**
-     * Runs once to setup up benchmark state.
+     * Runs once to set up benchmark state.
      */
     @Setup(Level.Trial)
     public void setUpBenchmark() {
+      CommandLine.initializeForTest();
       storage = MemStorageModule.newEmptyStorage();
       eventBus = new EventBus();
       final FakeClock clock = new FakeClock();
@@ -150,8 +154,8 @@ public class SchedulingBenchmarks {
                     }
                   });
               bind(Deferment.class).to(Deferment.Noop.class);
-              bind(OfferManager.class).to(OfferManager.OfferManagerImpl.class);
-              bind(OfferManager.OfferManagerImpl.class).in(Singleton.class);
+              bind(OfferManager.class).to(OfferManagerImpl.class);
+              bind(OfferManagerImpl.class).in(Singleton.class);
               bind(OfferSettings.class).toInstance(
                   new OfferSettings(NO_DELAY, ImmutableList.of(OfferOrder.RANDOM)));
               bind(BiCache.BiCacheSettings.class).toInstance(
@@ -273,6 +277,8 @@ public class SchedulingBenchmarks {
   /**
    * Tests the successful scheduling of tasks in an almost empty cluster.
    * The cluster will be filled progressively over benchmark repetitions.
+   * TODO(wfarner): The results of this benchmark are difficult to use because it is stateful
+   * across iterations.  The stddev tends to be the same order of magnitude as the result.
    */
   public static class FillClusterBenchmark extends AbstractBase {
     @Override
@@ -320,7 +326,7 @@ public class SchedulingBenchmarks {
           .setHostAttributes(new Hosts.Builder().setNumHostsPerRack(2).build(1000))
           .setTasks(new Tasks.Builder()
               .setProduction(true)
-              .addValueConstraint("host", "denied")
+              .addValueConstraint(ConfigurationManager.DEDICATED_ATTRIBUTE, "denied")
               .build(1)).build();
     }
   }

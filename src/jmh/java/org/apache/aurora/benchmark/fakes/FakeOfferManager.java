@@ -48,7 +48,7 @@ public class FakeOfferManager implements OfferManager {
   }
 
   @Override
-  public Iterable<HostOffer> getOffers(TaskGroupKey groupKey) {
+  public Iterable<HostOffer> getOffers(TaskGroupKey groupKey, boolean revocable) {
     return null;
   }
 
