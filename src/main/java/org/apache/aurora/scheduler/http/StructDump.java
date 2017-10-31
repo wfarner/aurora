@@ -96,7 +96,7 @@ public class StructDump extends JerseyTemplateServlet {
 
   private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-  private Response dumpEntity(final String id, final Quiet<Optional<?>> work) {
+  private Response dumpEntity(String id, Quiet<Optional<?>> work) {
     return fillTemplate(template -> {
       template.setAttribute("id", id);
       Optional<?> struct = storage.read(work);
