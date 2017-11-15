@@ -23,16 +23,14 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 
 import org.apache.aurora.gen.storage.Op;
-import org.apache.aurora.gen.storage.PruneJobUpdateHistory;
 import org.apache.aurora.gen.storage.RemoveJob;
+import org.apache.aurora.gen.storage.RemoveJobUpdate;
 import org.apache.aurora.gen.storage.RemoveQuota;
 import org.apache.aurora.gen.storage.RemoveTasks;
 import org.apache.aurora.gen.storage.SaveCronJob;
 import org.apache.aurora.gen.storage.SaveFrameworkId;
 import org.apache.aurora.gen.storage.SaveHostAttributes;
-import org.apache.aurora.gen.storage.SaveJobInstanceUpdateEvent;
 import org.apache.aurora.gen.storage.SaveJobUpdate;
-import org.apache.aurora.gen.storage.SaveJobUpdateEvent;
 import org.apache.aurora.gen.storage.SaveQuota;
 import org.apache.aurora.gen.storage.SaveTasks;
 import org.apache.aurora.scheduler.base.Query;
@@ -51,7 +49,6 @@ import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
 import org.apache.aurora.scheduler.storage.entities.IJobKey;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdate;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateEvent;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateInstructions;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateQuery;
@@ -210,48 +207,19 @@ class WriteAheadStorage implements
   }
 
   @Override
-  public void saveJobUpdate(IJobUpdate update) {
+  public void saveJobUpdate(IJobUpdateDetails update) {
     requireNonNull(update);
 
-    write(Op.saveJobUpdate(new SaveJobUpdate().setJobUpdate(update.newBuilder())));
+    write(Op.saveJobUpdate(new SaveJobUpdate().setDetails(update.newBuilder())));
     jobUpdateStore.saveJobUpdate(update);
   }
 
   @Override
-  public void saveJobUpdateEvent(IJobUpdateKey key, IJobUpdateEvent event) {
+  public void removeJobUpdate(IJobUpdateKey key) {
     requireNonNull(key);
-    requireNonNull(event);
 
-    write(Op.saveJobUpdateEvent(new SaveJobUpdateEvent(event.newBuilder(), key.newBuilder())));
-    jobUpdateStore.saveJobUpdateEvent(key, event);
-  }
-
-  @Override
-  public void saveJobInstanceUpdateEvent(IJobUpdateKey key, IJobInstanceUpdateEvent event) {
-    requireNonNull(key);
-    requireNonNull(event);
-
-    write(Op.saveJobInstanceUpdateEvent(
-        new SaveJobInstanceUpdateEvent(event.newBuilder(), key.newBuilder())));
-    jobUpdateStore.saveJobInstanceUpdateEvent(key, event);
-  }
-
-  @Override
-  public Set<IJobUpdateKey> pruneHistory(int perJobRetainCount, long historyPruneThresholdMs) {
-    Set<IJobUpdateKey> prunedUpdates = jobUpdateStore.pruneHistory(
-        perJobRetainCount,
-        historyPruneThresholdMs);
-
-    if (!prunedUpdates.isEmpty()) {
-      // Pruned updates will eventually go away from persisted storage when a new snapshot is cut.
-      // So, persisting pruning attempts is not strictly necessary as the periodic pruner will
-      // provide eventual consistency between volatile and persistent storage upon scheduler
-      // restart. By generating an out of band pruning during log replay the consistency is
-      // achieved sooner without potentially exposing pruned but not yet persisted data.
-      write(Op.pruneJobUpdateHistory(
-          new PruneJobUpdateHistory(perJobRetainCount, historyPruneThresholdMs)));
-    }
-    return prunedUpdates;
+    write(Op.removeJobUpdate(new RemoveJobUpdate().setKey(key.newBuilder())));
+    jobUpdateStore.removeJobUpdate(key);
   }
 
   @Override

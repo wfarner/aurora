@@ -23,7 +23,6 @@ import org.apache.aurora.gen.JobUpdateStatus;
 import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdate;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateEvent;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateInstructions;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateQuery;
@@ -108,57 +107,22 @@ public interface JobUpdateStore {
   interface Mutable extends JobUpdateStore {
 
     /**
-     * Saves a new job update.
-     *
-     * <p>
-     * Note: This call must be followed by the
-     * {@link #saveJobUpdateEvent(IJobUpdateKey, IJobUpdateEvent)} before fetching a saved update as
-     * it does not save the following required fields:
-     * <ul>
-     *   <li>{@link org.apache.aurora.gen.JobUpdateState#status}</li>
-     *   <li>{@link org.apache.aurora.gen.JobUpdateState#createdTimestampMs}</li>
-     *   <li>{@link org.apache.aurora.gen.JobUpdateState#lastModifiedTimestampMs}</li>
-     * </ul>
-     * The above fields are auto-populated from the update events and any attempt to fetch an update
-     * without having at least one {@link IJobUpdateEvent} present in the store will return empty.
+     * Saves a job update.
      *
      * @param update Update to save.
      */
-    void saveJobUpdate(IJobUpdate update);
+    void saveJobUpdate(IJobUpdateDetails update);
 
     /**
-     * Saves a new job update event.
+     * Deletes a job update.
      *
-     * @param key Update identifier.
-     * @param event Job update event to save.
+     * @param key Key of the update to delete.
      */
-    void saveJobUpdateEvent(IJobUpdateKey key, IJobUpdateEvent event);
-
-    /**
-     * Saves a new job instance update event.
-     *
-     * @param key Update identifier.
-     * @param event Job instance update event.
-     */
-    void saveJobInstanceUpdateEvent(IJobUpdateKey key, IJobInstanceUpdateEvent event);
+    void removeJobUpdate(IJobUpdateKey key);
 
     /**
      * Deletes all updates and update events from the store.
      */
     void deleteAllUpdatesAndEvents();
-
-    /**
-     * Prunes (deletes) old completed updates and events from the store.
-     * <p>
-     * At least {@code perJobRetainCount} last completed updates that completed less than
-     * {@code historyPruneThreshold} ago will be kept for every job.
-     *
-     * @param perJobRetainCount Number of completed updates to retain per job.
-     * @param historyPruneThresholdMs Earliest timestamp in the past to retain history.
-     *                                Any completed updates created before this timestamp
-     *                                will be pruned.
-     * @return Set of pruned update keys.
-     */
-    Set<IJobUpdateKey> pruneHistory(int perJobRetainCount, long historyPruneThresholdMs);
   }
 }

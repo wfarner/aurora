@@ -14,13 +14,11 @@
 
 package org.apache.aurora.scheduler.storage.mem;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -33,29 +31,20 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Multimaps;
 import com.google.common.collect.Ordering;
-import com.google.common.primitives.Longs;
 
 import org.apache.aurora.common.base.MorePreconditions;
 import org.apache.aurora.common.inject.TimedInterceptor.Timed;
 import org.apache.aurora.common.stats.StatsProvider;
 import org.apache.aurora.gen.JobInstanceUpdateEvent;
 import org.apache.aurora.gen.JobUpdateAction;
-import org.apache.aurora.gen.JobUpdateDetails;
 import org.apache.aurora.gen.JobUpdateEvent;
-import org.apache.aurora.gen.JobUpdateState;
 import org.apache.aurora.gen.JobUpdateStatus;
 import org.apache.aurora.scheduler.storage.JobUpdateStore;
-import org.apache.aurora.scheduler.storage.Storage.StorageException;
 import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdate;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateEvent;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateInstructions;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateQuery;
@@ -178,140 +167,28 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
 
   @Timed("job_update_store_save_update")
   @Override
-  public synchronized void saveJobUpdate(IJobUpdate update) {
+  public synchronized void saveJobUpdate(IJobUpdateDetails update) {
     requireNonNull(update);
-    validateInstructions(update.getInstructions());
+    updates.put(update.getUpdate().getSummary().getKey(), update);
+  }
 
-    if (updates.containsKey(update.getSummary().getKey())) {
-      throw new StorageException("Update already exists: " + update.getSummary().getKey());
-    }
-
-    JobUpdateDetails mutable = new JobUpdateDetails()
-        .setUpdate(update.newBuilder())
-        .setUpdateEvents(ImmutableList.of())
-        .setInstanceEvents(ImmutableList.of());
-    mutable.getUpdate().getSummary().setState(synthesizeUpdateState(mutable));
-
-    updates.put(update.getSummary().getKey(), IJobUpdateDetails.build(mutable));
+  @Timed("job_update_store_delete_update")
+  @Override
+  public synchronized void removeJobUpdate(IJobUpdateKey key) {
+    requireNonNull(key);
+    updates.remove(key);
   }
 
   private static final Ordering<JobUpdateEvent> EVENT_ORDERING = Ordering.natural()
       .onResultOf(JobUpdateEvent::getTimestampMs);
 
-  @Timed("job_update_store_save_event")
-  @Override
-  public synchronized void saveJobUpdateEvent(IJobUpdateKey key, IJobUpdateEvent event) {
-    IJobUpdateDetails update = updates.get(key);
-    if (update == null) {
-      throw new StorageException("Update not found: " + key);
-    }
-
-    JobUpdateDetails mutable = update.newBuilder();
-    mutable.addToUpdateEvents(event.newBuilder());
-    mutable.setUpdateEvents(EVENT_ORDERING.sortedCopy(mutable.getUpdateEvents()));
-    mutable.getUpdate().getSummary().setState(synthesizeUpdateState(mutable));
-    updates.put(key, IJobUpdateDetails.build(mutable));
-    jobUpdateEventStats.getUnchecked(event.getStatus()).incrementAndGet();
-  }
-
   private static final Ordering<JobInstanceUpdateEvent> INSTANCE_EVENT_ORDERING = Ordering.natural()
       .onResultOf(JobInstanceUpdateEvent::getTimestampMs);
-
-  @Timed("job_update_store_save_instance_event")
-  @Override
-  public synchronized void saveJobInstanceUpdateEvent(
-      IJobUpdateKey key,
-      IJobInstanceUpdateEvent event) {
-
-    IJobUpdateDetails update = updates.get(key);
-    if (update == null) {
-      throw new StorageException("Update not found: " + key);
-    }
-
-    JobUpdateDetails mutable = update.newBuilder();
-    mutable.addToInstanceEvents(event.newBuilder());
-    mutable.setInstanceEvents(INSTANCE_EVENT_ORDERING.sortedCopy(mutable.getInstanceEvents()));
-    mutable.getUpdate().getSummary().setState(synthesizeUpdateState(mutable));
-    updates.put(key, IJobUpdateDetails.build(mutable));
-    jobUpdateActionStats.getUnchecked(event.getAction()).incrementAndGet();
-  }
 
   @Timed("job_update_store_delete_all")
   @Override
   public synchronized void deleteAllUpdatesAndEvents() {
     updates.clear();
-  }
-
-  @Timed("job_update_store_prune_history")
-  @Override
-  public synchronized Set<IJobUpdateKey> pruneHistory(
-      int perJobRetainCount,
-      long historyPruneThresholdMs) {
-
-    Supplier<Stream<IJobUpdateSummary>> completedUpdates = () -> updates.values().stream()
-        .map(u -> u.getUpdate().getSummary())
-        .filter(s -> TERMINAL_STATES.contains(s.getState().getStatus()));
-
-    Predicate<IJobUpdateSummary> expiredFilter =
-        s -> s.getState().getCreatedTimestampMs() < historyPruneThresholdMs;
-
-    ImmutableSet.Builder<IJobUpdateKey> pruneBuilder = ImmutableSet.builder();
-
-    // Gather updates based on time threshold.
-    pruneBuilder.addAll(completedUpdates.get()
-        .filter(expiredFilter)
-        .map(IJobUpdateSummary::getKey)
-        .collect(Collectors.toList()));
-
-    Multimap<IJobKey, IJobUpdateSummary> updatesByJob = Multimaps.index(
-        // Avoid counting to-be-removed expired updates.
-        completedUpdates.get().filter(expiredFilter.negate()).iterator(),
-        s -> s.getKey().getJob());
-
-    for (Map.Entry<IJobKey, Collection<IJobUpdateSummary>> entry
-        : updatesByJob.asMap().entrySet()) {
-
-      if (entry.getValue().size() > perJobRetainCount) {
-        Ordering<IJobUpdateSummary> creationOrder = Ordering.natural()
-            .onResultOf(s -> s.getState().getCreatedTimestampMs());
-        pruneBuilder.addAll(creationOrder
-            .leastOf(entry.getValue(), entry.getValue().size() - perJobRetainCount)
-            .stream()
-            .map(IJobUpdateSummary::getKey)
-            .iterator());
-      }
-    }
-
-    Set<IJobUpdateKey> pruned = pruneBuilder.build();
-    updates.keySet().removeAll(pruned);
-
-    return pruned;
-  }
-
-  private static JobUpdateState synthesizeUpdateState(JobUpdateDetails update) {
-    JobUpdateState state = update.getUpdate().getSummary().getState();
-    if (state == null) {
-      state = new JobUpdateState();
-    }
-
-    JobUpdateEvent firstEvent = Iterables.getFirst(update.getUpdateEvents(), null);
-    if (firstEvent != null) {
-      state.setCreatedTimestampMs(firstEvent.getTimestampMs());
-    }
-
-    JobUpdateEvent lastEvent = Iterables.getLast(update.getUpdateEvents(), null);
-    if (lastEvent != null) {
-      state.setStatus(lastEvent.getStatus());
-      state.setLastModifiedTimestampMs(lastEvent.getTimestampMs());
-    }
-
-    JobInstanceUpdateEvent lastInstanceEvent = Iterables.getLast(update.getInstanceEvents(), null);
-    if (lastInstanceEvent != null) {
-      state.setLastModifiedTimestampMs(
-          Longs.max(state.getLastModifiedTimestampMs(), lastInstanceEvent.getTimestampMs()));
-    }
-
-    return state;
   }
 
   private Stream<IJobUpdateDetails> performQuery(IJobUpdateQuery query) {
