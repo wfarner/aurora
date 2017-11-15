@@ -21,7 +21,6 @@ import com.google.common.base.Optional;
 
 import org.apache.aurora.gen.JobUpdateStatus;
 import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdate;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateInstructions;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
@@ -72,14 +71,6 @@ public interface JobUpdateStore {
   Optional<IJobUpdateDetails> fetchJobUpdateDetails(IJobUpdateKey key);
 
   /**
-   * Fetches a read-only view of a job update.
-   *
-   * @param key Update identifier.
-   * @return A read-only view of job update.
-   */
-  Optional<IJobUpdate> fetchJobUpdate(IJobUpdateKey key);
-
-  /**
    * Fetches a read-only view of the instructions for a job update.
    *
    * @param key Update identifier.
@@ -114,11 +105,11 @@ public interface JobUpdateStore {
     void saveJobUpdate(IJobUpdateDetails update);
 
     /**
-     * Deletes a job update.
+     * Deletes job updates.
      *
-     * @param key Key of the update to delete.
+     * @param keys Keys of the updates to delete.
      */
-    void removeJobUpdate(IJobUpdateKey key);
+    void removeJobUpdates(Set<IJobUpdateKey> keys);
 
     /**
      * Deletes all updates and update events from the store.

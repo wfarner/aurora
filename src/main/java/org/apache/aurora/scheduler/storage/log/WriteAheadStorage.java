@@ -24,7 +24,7 @@ import com.google.common.collect.ImmutableSet;
 
 import org.apache.aurora.gen.storage.Op;
 import org.apache.aurora.gen.storage.RemoveJob;
-import org.apache.aurora.gen.storage.RemoveJobUpdate;
+import org.apache.aurora.gen.storage.RemoveJobUpdates;
 import org.apache.aurora.gen.storage.RemoveQuota;
 import org.apache.aurora.gen.storage.RemoveTasks;
 import org.apache.aurora.gen.storage.SaveCronJob;
@@ -47,7 +47,6 @@ import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
 import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
 import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
 import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdate;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateInstructions;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
@@ -215,11 +214,11 @@ class WriteAheadStorage implements
   }
 
   @Override
-  public void removeJobUpdate(IJobUpdateKey key) {
-    requireNonNull(key);
+  public void removeJobUpdates(Set<IJobUpdateKey> keys) {
+    requireNonNull(keys);
 
-    write(Op.removeJobUpdate(new RemoveJobUpdate().setKey(key.newBuilder())));
-    jobUpdateStore.removeJobUpdate(key);
+    write(Op.removeJobUpdate(new RemoveJobUpdates().setKeys(IJobUpdateKey.toBuildersSet(keys))));
+    jobUpdateStore.removeJobUpdates(keys);
   }
 
   @Override
@@ -350,11 +349,6 @@ class WriteAheadStorage implements
   @Override
   public Optional<IJobUpdateDetails> fetchJobUpdateDetails(IJobUpdateKey key) {
     return this.jobUpdateStore.fetchJobUpdateDetails(key);
-  }
-
-  @Override
-  public Optional<IJobUpdate> fetchJobUpdate(IJobUpdateKey key) {
-    return this.jobUpdateStore.fetchJobUpdate(key);
   }
 
   @Override

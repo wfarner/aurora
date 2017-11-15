@@ -43,7 +43,6 @@ import org.apache.aurora.gen.JobUpdateEvent;
 import org.apache.aurora.gen.JobUpdateStatus;
 import org.apache.aurora.scheduler.storage.JobUpdateStore;
 import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdate;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateInstructions;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
@@ -109,12 +108,6 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
     return Optional.fromNullable(updates.get(key));
   }
 
-  @Timed("job_update_store_fetch_update")
-  @Override
-  public synchronized Optional<IJobUpdate> fetchJobUpdate(IJobUpdateKey key) {
-    return Optional.fromNullable(updates.get(key)).transform(IJobUpdateDetails::getUpdate);
-  }
-
   @Timed("job_update_store_fetch_instructions")
   @Override
   public synchronized Optional<IJobUpdateInstructions> fetchJobUpdateInstructions(
@@ -169,14 +162,15 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
   @Override
   public synchronized void saveJobUpdate(IJobUpdateDetails update) {
     requireNonNull(update);
+    validateInstructions(update.getUpdate().getInstructions());
     updates.put(update.getUpdate().getSummary().getKey(), update);
   }
 
-  @Timed("job_update_store_delete_update")
+  @Timed("job_update_store_delete_updates")
   @Override
-  public synchronized void removeJobUpdate(IJobUpdateKey key) {
+  public synchronized void removeJobUpdates(Set<IJobUpdateKey> key) {
     requireNonNull(key);
-    updates.remove(key);
+    updates.keySet().removeAll(key);
   }
 
   private static final Ordering<JobUpdateEvent> EVENT_ORDERING = Ordering.natural()

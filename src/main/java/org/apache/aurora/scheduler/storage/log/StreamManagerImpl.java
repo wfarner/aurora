@@ -41,6 +41,7 @@ import org.apache.aurora.gen.storage.LogEntry;
 import org.apache.aurora.gen.storage.Op;
 import org.apache.aurora.gen.storage.RemoveTasks;
 import org.apache.aurora.gen.storage.SaveHostAttributes;
+import org.apache.aurora.gen.storage.SaveJobUpdate;
 import org.apache.aurora.gen.storage.SaveTasks;
 import org.apache.aurora.gen.storage.Snapshot;
 import org.apache.aurora.gen.storage.Transaction;
@@ -50,6 +51,7 @@ import org.apache.aurora.scheduler.log.Log.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static java.util.Objects.nonNull;
 import static java.util.Objects.requireNonNull;
 
 import static org.apache.aurora.codec.ThriftBinaryCodec.CodingException;
@@ -293,6 +295,8 @@ class StreamManagerImpl implements StreamManager {
           return true;
         case SAVE_HOST_ATTRIBUTES:
           return coalesce(prior.getSaveHostAttributes(), next.getSaveHostAttributes());
+        case SAVE_JOB_UPDATE:
+
         default:
           return false;
       }
@@ -334,6 +338,16 @@ class StreamManagerImpl implements StreamManager {
     private boolean coalesce(SaveHostAttributes prior, SaveHostAttributes next) {
       if (prior.getHostAttributes().getHost().equals(next.getHostAttributes().getHost())) {
         prior.getHostAttributes().setAttributes(next.getHostAttributes().getAttributes());
+        return true;
+      }
+      return false;
+    }
+
+    private boolean coalesce(SaveJobUpdate prior, SaveJobUpdate next) {
+      if (nonNull(prior.getDetails()) && nonNull(next.getDetails())) {
+        return true;
+      }
+      if (nonNull(prior.getJobUpdate()) && nonNull(next.getJobUpdate())) {
         return true;
       }
       return false;

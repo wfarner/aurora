@@ -403,7 +403,7 @@ public interface QuotaManager {
         String role) {
 
       Function<IJobUpdateSummary, IJobUpdate> fetchUpdate =
-          summary -> jobUpdateStore.fetchJobUpdate(summary.getKey()).get();
+          summary -> jobUpdateStore.fetchJobUpdateDetails(summary.getKey()).get().getUpdate();
 
       return Maps.transformValues(
           FluentIterable.from(jobUpdateStore.fetchJobUpdateSummaries(updateQuery(role)))

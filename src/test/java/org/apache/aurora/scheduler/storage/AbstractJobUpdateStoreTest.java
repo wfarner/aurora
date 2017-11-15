@@ -300,67 +300,12 @@ public abstract class AbstractJobUpdateStoreTest {
     saveUpdate(update);
   }
 
-  @Test
-  public void testSaveJobEvents() {
-    IJobUpdateKey updateId = makeKey("u3");
-    IJobUpdate update = makeJobUpdate(updateId);
-    IJobUpdateEvent event1 = makeJobUpdateEvent(ROLLING_FORWARD, 124L);
-    IJobUpdateEvent event2 = makeJobUpdateEvent(ROLL_FORWARD_PAUSED, 125L);
-
-    saveUpdate(update);
-    assertUpdate(update);
-    assertEquals(ImmutableList.of(FIRST_EVENT), getUpdateDetails(updateId).get().getUpdateEvents());
-
-    saveJobEvent(event1, updateId);
-    assertEquals(
-        populateExpected(update, ROLLING_FORWARD, CREATED_MS, 124L),
-        getUpdateDetails(updateId).get().getUpdate());
-    assertEquals(event1, getUpdateDetails(updateId).get().getUpdateEvents().get(1));
-
-    saveJobEvent(event2, updateId);
-    assertEquals(
-        populateExpected(update, ROLL_FORWARD_PAUSED, CREATED_MS, 125L),
-        getUpdateDetails(updateId).get().getUpdate());
-    assertEquals(event1, getUpdateDetails(updateId).get().getUpdateEvents().get(1));
-    assertEquals(event2, getUpdateDetails(updateId).get().getUpdateEvents().get(2));
-    assertStats(ImmutableMap.of(ROLL_FORWARD_PAUSED, 1, ROLLING_FORWARD, 2));
-  }
-
   private <T extends Number> void assertStats(Map<JobUpdateStatus, T> expected) {
     for (Map.Entry<JobUpdateStatus, T> entry : expected.entrySet()) {
       assertEquals(
           entry.getValue().longValue(),
           stats.getLongValue(Util.jobUpdateStatusStatName(entry.getKey())));
     }
-  }
-
-  @Test
-  public void testSaveInstanceEvents() {
-    IJobUpdateKey updateId = makeKey("u3");
-    IJobUpdate update = makeJobUpdate(updateId);
-    IJobInstanceUpdateEvent event1 = makeJobInstanceEvent(0, 125L, INSTANCE_UPDATED);
-    IJobInstanceUpdateEvent event2 = makeJobInstanceEvent(1, 126L, INSTANCE_ROLLING_BACK);
-
-    saveUpdate(update);
-    assertUpdate(update);
-    assertEquals(0, getUpdateDetails(updateId).get().getInstanceEvents().size());
-
-    saveJobInstanceEvent(event1, updateId);
-    assertEquals(
-        populateExpected(update, ROLLING_FORWARD, CREATED_MS, 125L),
-        getUpdateDetails(updateId).get().getUpdate());
-    assertEquals(
-        event1,
-        Iterables.getOnlyElement(getUpdateDetails(updateId).get().getInstanceEvents()));
-    assertEquals(1L, stats.getLongValue(jobUpdateActionStatName(INSTANCE_UPDATED)));
-
-    saveJobInstanceEvent(event2, updateId);
-    assertEquals(
-        populateExpected(update, ROLLING_FORWARD, CREATED_MS, 126L),
-        getUpdateDetails(updateId).get().getUpdate());
-    assertEquals(event1, getUpdateDetails(updateId).get().getInstanceEvents().get(0));
-    assertEquals(event2, getUpdateDetails(updateId).get().getInstanceEvents().get(1));
-    assertEquals(1L, stats.getLongValue(jobUpdateActionStatName(INSTANCE_ROLLING_BACK)));
   }
 
   @Test(expected = StorageException.class)
@@ -468,106 +413,8 @@ public abstract class AbstractJobUpdateStoreTest {
   }
 
   @Test
-  public void testPruneHistory() {
-    IJobUpdateKey updateId1 = makeKey("u11");
-    IJobUpdateKey updateId2 = makeKey("u12");
-    IJobUpdateKey updateId3 = makeKey("u13");
-    IJobUpdateKey updateId4 = makeKey("u14");
-    IJobKey job2 = JobKeys.from("testRole2", "testEnv2", "job2");
-    IJobUpdateKey updateId5 = makeKey(job2, "u15");
-    IJobUpdateKey updateId6 = makeKey(job2, "u16");
-    IJobUpdateKey updateId7 = makeKey(job2, "u17");
-
-    IJobUpdate update1 = makeJobUpdate(updateId1);
-    IJobUpdate update2 = makeJobUpdate(updateId2);
-    IJobUpdate update3 = makeJobUpdate(updateId3);
-    IJobUpdate update4 = makeJobUpdate(updateId4);
-    IJobUpdate update5 = makeJobUpdate(updateId5);
-    IJobUpdate update6 = makeJobUpdate(updateId6);
-    IJobUpdate update7 = makeJobUpdate(updateId7);
-
-    IJobUpdateEvent updateEvent1 = makeJobUpdateEvent(ROLLING_BACK, 123L);
-    IJobUpdateEvent updateEvent2 = makeJobUpdateEvent(ABORTED, 124L);
-    IJobUpdateEvent updateEvent3 = makeJobUpdateEvent(ROLLED_BACK, 125L);
-    IJobUpdateEvent updateEvent4 = makeJobUpdateEvent(FAILED, 126L);
-    IJobUpdateEvent updateEvent5 = makeJobUpdateEvent(ERROR, 123L);
-    IJobUpdateEvent updateEvent6 = makeJobUpdateEvent(FAILED, 125L);
-    IJobUpdateEvent updateEvent7 = makeJobUpdateEvent(ROLLING_FORWARD, 126L);
-
-    update1 = populateExpected(saveUpdateNoEvent(update1), ROLLING_BACK, 123L, 123L);
-    update2 = populateExpected(saveUpdateNoEvent(update2), ABORTED, 124L, 124L);
-    update3 = populateExpected(saveUpdateNoEvent(update3), ROLLED_BACK, 125L, 125L);
-    update4 = populateExpected(saveUpdateNoEvent(update4), FAILED, 126L, 126L);
-    update5 = populateExpected(saveUpdateNoEvent(update5), ERROR, 123L, 123L);
-    update6 = populateExpected(saveUpdateNoEvent(update6), FAILED, 125L, 125L);
-    update7 = populateExpected(saveUpdateNoEvent(update7), ROLLING_FORWARD, 126L, 126L);
-
-    saveJobEvent(updateEvent1, updateId1);
-    saveJobEvent(updateEvent2, updateId2);
-    saveJobEvent(updateEvent3, updateId3);
-    saveJobEvent(updateEvent4, updateId4);
-    saveJobEvent(updateEvent5, updateId5);
-    saveJobEvent(updateEvent6, updateId6);
-    saveJobEvent(updateEvent7, updateId7);
-
-    assertEquals(update1, getUpdate(updateId1).get());
-    assertEquals(update2, getUpdate(updateId2).get());
-    assertEquals(update3, getUpdate(updateId3).get());
-    assertEquals(update4, getUpdate(updateId4).get());
-    assertEquals(update5, getUpdate(updateId5).get());
-    assertEquals(update6, getUpdate(updateId6).get());
-    assertEquals(update7, getUpdate(updateId7).get());
-
-    long pruningThreshold = 120L;
-
-    // No updates pruned.
-    assertEquals(ImmutableSet.of(), pruneHistory(3, pruningThreshold));
-    assertEquals(Optional.of(update7), getUpdate(updateId7)); // active update
-    assertEquals(Optional.of(update6), getUpdate(updateId6));
-    assertEquals(Optional.of(update5), getUpdate(updateId5));
-
-    assertEquals(Optional.of(update4), getUpdate(updateId4));
-    assertEquals(Optional.of(update3), getUpdate(updateId3));
-    assertEquals(Optional.of(update2), getUpdate(updateId2));
-    assertEquals(Optional.of(update1), getUpdate(updateId1)); // active update
-
-    assertEquals(ImmutableSet.of(updateId2), pruneHistory(2, pruningThreshold));
-    // No updates pruned.
-    assertEquals(Optional.of(update7), getUpdate(updateId7)); // active update
-    assertEquals(Optional.of(update6), getUpdate(updateId6));
-    assertEquals(Optional.of(update5), getUpdate(updateId5));
-
-    // 1 update pruned.
-    assertEquals(Optional.of(update4), getUpdate(updateId4));
-    assertEquals(Optional.of(update3), getUpdate(updateId3));
-    assertEquals(Optional.absent(), getUpdate(updateId2));
-    assertEquals(Optional.of(update1), getUpdate(updateId1)); // active update
-
-    assertEquals(ImmutableSet.of(updateId5, updateId3), pruneHistory(1, pruningThreshold));
-    // 1 update pruned.
-    assertEquals(Optional.of(update7), getUpdate(updateId7)); // active update
-    assertEquals(Optional.of(update6), getUpdate(updateId6));
-    assertEquals(Optional.absent(), getUpdate(updateId5));
-
-    // 2 updates pruned.
-    assertEquals(Optional.of(update4), getUpdate(updateId4));
-    assertEquals(Optional.absent(), getUpdate(updateId3));
-    assertEquals(Optional.of(update1), getUpdate(updateId1)); // active update
-
-    // The oldest update is pruned.
-    assertEquals(ImmutableSet.of(updateId6), pruneHistory(1, 126L));
-    assertEquals(Optional.of(update7), getUpdate(updateId7)); // active update
-    assertEquals(Optional.absent(), getUpdate(updateId6));
-
-    assertEquals(Optional.of(update4), getUpdate(updateId4));
-    assertEquals(Optional.of(update1), getUpdate(updateId1)); // active update
-
-    // Nothing survives the 0 per job count.
-    assertEquals(ImmutableSet.of(updateId4), pruneHistory(0, pruningThreshold));
-    assertEquals(Optional.of(update7), getUpdate(updateId7)); // active update
-
-    assertEquals(Optional.absent(), getUpdate(updateId4));
-    assertEquals(Optional.of(update1), getUpdate(updateId1)); // active update
+  public void testDeleteUpdates() {
+    fail();
   }
 
   @Test(expected = StorageException.class)
@@ -815,22 +662,13 @@ public abstract class AbstractJobUpdateStoreTest {
         IJobUpdateQuery.build(query)));
   }
 
-  private IJobUpdate saveUpdate(IJobUpdate update) {
+  private void saveUpdate(IJobUpdate update) {
     storage.write((NoResult.Quiet) storeProvider -> {
       storeProvider.getJobUpdateStore().saveJobUpdate(update);
       storeProvider.getJobUpdateStore().saveJobUpdateEvent(
           update.getSummary().getKey(),
           FIRST_EVENT);
     });
-
-    return update;
-  }
-
-  private IJobUpdate saveUpdateNoEvent(IJobUpdate update) {
-    storage.write((NoResult.Quiet) storeProvider ->
-        storeProvider.getJobUpdateStore().saveJobUpdate(update));
-
-    return update;
   }
 
   private void saveJobEvent(IJobUpdateEvent event, IJobUpdateKey key) {
@@ -846,11 +684,6 @@ public abstract class AbstractJobUpdateStoreTest {
   private void truncateUpdates() {
     storage.write((NoResult.Quiet)
         storeProvider -> storeProvider.getJobUpdateStore().deleteAllUpdatesAndEvents());
-  }
-
-  private Set<IJobUpdateKey> pruneHistory(int retainCount, long pruningThresholdMs) {
-    return storage.write(storeProvider ->
-        storeProvider.getJobUpdateStore().pruneHistory(retainCount, pruningThresholdMs));
   }
 
   private IJobUpdate populateExpected(IJobUpdate update) {

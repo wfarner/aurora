@@ -39,6 +39,7 @@ import org.apache.aurora.common.quantity.Time;
 import org.apache.aurora.common.util.Clock;
 import org.apache.aurora.gen.JobInstanceUpdateEvent;
 import org.apache.aurora.gen.JobUpdateAction;
+import org.apache.aurora.gen.JobUpdateDetails;
 import org.apache.aurora.gen.JobUpdateEvent;
 import org.apache.aurora.gen.JobUpdatePulseStatus;
 import org.apache.aurora.gen.JobUpdateQuery;
@@ -182,7 +183,8 @@ class JobUpdateControllerImpl implements JobUpdateController {
 
       LOG.info("Starting update for job " + job);
 
-      storeProvider.getJobUpdateStore().saveJobUpdate(update);
+      storeProvider.getJobUpdateStore().saveJobUpdate(
+          IJobUpdateDetails.build(new JobUpdateDetails().setUpdate(update.newBuilder())));
 
       JobUpdateStatus status = ROLLING_FORWARD;
       if (isCoordinatedUpdate(instructions)) {
@@ -465,9 +467,9 @@ class JobUpdateControllerImpl implements JobUpdateController {
 
     LOG.info("Update {} is now in state {}", key, status);
     if (record) {
-      updateStore.saveJobUpdateEvent(
-          key,
-          IJobUpdateEvent.build(proposedEvent.setTimestampMs(clock.nowMillis()).setStatus(status)));
+      JobUpdateDetails mutable = updateStore.fetchJobUpdateDetails(key).get().newBuilder();
+      mutable.addToUpdateEvents(proposedEvent.setTimestampMs(clock.nowMillis()).setStatus(status));
+      updateStore.saveJobUpdate(IJobUpdateDetails.build(mutable));
     }
 
     if (JobUpdateStore.TERMINAL_STATES.contains(status)) {
@@ -487,7 +489,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
         checkState(!updates.containsKey(job), "Updater already exists for %s", job);
       }
 
-      IJobUpdate jobUpdate = updateStore.fetchJobUpdate(key).get();
+      IJobUpdate jobUpdate = updateStore.fetchJobUpdateDetails(key).get().getUpdate();
       UpdateFactory.Update update;
       try {
         update = updateFactory.newUpdate(jobUpdate.getInstructions(), action == ROLL_FORWARD);
@@ -603,12 +605,14 @@ class JobUpdateControllerImpl implements JobUpdateController {
         if (savedActions.contains(action)) {
           LOG.info("Suppressing duplicate update {} for instance {}.", action, instanceId);
         } else {
-          IJobInstanceUpdateEvent event = IJobInstanceUpdateEvent.build(
-              new JobInstanceUpdateEvent()
-                  .setInstanceId(instanceId)
-                  .setTimestampMs(clock.nowMillis())
-                  .setAction(action));
-          updateStore.saveJobInstanceUpdateEvent(summary.getKey(), event);
+          JobInstanceUpdateEvent event = new JobInstanceUpdateEvent()
+              .setInstanceId(instanceId)
+              .setTimestampMs(clock.nowMillis())
+              .setAction(action);
+
+          JobUpdateDetails mutable = updateStore.fetchJobUpdateDetails(key).get().newBuilder();
+          mutable.addToInstanceEvents(event);
+          updateStore.saveJobUpdate(IJobUpdateDetails.build(mutable));
         }
       }
     }

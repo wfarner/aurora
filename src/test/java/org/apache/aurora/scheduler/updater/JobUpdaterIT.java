@@ -46,6 +46,7 @@ import org.apache.aurora.common.util.TruncatedBinaryBackoff;
 import org.apache.aurora.gen.InstanceTaskConfig;
 import org.apache.aurora.gen.JobUpdate;
 import org.apache.aurora.gen.JobUpdateAction;
+import org.apache.aurora.gen.JobUpdateDetails;
 import org.apache.aurora.gen.JobUpdateEvent;
 import org.apache.aurora.gen.JobUpdateInstructions;
 import org.apache.aurora.gen.JobUpdateKey;
@@ -84,7 +85,6 @@ import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
 import org.apache.aurora.scheduler.storage.entities.IJobKey;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdate;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateEvent;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateSummary;
 import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
@@ -493,9 +493,16 @@ public class JobUpdaterIT extends EasyMockTest {
     // The first pulse comes after one minute
     clock.advance(ONE_MINUTE);
 
-    storage.write(
-        (NoResult.Quiet) storeProvider ->
-            saveJobUpdateEvent(storeProvider.getJobUpdateStore(), update, ROLLING_FORWARD));
+    storage.write((NoResult.Quiet) storeProvider -> {
+      JobUpdateDetails mutable = storeProvider.getJobUpdateStore()
+          .fetchJobUpdateDetails(update.getSummary().getKey())
+          .get()
+          .newBuilder();
+      mutable.addToUpdateEvents(new JobUpdateEvent()
+          .setStatus(ROLLING_FORWARD)
+          .setTimestampMs(clock.nowMillis()));
+      storeProvider.getJobUpdateStore().saveJobUpdate(IJobUpdateDetails.build(mutable));
+    });
 
     clock.advance(ONE_MINUTE);
 
@@ -1125,21 +1132,11 @@ public class JobUpdaterIT extends EasyMockTest {
       IJobUpdate update,
       JobUpdateStatus status) {
 
-    store.saveJobUpdate(update);
-    saveJobUpdateEvent(store, update, status);
-  }
-
-  private void saveJobUpdateEvent(
-      JobUpdateStore.Mutable store,
-      IJobUpdate update,
-      JobUpdateStatus status) {
-
-    store.saveJobUpdateEvent(
-        update.getSummary().getKey(),
-        IJobUpdateEvent.build(
-            new JobUpdateEvent()
-                .setStatus(status)
-                .setTimestampMs(clock.nowMillis())));
+    store.saveJobUpdate(IJobUpdateDetails.build(new JobUpdateDetails()
+        .setUpdate(update.newBuilder())
+        .setUpdateEvents(ImmutableList.of(new JobUpdateEvent()
+            .setStatus(status)
+            .setTimestampMs(clock.nowMillis())))));
   }
 
   @Test

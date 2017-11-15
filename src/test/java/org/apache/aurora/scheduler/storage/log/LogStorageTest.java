@@ -59,7 +59,7 @@ import org.apache.aurora.gen.storage.DeduplicatedSnapshot;
 import org.apache.aurora.gen.storage.LogEntry;
 import org.apache.aurora.gen.storage.Op;
 import org.apache.aurora.gen.storage.RemoveJob;
-import org.apache.aurora.gen.storage.RemoveJobUpdate;
+import org.apache.aurora.gen.storage.RemoveJobUpdates;
 import org.apache.aurora.gen.storage.RemoveQuota;
 import org.apache.aurora.gen.storage.RemoveTasks;
 import org.apache.aurora.gen.storage.SaveCronJob;
@@ -334,8 +334,8 @@ public class LogStorageTest extends EasyMockTest {
     storageUtil.jobUpdateStore.saveJobUpdate(IJobUpdateDetails.build(jobUpdate));
 
     builder.add(createTransaction(Op.removeJobUpdate(
-        new RemoveJobUpdate().setKey(UPDATE_ID.newBuilder()))));
-    storageUtil.jobUpdateStore.removeJobUpdate(UPDATE_ID);
+        new RemoveJobUpdates().setKeys(ImmutableSet.of(UPDATE_ID.newBuilder())))));
+    storageUtil.jobUpdateStore.removeJobUpdates(ImmutableSet.of(UPDATE_ID));
 
     // NOOP LogEntry
     builder.add(LogEntry.noop(true));
@@ -807,15 +807,15 @@ public class LogStorageTest extends EasyMockTest {
       @Override
       protected void setupExpectations() throws Exception {
         storageUtil.expectWrite();
-        storageUtil.jobUpdateStore.removeJobUpdate(key);
+        storageUtil.jobUpdateStore.removeJobUpdates(ImmutableSet.of(key));
 
         streamMatcher.expectTransaction(Op.removeJobUpdate(
-            new RemoveJobUpdate().setKey(key.newBuilder()))).andReturn(position);
+            new RemoveJobUpdates().setKeys(ImmutableSet.of(key.newBuilder())))).andReturn(position);
       }
 
       @Override
       protected void performMutations(MutableStoreProvider storeProvider) {
-        storeProvider.getJobUpdateStore().removeJobUpdate(key);
+        storeProvider.getJobUpdateStore().removeJobUpdates(ImmutableSet.of(key));
       }
     }.run();
   }
