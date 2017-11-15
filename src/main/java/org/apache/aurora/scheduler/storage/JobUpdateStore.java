@@ -20,12 +20,9 @@ import java.util.Set;
 import com.google.common.base.Optional;
 
 import org.apache.aurora.gen.JobUpdateStatus;
-import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateInstructions;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateQuery;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateSummary;
 
 import static org.apache.aurora.gen.JobUpdateStatus.ABORTED;
 import static org.apache.aurora.gen.JobUpdateStatus.ERROR;
@@ -47,20 +44,12 @@ public interface JobUpdateStore {
   );
 
   /**
-   * Fetches a read-only view of job update summaries.
-   *
-   * @param query Query to identify job update summaries with.
-   * @return A read-only view of job update summaries.
-   */
-  List<IJobUpdateSummary> fetchJobUpdateSummaries(IJobUpdateQuery query);
-
-  /**
    * Fetches a read-only view of job update details matching the {@code query}.
    *
    * @param query Query to identify job update details with.
    * @return A read-only list view of job update details matching the query.
    */
-  List<IJobUpdateDetails> fetchJobUpdateDetails(IJobUpdateQuery query);
+  List<IJobUpdateDetails> fetchJobUpdates(IJobUpdateQuery query);
 
   /**
    * Fetches a read-only view of job update details.
@@ -68,32 +57,7 @@ public interface JobUpdateStore {
    * @param key Update identifier.
    * @return A read-only view of job update details.
    */
-  Optional<IJobUpdateDetails> fetchJobUpdateDetails(IJobUpdateKey key);
-
-  /**
-   * Fetches a read-only view of the instructions for a job update.
-   *
-   * @param key Update identifier.
-   * @return A read-only view of job update instructions.
-   */
-  Optional<IJobUpdateInstructions> fetchJobUpdateInstructions(IJobUpdateKey key);
-
-  /**
-   * Fetches a read-only view of all job update details available in the store.
-   * TODO(wfarner): Generate immutable wrappers for storage.thrift structs, use an immutable object
-   *                here.
-   *
-   * @return A read-only view of all job update details.
-   */
-  Set<IJobUpdateDetails> fetchAllJobUpdateDetails();
-  /**
-   * Fetches the events that have affected an instance within a job update.
-   *
-   * @param key Update identifier.
-   * @param instanceId Instance to fetch events for.
-   * @return Instance events in {@code key} that affected {@code instanceId}.
-   */
-  List<IJobInstanceUpdateEvent> fetchInstanceEvents(IJobUpdateKey key, int instanceId);
+  Optional<IJobUpdateDetails> fetchJobUpdates(IJobUpdateKey key);
 
   interface Mutable extends JobUpdateStore {
 

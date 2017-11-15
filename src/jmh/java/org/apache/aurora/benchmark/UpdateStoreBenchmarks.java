@@ -73,7 +73,7 @@ public class UpdateStoreBenchmarks {
 
     @Benchmark
     public IJobUpdateDetails run() throws TException {
-      return storage.read(store -> store.getJobUpdateStore().fetchJobUpdateDetails(
+      return storage.read(store -> store.getJobUpdateStore().fetchJobUpdates(
           Iterables.getOnlyElement(keys)).get());
     }
   }
@@ -112,7 +112,7 @@ public class UpdateStoreBenchmarks {
 
     @Benchmark
     public IJobUpdateDetails run() throws TException {
-      return storage.read(store -> store.getJobUpdateStore().fetchJobUpdateDetails(
+      return storage.read(store -> store.getJobUpdateStore().fetchJobUpdates(
           Iterables.getOnlyElement(keys)).get());
     }
   }
@@ -151,7 +151,7 @@ public class UpdateStoreBenchmarks {
 
     @Benchmark
     public IJobUpdateDetails run() throws TException {
-      return storage.read(store -> store.getJobUpdateStore().fetchJobUpdateDetails(
+      return storage.read(store -> store.getJobUpdateStore().fetchJobUpdates(
           Iterables.getOnlyElement(keys)).get());
     }
   }

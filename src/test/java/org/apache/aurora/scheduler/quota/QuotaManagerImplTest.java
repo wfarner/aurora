@@ -488,7 +488,7 @@ public class QuotaManagerImplTest extends EasyMockTest {
     expect(jobUpdateStore.fetchJobUpdateSummaries(updateQuery(config.getJob().getRole())))
         .andReturn(summaries).times(2);
 
-    expect(jobUpdateStore.fetchJobUpdate(UPDATE_KEY))
+    expect(jobUpdateStore.fetchJobUpdates(UPDATE_KEY))
         .andReturn(Optional.of(IJobUpdate.build(builder))).times(2);
 
     expectNoCronJobs().times(2);
@@ -517,7 +517,7 @@ public class QuotaManagerImplTest extends EasyMockTest {
     expect(jobUpdateStore.fetchJobUpdateSummaries(updateQuery(config.getJob().getRole())))
         .andReturn(summaries).times(2);
 
-    expect(jobUpdateStore.fetchJobUpdate(UPDATE_KEY))
+    expect(jobUpdateStore.fetchJobUpdates(UPDATE_KEY))
         .andReturn(Optional.of(IJobUpdate.build(builder))).times(2);
 
     expectNoCronJobs().times(2);

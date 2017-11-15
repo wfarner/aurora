@@ -108,7 +108,7 @@ class JobUpdateHistoryPruner extends AbstractScheduledService {
     storage.write((NoResult.Quiet) storeProvider -> {
 
       List<IJobUpdateSummary> completedUpdates = storeProvider.getJobUpdateStore()
-          .fetchJobUpdateDetails(IJobUpdateQuery.build(
+          .fetchJobUpdates(IJobUpdateQuery.build(
               new JobUpdateQuery().setUpdateStatuses(TERMINAL_STATES)))
           .stream()
           .map(u -> u.getUpdate().getSummary())

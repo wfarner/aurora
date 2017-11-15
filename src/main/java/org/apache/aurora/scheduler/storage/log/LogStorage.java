@@ -364,7 +364,7 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
         .put(Op._Fields.SAVE_JOB_UPDATE_EVENT, op -> {
           SaveJobUpdateEvent event = op.getSaveJobUpdateEvent();
 
-          Optional<IJobUpdateDetails> update = writeBehindJobUpdateStore.fetchJobUpdateDetails(
+          Optional<IJobUpdateDetails> update = writeBehindJobUpdateStore.fetchJobUpdates(
               IJobUpdateKey.build(event.getKey()));
           if (!update.isPresent()) {
             throw new IllegalStateException(
@@ -377,7 +377,7 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
         .put(Op._Fields.SAVE_JOB_INSTANCE_UPDATE_EVENT, op -> {
           SaveJobInstanceUpdateEvent event = op.getSaveJobInstanceUpdateEvent();
 
-          Optional<IJobUpdateDetails> update = writeBehindJobUpdateStore.fetchJobUpdateDetails(
+          Optional<IJobUpdateDetails> update = writeBehindJobUpdateStore.fetchJobUpdates(
               IJobUpdateKey.build(event.getKey()));
           if (!update.isPresent()) {
             throw new IllegalStateException(

@@ -249,12 +249,12 @@ public class JobUpdaterIT extends EasyMockTest {
 
   private IJobUpdateDetails getDetails() {
     return storage.read(
-        storeProvider -> storeProvider.getJobUpdateStore().fetchJobUpdateDetails(UPDATE_ID).get());
+        storeProvider -> storeProvider.getJobUpdateStore().fetchJobUpdates(UPDATE_ID).get());
   }
 
   private IJobUpdateDetails getDetails(IJobUpdateKey key) {
     return storage.read(
-        storeProvider -> storeProvider.getJobUpdateStore().fetchJobUpdateDetails(key).get());
+        storeProvider -> storeProvider.getJobUpdateStore().fetchJobUpdates(key).get());
   }
 
   private void assertLatestUpdateMessage(String expected) {
@@ -495,7 +495,7 @@ public class JobUpdaterIT extends EasyMockTest {
 
     storage.write((NoResult.Quiet) storeProvider -> {
       JobUpdateDetails mutable = storeProvider.getJobUpdateStore()
-          .fetchJobUpdateDetails(update.getSummary().getKey())
+          .fetchJobUpdates(update.getSummary().getKey())
           .get()
           .newBuilder();
       mutable.addToUpdateEvents(new JobUpdateEvent()

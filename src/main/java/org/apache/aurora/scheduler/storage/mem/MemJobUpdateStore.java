@@ -29,25 +29,18 @@ import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 
 import org.apache.aurora.common.base.MorePreconditions;
 import org.apache.aurora.common.inject.TimedInterceptor.Timed;
 import org.apache.aurora.common.stats.StatsProvider;
-import org.apache.aurora.gen.JobInstanceUpdateEvent;
 import org.apache.aurora.gen.JobUpdateAction;
-import org.apache.aurora.gen.JobUpdateEvent;
 import org.apache.aurora.gen.JobUpdateStatus;
 import org.apache.aurora.scheduler.storage.JobUpdateStore;
-import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateInstructions;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateQuery;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateSummary;
 
 import static java.util.Objects.requireNonNull;
 
@@ -55,10 +48,6 @@ import static org.apache.aurora.scheduler.storage.Util.jobUpdateActionStatName;
 import static org.apache.aurora.scheduler.storage.Util.jobUpdateStatusStatName;
 
 public class MemJobUpdateStore implements JobUpdateStore.Mutable {
-
-  private static final Ordering<IJobUpdateDetails> REVERSE_LAST_MODIFIED_ORDER = Ordering.natural()
-      .reverse()
-      .onResultOf(u -> u.getUpdate().getSummary().getState().getLastModifiedTimestampMs());
 
   private final Map<IJobUpdateKey, IJobUpdateDetails> updates = Maps.newConcurrentMap();
   private final LoadingCache<JobUpdateStatus, AtomicLong> jobUpdateEventStats;
@@ -88,53 +77,16 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
     }
   }
 
-  @Timed("job_update_store_fetch_summaries")
-  @Override
-  public synchronized List<IJobUpdateSummary> fetchJobUpdateSummaries(IJobUpdateQuery query) {
-    return performQuery(query)
-        .map(u -> u.getUpdate().getSummary())
-        .collect(Collectors.toList());
-  }
-
   @Timed("job_update_store_fetch_details_list")
   @Override
-  public synchronized List<IJobUpdateDetails> fetchJobUpdateDetails(IJobUpdateQuery query) {
+  public synchronized List<IJobUpdateDetails> fetchJobUpdates(IJobUpdateQuery query) {
     return performQuery(query).collect(Collectors.toList());
   }
 
   @Timed("job_update_store_fetch_details")
   @Override
-  public synchronized Optional<IJobUpdateDetails> fetchJobUpdateDetails(IJobUpdateKey key) {
+  public synchronized Optional<IJobUpdateDetails> fetchJobUpdates(IJobUpdateKey key) {
     return Optional.fromNullable(updates.get(key));
-  }
-
-  @Timed("job_update_store_fetch_instructions")
-  @Override
-  public synchronized Optional<IJobUpdateInstructions> fetchJobUpdateInstructions(
-      IJobUpdateKey key) {
-
-    return Optional.fromNullable(updates.get(key))
-        .transform(u -> u.getUpdate().getInstructions());
-  }
-
-  @Timed("job_update_store_fetch_all_details")
-  @Override
-  public synchronized Set<IJobUpdateDetails> fetchAllJobUpdateDetails() {
-    return ImmutableSet.copyOf(updates.values());
-  }
-
-  @Timed("job_update_store_fetch_instance_events")
-  @Override
-  public synchronized List<IJobInstanceUpdateEvent> fetchInstanceEvents(
-      IJobUpdateKey key,
-      int instanceId) {
-
-    return java.util.Optional.ofNullable(updates.get(key))
-        .map(IJobUpdateDetails::getInstanceEvents)
-        .orElse(ImmutableList.of())
-        .stream()
-        .filter(e -> e.getInstanceId() == instanceId)
-        .collect(Collectors.toList());
   }
 
   private static void validateInstructions(IJobUpdateInstructions instructions) {
@@ -173,12 +125,6 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
     updates.keySet().removeAll(key);
   }
 
-  private static final Ordering<JobUpdateEvent> EVENT_ORDERING = Ordering.natural()
-      .onResultOf(JobUpdateEvent::getTimestampMs);
-
-  private static final Ordering<JobInstanceUpdateEvent> INSTANCE_EVENT_ORDERING = Ordering.natural()
-      .onResultOf(JobInstanceUpdateEvent::getTimestampMs);
-
   @Timed("job_update_store_delete_all")
   @Override
   public synchronized void deleteAllUpdatesAndEvents() {
@@ -206,11 +152,8 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
           .contains(u.getUpdate().getSummary().getState().getStatus()));
     }
 
-    // TODO(wfarner): Modification time is not a stable ordering for pagination, but we use it as
-    // such here.  The behavior is carried over from DbJobupdateStore; determine if it is desired.
     Stream<IJobUpdateDetails> matches = updates.values().stream()
         .filter(filter)
-        .sorted(REVERSE_LAST_MODIFIED_ORDER)
         .skip(query.getOffset());
 
     if (query.getLimit() > 0) {

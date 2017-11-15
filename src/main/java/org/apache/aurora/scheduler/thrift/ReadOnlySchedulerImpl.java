@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
@@ -38,6 +39,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 
 import org.apache.aurora.GuavaUtils;
@@ -308,12 +310,20 @@ class ReadOnlySchedulerImpl implements ReadOnlyScheduler.Iface {
   @Override
   public Response getJobUpdateSummaries(JobUpdateQuery mutableQuery) {
     IJobUpdateQuery query = IJobUpdateQuery.build(requireNonNull(mutableQuery));
-    return ok(Result.getJobUpdateSummariesResult(
-        new GetJobUpdateSummariesResult()
-            .setUpdateSummaries(IJobUpdateSummary.toBuildersList(storage.read(
-                storeProvider ->
-                    storeProvider.getJobUpdateStore().fetchJobUpdateSummaries(query))))));
+
+    List<IJobUpdateSummary> summaries = storage.read(
+        storeProvider -> storeProvider.getJobUpdateStore()
+            .fetchJobUpdates(query)
+            .stream()
+            .map(u -> u.getUpdate().getSummary()).collect(Collectors.toList()));
+
+    return ok(Result.getJobUpdateSummariesResult(new GetJobUpdateSummariesResult()
+        .setUpdateSummaries(IJobUpdateSummary.toBuildersList(summaries))));
   }
+
+  private static final Ordering<IJobUpdateDetails> REVERSE_LAST_MODIFIED_ORDER = Ordering.natural()
+      .reverse()
+      .onResultOf(u -> u.getUpdate().getSummary().getState().getLastModifiedTimestampMs());
 
   @Override
   public Response getJobUpdateDetails(JobUpdateKey mutableKey, JobUpdateQuery mutableQuery) {
@@ -325,7 +335,13 @@ class ReadOnlySchedulerImpl implements ReadOnlyScheduler.Iface {
       IJobUpdateQuery query = IJobUpdateQuery.build(mutableQuery);
 
       List<IJobUpdateDetails> details = storage.read(storeProvider ->
-          storeProvider.getJobUpdateStore().fetchJobUpdateDetails(query));
+          storeProvider.getJobUpdateStore().fetchJobUpdates(query)
+              .stream()
+              // TODO(wfarner): Modification time is not a stable ordering for pagination, but we
+              // use it as such here.  The behavior is carried over from DbJobupdateStore; determine
+              // if it is desired.
+              .sorted(REVERSE_LAST_MODIFIED_ORDER)
+              .collect(Collectors.toList()));
 
       return ok(Result.getJobUpdateDetailsResult(new GetJobUpdateDetailsResult()
           .setDetailsList(IJobUpdateDetails.toBuildersList(details))));
@@ -334,7 +350,7 @@ class ReadOnlySchedulerImpl implements ReadOnlyScheduler.Iface {
     // TODO(zmanji): Remove this code once `mutableKey` is removed in AURORA-1765
     IJobUpdateKey key = IJobUpdateKey.build(mutableKey);
     Optional<IJobUpdateDetails> details = storage.read(storeProvider ->
-        storeProvider.getJobUpdateStore().fetchJobUpdateDetails(key));
+        storeProvider.getJobUpdateStore().fetchJobUpdates(key));
 
     if (details.isPresent()) {
       return addMessage(ok(Result.getJobUpdateDetailsResult(

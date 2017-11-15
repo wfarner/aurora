@@ -45,13 +45,10 @@ import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
 import org.apache.aurora.scheduler.storage.TaskStore;
 import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
 import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
-import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
 import org.apache.aurora.scheduler.storage.entities.IJobKey;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateInstructions;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateQuery;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateSummary;
 import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
 import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
 import org.slf4j.Logger;
@@ -337,32 +334,12 @@ class WriteAheadStorage implements
   }
 
   @Override
-  public List<IJobUpdateSummary> fetchJobUpdateSummaries(IJobUpdateQuery query) {
-    return this.jobUpdateStore.fetchJobUpdateSummaries(query);
+  public List<IJobUpdateDetails> fetchJobUpdates(IJobUpdateQuery query) {
+    return this.jobUpdateStore.fetchJobUpdates(query);
   }
 
   @Override
-  public List<IJobUpdateDetails> fetchJobUpdateDetails(IJobUpdateQuery query) {
-    return this.jobUpdateStore.fetchJobUpdateDetails(query);
-  }
-
-  @Override
-  public Optional<IJobUpdateDetails> fetchJobUpdateDetails(IJobUpdateKey key) {
-    return this.jobUpdateStore.fetchJobUpdateDetails(key);
-  }
-
-  @Override
-  public Optional<IJobUpdateInstructions> fetchJobUpdateInstructions(IJobUpdateKey key) {
-    return this.jobUpdateStore.fetchJobUpdateInstructions(key);
-  }
-
-  @Override
-  public Set<IJobUpdateDetails> fetchAllJobUpdateDetails() {
-    return this.jobUpdateStore.fetchAllJobUpdateDetails();
-  }
-
-  @Override
-  public List<IJobInstanceUpdateEvent> fetchInstanceEvents(IJobUpdateKey key, int instanceId) {
-    return this.jobUpdateStore.fetchInstanceEvents(key, instanceId);
+  public Optional<IJobUpdateDetails> fetchJobUpdates(IJobUpdateKey key) {
+    return this.jobUpdateStore.fetchJobUpdates(key);
   }
 }

@@ -22,9 +22,7 @@ import java.util.stream.Stream;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import com.google.inject.Injector;
 
 import org.apache.aurora.gen.InstanceTaskConfig;
@@ -70,7 +68,6 @@ import static org.apache.aurora.gen.JobUpdateAction.INSTANCE_UPDATED;
 import static org.apache.aurora.gen.JobUpdateAction.INSTANCE_UPDATING;
 import static org.apache.aurora.gen.JobUpdateStatus.ABORTED;
 import static org.apache.aurora.gen.JobUpdateStatus.ERROR;
-import static org.apache.aurora.gen.JobUpdateStatus.FAILED;
 import static org.apache.aurora.gen.JobUpdateStatus.ROLLED_BACK;
 import static org.apache.aurora.gen.JobUpdateStatus.ROLLING_BACK;
 import static org.apache.aurora.gen.JobUpdateStatus.ROLLING_FORWARD;
@@ -644,7 +641,7 @@ public abstract class AbstractJobUpdateStoreTest {
 
   private Optional<IJobUpdateDetails> getUpdateDetails(IJobUpdateKey key) {
     return storage.read(
-        storeProvider -> storeProvider.getJobUpdateStore().fetchJobUpdateDetails(key));
+        storeProvider -> storeProvider.getJobUpdateStore().fetchJobUpdates(key));
   }
 
   private Set<IJobUpdateDetails> getAllUpdateDetails() {
@@ -653,7 +650,7 @@ public abstract class AbstractJobUpdateStoreTest {
   }
 
   private List<IJobUpdateDetails> queryDetails(JobUpdateQuery query) {
-    return storage.read(storeProvider -> storeProvider.getJobUpdateStore().fetchJobUpdateDetails(
+    return storage.read(storeProvider -> storeProvider.getJobUpdateStore().fetchJobUpdates(
         IJobUpdateQuery.build(query)));
   }
 

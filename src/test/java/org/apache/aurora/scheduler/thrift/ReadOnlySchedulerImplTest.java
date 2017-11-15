@@ -605,7 +605,7 @@ public class ReadOnlySchedulerImplTest extends EasyMockTest {
   @Test
   public void testGetJobUpdateDetails() throws Exception {
     JobUpdateDetails details = createJobUpdateDetails();
-    expect(storageUtil.jobUpdateStore.fetchJobUpdateDetails(UPDATE_KEY))
+    expect(storageUtil.jobUpdateStore.fetchJobUpdates(UPDATE_KEY))
         .andReturn(Optional.of(IJobUpdateDetails.build(details)));
 
     control.replay();
@@ -622,7 +622,7 @@ public class ReadOnlySchedulerImplTest extends EasyMockTest {
   public void testGetJobUpdateDetailsQuery() throws Exception {
     JobUpdateQuery query = new JobUpdateQuery().setRole(ROLE);
     List<IJobUpdateDetails> details = IJobUpdateDetails.listFromBuilders(createJobUpdateDetails(5));
-    expect(storageUtil.jobUpdateStore.fetchJobUpdateDetails(IJobUpdateQuery.build(query)))
+    expect(storageUtil.jobUpdateStore.fetchJobUpdates(IJobUpdateQuery.build(query)))
         .andReturn(details);
 
     control.replay();
@@ -739,7 +739,7 @@ public class ReadOnlySchedulerImplTest extends EasyMockTest {
 
   @Test
   public void testGetJobUpdateDetailsInvalidId() throws Exception {
-    expect(storageUtil.jobUpdateStore.fetchJobUpdateDetails(UPDATE_KEY))
+    expect(storageUtil.jobUpdateStore.fetchJobUpdates(UPDATE_KEY))
         .andReturn(Optional.absent());
 
     control.replay();

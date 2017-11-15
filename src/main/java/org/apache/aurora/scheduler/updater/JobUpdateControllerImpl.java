@@ -227,14 +227,14 @@ class JobUpdateControllerImpl implements JobUpdateController {
     requireNonNull(auditData);
     LOG.info("Attempting to resume update " + key);
     storage.write((NoResult<UpdateStateException>) storeProvider -> {
-      IJobUpdateDetails details = Iterables.getOnlyElement(
-          storeProvider.getJobUpdateStore().fetchJobUpdateDetails(queryByUpdate(key)), null);
+      Optional<IJobUpdateDetails> details =
+          storeProvider.getJobUpdateStore().fetchJobUpdates(key);
 
-      if (details == null) {
+      if (!details.isPresent()) {
         throw new UpdateStateException("Update does not exist: " + key);
       }
 
-      IJobUpdate update = details.getUpdate();
+      IJobUpdate update = details.get().getUpdate();
       IJobUpdateKey key1 = update.getSummary().getKey();
       Function<JobUpdateStatus, JobUpdateStatus> stateChange =
           isCoordinatedAndPulseExpired(key1, update.getInstructions())
@@ -296,7 +296,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
   public void systemResume() {
     storage.write((NoResult.Quiet) storeProvider -> {
       for (IJobUpdateDetails details
-          : storeProvider.getJobUpdateStore().fetchJobUpdateDetails(ACTIVE_QUERY)) {
+          : storeProvider.getJobUpdateStore().fetchJobUpdates(ACTIVE_QUERY)) {
 
         IJobUpdateSummary summary = details.getUpdate().getSummary();
         IJobUpdateInstructions instructions = details.getUpdate().getInstructions();
@@ -467,7 +467,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
 
     LOG.info("Update {} is now in state {}", key, status);
     if (record) {
-      JobUpdateDetails mutable = updateStore.fetchJobUpdateDetails(key).get().newBuilder();
+      JobUpdateDetails mutable = updateStore.fetchJobUpdates(key).get().newBuilder();
       mutable.addToUpdateEvents(proposedEvent.setTimestampMs(clock.nowMillis()).setStatus(status));
       updateStore.saveJobUpdate(IJobUpdateDetails.build(mutable));
     }
@@ -489,7 +489,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
         checkState(!updates.containsKey(job), "Updater already exists for %s", job);
       }
 
-      IJobUpdate jobUpdate = updateStore.fetchJobUpdateDetails(key).get().getUpdate();
+      IJobUpdate jobUpdate = updateStore.fetchJobUpdates(key).get().getUpdate();
       UpdateFactory.Update update;
       try {
         update = updateFactory.newUpdate(jobUpdate.getInstructions(), action == ROLL_FORWARD);
@@ -610,7 +610,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
               .setTimestampMs(clock.nowMillis())
               .setAction(action);
 
-          JobUpdateDetails mutable = updateStore.fetchJobUpdateDetails(key).get().newBuilder();
+          JobUpdateDetails mutable = updateStore.fetchJobUpdates(key).get().newBuilder();
           mutable.addToInstanceEvents(event);
           updateStore.saveJobUpdate(IJobUpdateDetails.build(mutable));
         }

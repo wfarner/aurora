@@ -108,7 +108,7 @@ public class JobUpdateHistoryPrunerTest {
   }
 
   private Optional<IJobUpdateDetails> getUpdate(IJobUpdateKey key) {
-    return storage.read(store -> store.getJobUpdateStore().fetchJobUpdateDetails(key));
+    return storage.read(store -> store.getJobUpdateStore().fetchJobUpdates(key));
   }
 
   private void pruneHistory(int retainCount, long pruningThresholdMs) {
