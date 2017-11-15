@@ -24,6 +24,7 @@ import java.util.function.Consumer;
 import javax.inject.Inject;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.MoreExecutors;
 
@@ -34,10 +35,12 @@ import org.apache.aurora.common.quantity.Amount;
 import org.apache.aurora.common.quantity.Time;
 import org.apache.aurora.common.stats.SlidingStats;
 import org.apache.aurora.gen.HostAttributes;
+import org.apache.aurora.gen.JobUpdateDetails;
 import org.apache.aurora.gen.storage.LogEntry;
 import org.apache.aurora.gen.storage.Op;
 import org.apache.aurora.gen.storage.SaveCronJob;
 import org.apache.aurora.gen.storage.SaveJobInstanceUpdateEvent;
+import org.apache.aurora.gen.storage.SaveJobUpdate;
 import org.apache.aurora.gen.storage.SaveJobUpdateEvent;
 import org.apache.aurora.gen.storage.SaveQuota;
 import org.apache.aurora.gen.storage.Snapshot;
@@ -58,9 +61,8 @@ import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
 import org.apache.aurora.scheduler.storage.Storage.NonVolatileStorage;
 import org.apache.aurora.scheduler.storage.TaskStore;
 import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
 import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateEvent;
+import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -350,24 +352,45 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
             LOG.info("Dropping host attributes with no agent ID: " + attributes);
           }
         })
-        .put(Op._Fields.SAVE_JOB_UPDATE, op ->
-          writeBehindJobUpdateStore.saveJobUpdate(
-              thriftBackfill.backFillJobUpdate(op.getSaveJobUpdate().getJobUpdate())))
+        .put(Op._Fields.SAVE_JOB_UPDATE, op -> {
+          SaveJobUpdate save = op.getSaveJobUpdate();
+          if (save.getDetails() != null) {
+            writeBehindJobUpdateStore.saveJobUpdate(IJobUpdateDetails.build(save.getDetails()));
+          } else if (save.getJobUpdate() != null) {
+            writeBehindJobUpdateStore.saveJobUpdate(
+                IJobUpdateDetails.build(new JobUpdateDetails().setUpdate(save.getJobUpdate())));
+          }
+        })
         .put(Op._Fields.SAVE_JOB_UPDATE_EVENT, op -> {
           SaveJobUpdateEvent event = op.getSaveJobUpdateEvent();
-          writeBehindJobUpdateStore.saveJobUpdateEvent(
-              IJobUpdateKey.build(event.getKey()),
-              IJobUpdateEvent.build(op.getSaveJobUpdateEvent().getEvent()));
+
+          Optional<IJobUpdateDetails> update = writeBehindJobUpdateStore.fetchJobUpdateDetails(
+              IJobUpdateKey.build(event.getKey()));
+          if (!update.isPresent()) {
+            throw new IllegalStateException(
+                "Update event referenced non-existent update: " + event.getKey());
+          }
+          JobUpdateDetails mutable = update.get().newBuilder();
+          mutable.addToUpdateEvents(event.getEvent());
+          writeBehindJobUpdateStore.saveJobUpdate(IJobUpdateDetails.build(mutable));
         })
         .put(Op._Fields.SAVE_JOB_INSTANCE_UPDATE_EVENT, op -> {
           SaveJobInstanceUpdateEvent event = op.getSaveJobInstanceUpdateEvent();
-          writeBehindJobUpdateStore.saveJobInstanceUpdateEvent(
-              IJobUpdateKey.build(event.getKey()),
-              IJobInstanceUpdateEvent.build(op.getSaveJobInstanceUpdateEvent().getEvent()));
+
+          Optional<IJobUpdateDetails> update = writeBehindJobUpdateStore.fetchJobUpdateDetails(
+              IJobUpdateKey.build(event.getKey()));
+          if (!update.isPresent()) {
+            throw new IllegalStateException(
+                "Update event referenced non-existent update: " + event.getKey());
+          }
+          JobUpdateDetails mutable = update.get().newBuilder();
+          mutable.addToInstanceEvents(event.getEvent());
+          writeBehindJobUpdateStore.saveJobUpdate(IJobUpdateDetails.build(mutable));
         })
-        .put(Op._Fields.PRUNE_JOB_UPDATE_HISTORY, op -> writeBehindJobUpdateStore.pruneHistory(
-            op.getPruneJobUpdateHistory().getPerJobRetainCount(),
-            op.getPruneJobUpdateHistory().getHistoryPruneThresholdMs())).build();
+        .put(Op._Fields.REMOVE_JOB_UPDATE, op ->
+          writeBehindJobUpdateStore.removeJobUpdate(
+              IJobUpdateKey.build(op.getRemoveJobUpdate().getKey())))
+        .build();
   }
 
   @Override

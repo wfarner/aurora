@@ -42,6 +42,7 @@ import org.apache.aurora.gen.JobConfiguration;
 import org.apache.aurora.gen.JobInstanceUpdateEvent;
 import org.apache.aurora.gen.JobUpdate;
 import org.apache.aurora.gen.JobUpdateAction;
+import org.apache.aurora.gen.JobUpdateDetails;
 import org.apache.aurora.gen.JobUpdateEvent;
 import org.apache.aurora.gen.JobUpdateInstructions;
 import org.apache.aurora.gen.JobUpdateKey;
@@ -57,16 +58,14 @@ import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.gen.storage.DeduplicatedSnapshot;
 import org.apache.aurora.gen.storage.LogEntry;
 import org.apache.aurora.gen.storage.Op;
-import org.apache.aurora.gen.storage.PruneJobUpdateHistory;
 import org.apache.aurora.gen.storage.RemoveJob;
+import org.apache.aurora.gen.storage.RemoveJobUpdate;
 import org.apache.aurora.gen.storage.RemoveQuota;
 import org.apache.aurora.gen.storage.RemoveTasks;
 import org.apache.aurora.gen.storage.SaveCronJob;
 import org.apache.aurora.gen.storage.SaveFrameworkId;
 import org.apache.aurora.gen.storage.SaveHostAttributes;
-import org.apache.aurora.gen.storage.SaveJobInstanceUpdateEvent;
 import org.apache.aurora.gen.storage.SaveJobUpdate;
-import org.apache.aurora.gen.storage.SaveJobUpdateEvent;
 import org.apache.aurora.gen.storage.SaveQuota;
 import org.apache.aurora.gen.storage.SaveTasks;
 import org.apache.aurora.gen.storage.Snapshot;
@@ -90,10 +89,8 @@ import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult.Quiet;
 import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
 import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
-import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
 import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdate;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateEvent;
+import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
 import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
 import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
@@ -320,38 +317,25 @@ public class LogStorageTest extends EasyMockTest {
     expect(storageUtil.attributeStore.saveHostAttributes(
         IHostAttributes.build(hostAttributes2.getHostAttributes()))).andReturn(true);
 
-    JobUpdate actualUpdate = new JobUpdate()
-        .setSummary(new JobUpdateSummary().setKey(UPDATE_ID.newBuilder()))
-        .setInstructions(new JobUpdateInstructions()
-            .setInitialState(
-                ImmutableSet.of(new InstanceTaskConfig().setTask(nonBackfilledConfig())))
-            .setDesiredState(new InstanceTaskConfig().setTask(nonBackfilledConfig())));
-    JobUpdate expectedUpdate = actualUpdate.deepCopy();
-    expectedUpdate.getInstructions().getDesiredState().setTask(makeConfig(JOB_KEY).newBuilder());
-    expectedUpdate.getInstructions().getInitialState()
-        .forEach(e -> e.setTask(makeConfig(JOB_KEY).newBuilder()));
-    SaveJobUpdate saveUpdate = new SaveJobUpdate().setJobUpdate(actualUpdate);
-    builder.add(createTransaction(Op.saveJobUpdate(saveUpdate)));
-    storageUtil.jobUpdateStore.saveJobUpdate(IJobUpdate.build(expectedUpdate));
+    JobUpdateDetails jobUpdate = new JobUpdateDetails()
+        .setInstanceEvents(ImmutableList.of(new JobInstanceUpdateEvent()
+          .setTimestampMs(100)
+          .setAction(JobUpdateAction.INSTANCE_UPDATING)))
+        .setUpdateEvents(ImmutableList.of(new JobUpdateEvent()
+            .setStatus(JobUpdateStatus.ROLLED_FORWARD)
+            .setMessage("rolling forward")))
+        .setUpdate(new JobUpdate()
+          .setSummary(new JobUpdateSummary().setKey(UPDATE_ID.newBuilder()))
+          .setInstructions(new JobUpdateInstructions()
+              .setInitialState(
+                  ImmutableSet.of(new InstanceTaskConfig().setTask(nonBackfilledConfig())))
+              .setDesiredState(new InstanceTaskConfig().setTask(nonBackfilledConfig()))));
+    builder.add(createTransaction(Op.saveJobUpdate(new SaveJobUpdate().setDetails(jobUpdate))));
+    storageUtil.jobUpdateStore.saveJobUpdate(IJobUpdateDetails.build(jobUpdate));
 
-    SaveJobUpdateEvent saveUpdateEvent =
-        new SaveJobUpdateEvent(new JobUpdateEvent(), UPDATE_ID.newBuilder());
-    builder.add(createTransaction(Op.saveJobUpdateEvent(saveUpdateEvent)));
-    storageUtil.jobUpdateStore.saveJobUpdateEvent(
-        UPDATE_ID,
-        IJobUpdateEvent.build(saveUpdateEvent.getEvent()));
-
-    SaveJobInstanceUpdateEvent saveInstanceEvent = new SaveJobInstanceUpdateEvent(
-        new JobInstanceUpdateEvent(),
-        UPDATE_ID.newBuilder());
-    builder.add(createTransaction(Op.saveJobInstanceUpdateEvent(saveInstanceEvent)));
-    storageUtil.jobUpdateStore.saveJobInstanceUpdateEvent(
-        UPDATE_ID,
-        IJobInstanceUpdateEvent.build(saveInstanceEvent.getEvent()));
-
-    builder.add(createTransaction(Op.pruneJobUpdateHistory(new PruneJobUpdateHistory(5, 10L))));
-    expect(storageUtil.jobUpdateStore.pruneHistory(5, 10L))
-        .andReturn(ImmutableSet.of(IJobUpdateKey.build(UPDATE_ID.newBuilder())));
+    builder.add(createTransaction(Op.removeJobUpdate(
+        new RemoveJobUpdate().setKey(UPDATE_ID.newBuilder()))));
+    storageUtil.jobUpdateStore.removeJobUpdate(UPDATE_ID);
 
     // NOOP LogEntry
     builder.add(LogEntry.noop(true));
@@ -776,18 +760,25 @@ public class LogStorageTest extends EasyMockTest {
 
   @Test
   public void testSaveUpdate() throws Exception {
-    IJobUpdate update = IJobUpdate.build(new JobUpdate()
-        .setSummary(new JobUpdateSummary()
-            .setKey(UPDATE_ID.newBuilder())
-            .setUser("user"))
-        .setInstructions(new JobUpdateInstructions()
-            .setDesiredState(new InstanceTaskConfig()
-                .setTask(new TaskConfig())
-                .setInstances(ImmutableSet.of(new Range(0, 3))))
-            .setInitialState(ImmutableSet.of(new InstanceTaskConfig()
-                .setTask(new TaskConfig())
-                .setInstances(ImmutableSet.of(new Range(0, 3)))))
-            .setSettings(new JobUpdateSettings())));
+    IJobUpdateDetails update = IJobUpdateDetails.build(new JobUpdateDetails()
+        .setUpdateEvents(ImmutableList.of(new JobUpdateEvent()
+            .setTimestampMs(100)
+            .setStatus(JobUpdateStatus.ROLLING_FORWARD)))
+        .setInstanceEvents(ImmutableList.of(new JobInstanceUpdateEvent()
+            .setTimestampMs(100)
+            .setAction(JobUpdateAction.INSTANCE_UPDATING)))
+        .setUpdate(new JobUpdate()
+          .setSummary(new JobUpdateSummary()
+              .setKey(UPDATE_ID.newBuilder())
+              .setUser("user"))
+          .setInstructions(new JobUpdateInstructions()
+              .setDesiredState(new InstanceTaskConfig()
+                  .setTask(new TaskConfig())
+                  .setInstances(ImmutableSet.of(new Range(0, 3))))
+              .setInitialState(ImmutableSet.of(new InstanceTaskConfig()
+                  .setTask(new TaskConfig())
+                  .setInstances(ImmutableSet.of(new Range(0, 3)))))
+              .setSettings(new JobUpdateSettings()))));
 
     new AbstractMutationFixture() {
       @Override
@@ -795,7 +786,7 @@ public class LogStorageTest extends EasyMockTest {
         storageUtil.expectWrite();
         storageUtil.jobUpdateStore.saveJobUpdate(update);
         streamMatcher.expectTransaction(
-            Op.saveJobUpdate(new SaveJobUpdate().setJobUpdate(update.newBuilder())))
+            Op.saveJobUpdate(new SaveJobUpdate().setDetails(update.newBuilder())))
             .andReturn(position);
       }
 
@@ -807,77 +798,24 @@ public class LogStorageTest extends EasyMockTest {
   }
 
   @Test
-  public void testSaveJobUpdateEvent() throws Exception {
-    IJobUpdateEvent event = IJobUpdateEvent.build(new JobUpdateEvent()
-        .setStatus(JobUpdateStatus.ROLLING_BACK)
-        .setTimestampMs(12345L));
-
-    new AbstractMutationFixture() {
-      @Override
-      protected void setupExpectations() throws Exception {
-        storageUtil.expectWrite();
-        storageUtil.jobUpdateStore.saveJobUpdateEvent(UPDATE_ID, event);
-        streamMatcher.expectTransaction(Op.saveJobUpdateEvent(new SaveJobUpdateEvent(
-            event.newBuilder(),
-            UPDATE_ID.newBuilder()))).andReturn(position);
-      }
-
-      @Override
-      protected void performMutations(MutableStoreProvider storeProvider) {
-        storeProvider.getJobUpdateStore().saveJobUpdateEvent(UPDATE_ID, event);
-      }
-    }.run();
-  }
-
-  @Test
-  public void testSaveJobInstanceUpdateEvent() throws Exception {
-    IJobInstanceUpdateEvent event = IJobInstanceUpdateEvent.build(new JobInstanceUpdateEvent()
-        .setAction(JobUpdateAction.INSTANCE_ROLLING_BACK)
-        .setTimestampMs(12345L)
-        .setInstanceId(0));
-
-    new AbstractMutationFixture() {
-      @Override
-      protected void setupExpectations() throws Exception {
-        storageUtil.expectWrite();
-        storageUtil.jobUpdateStore.saveJobInstanceUpdateEvent(UPDATE_ID, event);
-        streamMatcher.expectTransaction(Op.saveJobInstanceUpdateEvent(
-            new SaveJobInstanceUpdateEvent(
-                event.newBuilder(),
-                UPDATE_ID.newBuilder())))
-            .andReturn(position);
-      }
-
-      @Override
-      protected void performMutations(MutableStoreProvider storeProvider) {
-        storeProvider.getJobUpdateStore().saveJobInstanceUpdateEvent(UPDATE_ID, event);
-      }
-    }.run();
-  }
-
-  @Test
   public void testPruneHistory() throws Exception {
-    PruneJobUpdateHistory pruneHistory = new PruneJobUpdateHistory()
-        .setHistoryPruneThresholdMs(1L)
-        .setPerJobRetainCount(1);
+    IJobUpdateKey key = IJobUpdateKey.build(new JobUpdateKey()
+        .setJob(JOB_KEY.newBuilder())
+        .setId("update-id"));
 
     new AbstractMutationFixture() {
       @Override
       protected void setupExpectations() throws Exception {
         storageUtil.expectWrite();
-        expect(storageUtil.jobUpdateStore.pruneHistory(
-            pruneHistory.getPerJobRetainCount(),
-            pruneHistory.getHistoryPruneThresholdMs()))
-            .andReturn(ImmutableSet.of(UPDATE_ID));
+        storageUtil.jobUpdateStore.removeJobUpdate(key);
 
-        streamMatcher.expectTransaction(Op.pruneJobUpdateHistory(pruneHistory)).andReturn(position);
+        streamMatcher.expectTransaction(Op.removeJobUpdate(
+            new RemoveJobUpdate().setKey(key.newBuilder()))).andReturn(position);
       }
 
       @Override
       protected void performMutations(MutableStoreProvider storeProvider) {
-        storeProvider.getJobUpdateStore().pruneHistory(
-            pruneHistory.getPerJobRetainCount(),
-            pruneHistory.getHistoryPruneThresholdMs());
+        storeProvider.getJobUpdateStore().removeJobUpdate(key);
       }
     }.run();
   }

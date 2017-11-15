@@ -33,9 +33,7 @@ import org.apache.aurora.common.stats.SlidingStats.Timeable;
 import org.apache.aurora.common.util.BuildInfo;
 import org.apache.aurora.common.util.Clock;
 import org.apache.aurora.gen.HostAttributes;
-import org.apache.aurora.gen.JobInstanceUpdateEvent;
 import org.apache.aurora.gen.JobUpdateDetails;
-import org.apache.aurora.gen.JobUpdateEvent;
 import org.apache.aurora.gen.storage.QuotaConfiguration;
 import org.apache.aurora.gen.storage.SchedulerMetadata;
 import org.apache.aurora.gen.storage.Snapshot;
@@ -50,9 +48,7 @@ import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
 import org.apache.aurora.scheduler.storage.Storage.Volatile;
 import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
 import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
-import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateEvent;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
+import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
 import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
 import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
 import org.slf4j.Logger;
@@ -230,23 +226,8 @@ public class SnapshotStoreImpl implements SnapshotStore<Snapshot> {
             updateStore.deleteAllUpdatesAndEvents();
             for (StoredJobUpdateDetails storedDetails : snapshot.getJobUpdateDetails()) {
               JobUpdateDetails details = storedDetails.getDetails();
-              updateStore.saveJobUpdate(thriftBackfill.backFillJobUpdate(details.getUpdate()));
-
-              if (details.getUpdateEventsSize() > 0) {
-                for (JobUpdateEvent updateEvent : details.getUpdateEvents()) {
-                  updateStore.saveJobUpdateEvent(
-                      IJobUpdateKey.build(details.getUpdate().getSummary().getKey()),
-                      IJobUpdateEvent.build(updateEvent));
-                }
-              }
-
-              if (details.getInstanceEventsSize() > 0) {
-                for (JobInstanceUpdateEvent instanceEvent : details.getInstanceEvents()) {
-                  updateStore.saveJobInstanceUpdateEvent(
-                      IJobUpdateKey.build(details.getUpdate().getSummary().getKey()),
-                      IJobInstanceUpdateEvent.build(instanceEvent));
-                }
-              }
+              details.setUpdate(thriftBackfill.backFillJobUpdate(details.getUpdate()).newBuilder());
+              updateStore.saveJobUpdate(IJobUpdateDetails.build(details));
             }
           }
         }
