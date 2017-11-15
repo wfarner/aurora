@@ -296,7 +296,7 @@ class StreamManagerImpl implements StreamManager {
         case SAVE_HOST_ATTRIBUTES:
           return coalesce(prior.getSaveHostAttributes(), next.getSaveHostAttributes());
         case SAVE_JOB_UPDATE:
-
+          return coalesce(prior.getSaveJobUpdate(), next.getSaveJobUpdate());
         default:
           return false;
       }
@@ -345,9 +345,7 @@ class StreamManagerImpl implements StreamManager {
 
     private boolean coalesce(SaveJobUpdate prior, SaveJobUpdate next) {
       if (nonNull(prior.getDetails()) && nonNull(next.getDetails())) {
-        return true;
-      }
-      if (nonNull(prior.getJobUpdate()) && nonNull(next.getJobUpdate())) {
+        prior.setDetails(next.getDetails());
         return true;
       }
       return false;

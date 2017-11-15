@@ -350,7 +350,7 @@ class ReadOnlySchedulerImpl implements ReadOnlyScheduler.Iface {
     // TODO(zmanji): Remove this code once `mutableKey` is removed in AURORA-1765
     IJobUpdateKey key = IJobUpdateKey.build(mutableKey);
     Optional<IJobUpdateDetails> details = storage.read(storeProvider ->
-        storeProvider.getJobUpdateStore().fetchJobUpdates(key));
+        storeProvider.getJobUpdateStore().fetchJobUpdate(key));
 
     if (details.isPresent()) {
       return addMessage(ok(Result.getJobUpdateDetailsResult(

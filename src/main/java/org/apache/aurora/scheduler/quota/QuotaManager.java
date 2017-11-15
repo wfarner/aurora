@@ -16,6 +16,7 @@ package org.apache.aurora.scheduler.quota;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -26,7 +27,6 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.RangeSet;
 
@@ -38,7 +38,6 @@ import org.apache.aurora.scheduler.configuration.ConfigurationManager;
 import org.apache.aurora.scheduler.resources.ResourceBag;
 import org.apache.aurora.scheduler.resources.ResourceManager;
 import org.apache.aurora.scheduler.resources.ResourceType;
-import org.apache.aurora.scheduler.storage.JobUpdateStore;
 import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
 import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
 import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
@@ -48,7 +47,6 @@ import org.apache.aurora.scheduler.storage.entities.IJobKey;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdate;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateInstructions;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateQuery;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateSummary;
 import org.apache.aurora.scheduler.storage.entities.IRange;
 import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
 import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
@@ -274,8 +272,12 @@ public interface QuotaManager {
           .from(storeProvider.getTaskStore().fetchTasks(Query.roleScoped(role).active()))
           .transform(IScheduledTask::getAssignedTask);
 
-      Map<IJobKey, IJobUpdateInstructions> updates = Maps.newHashMap(
-          fetchActiveJobUpdates(storeProvider.getJobUpdateStore(), role));
+      Map<IJobKey, IJobUpdateInstructions> updates = storeProvider.getJobUpdateStore()
+          .fetchJobUpdates(updateQuery(role))
+          .stream()
+          .collect(Collectors.toMap(
+              u -> u.getUpdate().getSummary().getKey().getJob(),
+              u -> u.getUpdate().getInstructions()));
 
       // Mix in a requested job update (if present) to correctly calculate consumption.
       // This would be an update that is not saved in the store yet (i.e. the one quota is
@@ -396,20 +398,6 @@ public interface QuotaManager {
         }
         return true;
       };
-    }
-
-    private static Map<IJobKey, IJobUpdateInstructions> fetchActiveJobUpdates(
-        final JobUpdateStore jobUpdateStore,
-        String role) {
-
-      Function<IJobUpdateSummary, IJobUpdate> fetchUpdate =
-          summary -> jobUpdateStore.fetchJobUpdates(summary.getKey()).get().getUpdate();
-
-      return Maps.transformValues(
-          FluentIterable.from(jobUpdateStore.fetchJobUpdateSummaries(updateQuery(role)))
-              .transform(fetchUpdate)
-              .uniqueIndex(UPDATE_TO_JOB_KEY),
-          IJobUpdate::getInstructions);
     }
 
     @VisibleForTesting

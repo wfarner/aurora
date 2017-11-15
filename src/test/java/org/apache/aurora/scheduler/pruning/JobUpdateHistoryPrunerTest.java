@@ -29,6 +29,7 @@ import org.apache.aurora.gen.JobUpdateStatus;
 import org.apache.aurora.gen.JobUpdateSummary;
 import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.pruning.JobUpdateHistoryPruner.HistoryPrunerSettings;
+import org.apache.aurora.scheduler.storage.JobUpdateStore;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
 import org.apache.aurora.scheduler.storage.entities.IJobKey;
@@ -108,7 +109,7 @@ public class JobUpdateHistoryPrunerTest {
   }
 
   private Optional<IJobUpdateDetails> getUpdate(IJobUpdateKey key) {
-    return storage.read(store -> store.getJobUpdateStore().fetchJobUpdates(key));
+    return storage.read(store -> store.getJobUpdateStore().fetchJobUpdate(key));
   }
 
   private void pruneHistory(int retainCount, long pruningThresholdMs) {
@@ -127,7 +128,7 @@ public class JobUpdateHistoryPrunerTest {
     storage.read(store -> {
       assertEquals(
           ImmutableSet.of(updates),
-          store.getJobUpdateStore().fetchAllJobUpdateDetails());
+          store.getJobUpdateStore().fetchJobUpdates(JobUpdateStore.MATCH_ALL));
       return null;
     });
   }

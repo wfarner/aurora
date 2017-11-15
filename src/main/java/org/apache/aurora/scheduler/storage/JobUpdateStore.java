@@ -14,11 +14,11 @@
 package org.apache.aurora.scheduler.storage;
 
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Set;
 
 import com.google.common.base.Optional;
 
+import org.apache.aurora.gen.JobUpdateQuery;
 import org.apache.aurora.gen.JobUpdateStatus;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
@@ -43,13 +43,15 @@ public interface JobUpdateStore {
       ERROR
   );
 
+  IJobUpdateQuery MATCH_ALL = IJobUpdateQuery.build(new JobUpdateQuery());
+
   /**
    * Fetches a read-only view of job update details matching the {@code query}.
    *
    * @param query Query to identify job update details with.
    * @return A read-only list view of job update details matching the query.
    */
-  List<IJobUpdateDetails> fetchJobUpdates(IJobUpdateQuery query);
+  Set<IJobUpdateDetails> fetchJobUpdates(IJobUpdateQuery query);
 
   /**
    * Fetches a read-only view of job update details.
@@ -57,7 +59,7 @@ public interface JobUpdateStore {
    * @param key Update identifier.
    * @return A read-only view of job update details.
    */
-  Optional<IJobUpdateDetails> fetchJobUpdates(IJobUpdateKey key);
+  Optional<IJobUpdateDetails> fetchJobUpdate(IJobUpdateKey key);
 
   interface Mutable extends JobUpdateStore {
 
@@ -76,8 +78,8 @@ public interface JobUpdateStore {
     void removeJobUpdates(Set<IJobUpdateKey> keys);
 
     /**
-     * Deletes all updates and update events from the store.
+     * Deletes all updates from the store.
      */
-    void deleteAllUpdatesAndEvents();
+    void deleteAllUpdates();
   }
 }

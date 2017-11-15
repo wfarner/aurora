@@ -16,8 +16,8 @@ package org.apache.aurora.scheduler.thrift;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
-
 import java.util.stream.Collectors;
+
 import javax.annotation.Nullable;
 
 import com.google.common.base.Function;
@@ -83,7 +83,6 @@ import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
 import org.apache.aurora.scheduler.storage.entities.IJobKey;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateQuery;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateSummary;
 import org.apache.aurora.scheduler.storage.entities.IRange;
 import org.apache.aurora.scheduler.storage.entities.IResponse;
 import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
@@ -590,22 +589,22 @@ public class ReadOnlySchedulerImplTest extends EasyMockTest {
   @Test
   public void testGetJobUpdateSummaries() throws Exception {
     JobUpdateQuery query = new JobUpdateQuery().setRole(ROLE);
-    List<JobUpdateSummary> summaries = createJobUpdateSummaries(5);
-    expect(storageUtil.jobUpdateStore.fetchJobUpdateSummaries(IJobUpdateQuery.build(query)))
-        .andReturn(IJobUpdateSummary.listFromBuilders(summaries));
+    Set<JobUpdateDetails> details = createJobUpdateDetails(5);
+    expect(storageUtil.jobUpdateStore.fetchJobUpdates(IJobUpdateQuery.build(query)))
+        .andReturn(IJobUpdateDetails.setFromBuilders(details));
 
     control.replay();
 
     Response response = assertOkResponse(thrift.getJobUpdateSummaries(query));
     assertEquals(
-        summaries,
+        details,
         response.getResult().getGetJobUpdateSummariesResult().getUpdateSummaries());
   }
 
   @Test
   public void testGetJobUpdateDetails() throws Exception {
     JobUpdateDetails details = createJobUpdateDetails();
-    expect(storageUtil.jobUpdateStore.fetchJobUpdates(UPDATE_KEY))
+    expect(storageUtil.jobUpdateStore.fetchJobUpdate(UPDATE_KEY))
         .andReturn(Optional.of(IJobUpdateDetails.build(details)));
 
     control.replay();
@@ -621,7 +620,7 @@ public class ReadOnlySchedulerImplTest extends EasyMockTest {
   @Test
   public void testGetJobUpdateDetailsQuery() throws Exception {
     JobUpdateQuery query = new JobUpdateQuery().setRole(ROLE);
-    List<IJobUpdateDetails> details = IJobUpdateDetails.listFromBuilders(createJobUpdateDetails(5));
+    Set<IJobUpdateDetails> details = IJobUpdateDetails.setFromBuilders(createJobUpdateDetails(5));
     expect(storageUtil.jobUpdateStore.fetchJobUpdates(IJobUpdateQuery.build(query)))
         .andReturn(details);
 
@@ -644,16 +643,16 @@ public class ReadOnlySchedulerImplTest extends EasyMockTest {
     return builder.build();
   }
 
-  private static List<JobUpdateDetails> createJobUpdateDetails(int count) {
+  private static Set<JobUpdateDetails> createJobUpdateDetails(int count) {
     List<JobUpdateSummary> summaries = createJobUpdateSummaries(count);
     return summaries.stream()
         .map(jobUpdateSummary ->
             new JobUpdateDetails().setUpdate(new JobUpdate().setSummary(jobUpdateSummary)))
-        .collect(Collectors.toList());
+        .collect(Collectors.toSet());
   }
 
   private static JobUpdateDetails createJobUpdateDetails() {
-    return createJobUpdateDetails(1).get(0);
+    return createJobUpdateDetails(1).stream().findFirst().get();
   }
 
   @Test
@@ -739,7 +738,7 @@ public class ReadOnlySchedulerImplTest extends EasyMockTest {
 
   @Test
   public void testGetJobUpdateDetailsInvalidId() throws Exception {
-    expect(storageUtil.jobUpdateStore.fetchJobUpdates(UPDATE_KEY))
+    expect(storageUtil.jobUpdateStore.fetchJobUpdate(UPDATE_KEY))
         .andReturn(Optional.absent());
 
     control.replay();

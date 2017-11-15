@@ -38,10 +38,8 @@ import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.base.TaskTestUtil;
 import org.apache.aurora.scheduler.storage.JobUpdateStore;
 import org.apache.aurora.scheduler.storage.Storage;
-import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
 import org.apache.aurora.scheduler.storage.entities.IJobKey;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateEvent;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
 
 /**
@@ -63,19 +61,11 @@ final class JobUpdates {
     ImmutableSet.Builder<IJobUpdateKey> keyBuilder = ImmutableSet.builder();
     storage.write((Storage.MutateWork.NoResult.Quiet) store -> {
       JobUpdateStore.Mutable updateStore = store.getJobUpdateStore();
-      updateStore.deleteAllUpdatesAndEvents();
+      updateStore.deleteAllUpdates();
       for (IJobUpdateDetails details : updates) {
         IJobUpdateKey key = details.getUpdate().getSummary().getKey();
         keyBuilder.add(key);
-        updateStore.saveJobUpdate(details.getUpdate());
-
-        for (IJobUpdateEvent updateEvent : details.getUpdateEvents()) {
-          updateStore.saveJobUpdateEvent(key, updateEvent);
-        }
-
-        for (IJobInstanceUpdateEvent instanceEvent : details.getInstanceEvents()) {
-          updateStore.saveJobInstanceUpdateEvent(key, instanceEvent);
-        }
+        updateStore.saveJobUpdate(details);
       }
     });
     return keyBuilder.build();

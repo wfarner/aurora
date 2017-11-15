@@ -13,7 +13,6 @@
  */
 package org.apache.aurora.scheduler.storage.log;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -243,7 +242,7 @@ class WriteAheadStorage implements
   }
 
   @Override
-  public void deleteAllUpdatesAndEvents() {
+  public void deleteAllUpdates() {
     throw new UnsupportedOperationException(
         "Unsupported since casual storage users should never be doing this.");
   }
@@ -334,12 +333,12 @@ class WriteAheadStorage implements
   }
 
   @Override
-  public List<IJobUpdateDetails> fetchJobUpdates(IJobUpdateQuery query) {
+  public Set<IJobUpdateDetails> fetchJobUpdates(IJobUpdateQuery query) {
     return this.jobUpdateStore.fetchJobUpdates(query);
   }
 
   @Override
-  public Optional<IJobUpdateDetails> fetchJobUpdates(IJobUpdateKey key) {
-    return this.jobUpdateStore.fetchJobUpdates(key);
+  public Optional<IJobUpdateDetails> fetchJobUpdate(IJobUpdateKey key) {
+    return this.jobUpdateStore.fetchJobUpdate(key);
   }
 }

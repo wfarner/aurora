@@ -214,7 +214,7 @@ public class SnapshotStoreImpl implements SnapshotStore<Snapshot> {
         @Override
         public void saveToSnapshot(MutableStoreProvider store, Snapshot snapshot) {
           snapshot.setJobUpdateDetails(
-              store.getJobUpdateStore().fetchAllJobUpdateDetails().stream()
+              store.getJobUpdateStore().fetchJobUpdates(JobUpdateStore.MATCH_ALL).stream()
                   .map(u -> new StoredJobUpdateDetails().setDetails(u.newBuilder()))
                   .collect(Collectors.toSet()));
         }
@@ -223,7 +223,7 @@ public class SnapshotStoreImpl implements SnapshotStore<Snapshot> {
         public void restoreFromSnapshot(MutableStoreProvider store, Snapshot snapshot) {
           if (snapshot.getJobUpdateDetailsSize() > 0) {
             JobUpdateStore.Mutable updateStore = store.getJobUpdateStore();
-            updateStore.deleteAllUpdatesAndEvents();
+            updateStore.deleteAllUpdates();
             for (StoredJobUpdateDetails storedDetails : snapshot.getJobUpdateDetails()) {
               JobUpdateDetails details = storedDetails.getDetails();
               details.setUpdate(thriftBackfill.backFillJobUpdate(details.getUpdate()).newBuilder());

@@ -162,6 +162,6 @@ public class WriteAheadStorageTest extends EasyMockTest {
   @Test(expected = UnsupportedOperationException.class)
   public void testDeleteAllUpdatesAndEvents() {
     control.replay();
-    storage.deleteAllUpdatesAndEvents();
+    storage.deleteAllUpdates();
   }
 }

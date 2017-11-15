@@ -14,7 +14,6 @@
 
 package org.apache.aurora.scheduler.storage.mem;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
@@ -37,6 +36,7 @@ import org.apache.aurora.common.stats.StatsProvider;
 import org.apache.aurora.gen.JobUpdateAction;
 import org.apache.aurora.gen.JobUpdateStatus;
 import org.apache.aurora.scheduler.storage.JobUpdateStore;
+import org.apache.aurora.scheduler.storage.Storage.StorageException;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateInstructions;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
@@ -77,15 +77,15 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
     }
   }
 
-  @Timed("job_update_store_fetch_details_list")
+  @Timed("job_update_store_fetch_details_query")
   @Override
-  public synchronized List<IJobUpdateDetails> fetchJobUpdates(IJobUpdateQuery query) {
-    return performQuery(query).collect(Collectors.toList());
+  public synchronized Set<IJobUpdateDetails> fetchJobUpdates(IJobUpdateQuery query) {
+    return performQuery(query).collect(Collectors.toSet());
   }
 
   @Timed("job_update_store_fetch_details")
   @Override
-  public synchronized Optional<IJobUpdateDetails> fetchJobUpdates(IJobUpdateKey key) {
+  public synchronized Optional<IJobUpdateDetails> fetchJobUpdate(IJobUpdateKey key) {
     return Optional.fromNullable(updates.get(key));
   }
 
@@ -115,7 +115,13 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
   public synchronized void saveJobUpdate(IJobUpdateDetails update) {
     requireNonNull(update);
     validateInstructions(update.getUpdate().getInstructions());
-    updates.put(update.getUpdate().getSummary().getKey(), update);
+
+    IJobUpdateKey key = update.getUpdate().getSummary().getKey();
+    IJobUpdateDetails collision = updates.putIfAbsent(key, update);
+    if (collision != null) {
+      // TODO(wfarner): Revisit this behavior, it is non-idempotent.
+      throw new StorageException("Update already exists: " + key);
+    }
   }
 
   @Timed("job_update_store_delete_updates")
@@ -127,7 +133,7 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
 
   @Timed("job_update_store_delete_all")
   @Override
-  public synchronized void deleteAllUpdatesAndEvents() {
+  public synchronized void deleteAllUpdates() {
     updates.clear();
   }
 
