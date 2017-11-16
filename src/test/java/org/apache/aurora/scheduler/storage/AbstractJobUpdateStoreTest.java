@@ -98,14 +98,14 @@ public abstract class AbstractJobUpdateStoreTest {
   private static IJobUpdateDetails makeFullyPopulatedUpdate(IJobUpdateKey key) {
     JobUpdateDetails builder = makeJobUpdate(key).newBuilder()
         .setUpdateEvents(ImmutableList.of(new JobUpdateEvent()
-            .setStatus(JobUpdateStatus.ROLLING_FORWARD)
+            .setStatus(ROLLING_FORWARD)
             .setTimestampMs(1)
             .setUser("user")
             .setMessage("message")))
         .setInstanceEvents(ImmutableList.of(new JobInstanceUpdateEvent()
             .setTimestampMs(2)
             .setInstanceId(1)
-            .setAction(JobUpdateAction.INSTANCE_UPDATING)));
+            .setAction(INSTANCE_UPDATING)));
     JobUpdateInstructions instructions = builder.getUpdate().getInstructions();
     Stream.of(
         instructions.getInitialState().stream()
@@ -532,7 +532,7 @@ TODO(wfarner): Finish.
 
   private void saveUpdate(IJobUpdateDetails update) {
     storage.write((NoResult.Quiet) storeProvider ->
-      storeProvider.getJobUpdateStore().saveJobUpdate(update)
+        storeProvider.getJobUpdateStore().saveJobUpdate(update)
     );
   }
 

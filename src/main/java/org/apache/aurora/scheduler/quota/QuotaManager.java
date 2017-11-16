@@ -462,9 +462,6 @@ public interface QuotaManager {
       return addAll(Iterables.transform(tasks, QUOTA_RESOURCES));
     }
 
-    private static final Function<IJobUpdate, IJobKey> UPDATE_TO_JOB_KEY =
-        input -> input.getSummary().getKey().getJob();
-
     private static int getUpdateInstanceCount(Set<IRange> ranges) {
       int instanceCount = 0;
       for (IRange range : ranges) {

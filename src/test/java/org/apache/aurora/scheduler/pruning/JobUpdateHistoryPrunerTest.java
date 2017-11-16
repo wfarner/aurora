@@ -159,7 +159,7 @@ public class JobUpdateHistoryPrunerTest {
                     .setStatus(status)))));
 
     storage.write((NoResult.Quiet) storeProvider ->
-      storeProvider.getJobUpdateStore().saveJobUpdate(update));
+        storeProvider.getJobUpdateStore().saveJobUpdate(update));
     return update;
   }
 }

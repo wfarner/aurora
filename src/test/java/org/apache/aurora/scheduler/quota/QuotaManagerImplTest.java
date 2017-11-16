@@ -13,8 +13,6 @@
  */
 package org.apache.aurora.scheduler.quota;
 
-import java.util.Set;
-
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableSet;
 
@@ -839,12 +837,6 @@ public class QuotaManagerImplTest extends EasyMockTest {
         .andReturn(ImmutableSet.of(
             buildJobUpdate(key, initial, initialInstances, desired, desiredInstances)))
         .times(times);
-  }
-
-  private Set<IJobUpdateDetails> buildJobUpdates(IJobUpdateKey key) {
-    return ImmutableSet.of(IJobUpdateDetails.build(new JobUpdateDetails()
-        .setUpdate(new JobUpdate()
-            .setSummary(new JobUpdateSummary().setKey(key.newBuilder())))));
   }
 
   private IJobUpdateDetails buildJobUpdate(

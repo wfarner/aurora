@@ -356,7 +356,9 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
           SaveJobUpdate save = op.getSaveJobUpdate();
           if (save.getDetails() != null) {
             writeBehindJobUpdateStore.saveJobUpdate(IJobUpdateDetails.build(save.getDetails()));
-          } else if (save.getJobUpdate() != null) {
+            return;
+          }
+          if (save.getJobUpdate() != null) {
             writeBehindJobUpdateStore.saveJobUpdate(
                 IJobUpdateDetails.build(new JobUpdateDetails().setUpdate(save.getJobUpdate())));
           }
