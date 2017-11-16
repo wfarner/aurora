@@ -19,12 +19,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Optional;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -37,6 +41,7 @@ import org.apache.aurora.common.application.Lifecycle;
 import org.apache.aurora.common.collections.Pair;
 import org.apache.aurora.common.quantity.Amount;
 import org.apache.aurora.common.quantity.Time;
+import org.apache.aurora.common.stats.StatsProvider;
 import org.apache.aurora.common.util.Clock;
 import org.apache.aurora.gen.JobInstanceUpdateEvent;
 import org.apache.aurora.gen.JobUpdateAction;
@@ -82,6 +87,8 @@ import static org.apache.aurora.gen.JobUpdateStatus.ROLL_FORWARD_AWAITING_PULSE;
 import static org.apache.aurora.scheduler.base.AsyncUtil.shutdownOnError;
 import static org.apache.aurora.scheduler.base.Jobs.AWAITING_PULSE_STATES;
 import static org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
+import static org.apache.aurora.scheduler.storage.Util.jobUpdateActionStatName;
+import static org.apache.aurora.scheduler.storage.Util.jobUpdateStatusStatName;
 import static org.apache.aurora.scheduler.updater.JobUpdateStateMachine.ACTIVE_QUERY;
 import static org.apache.aurora.scheduler.updater.JobUpdateStateMachine.AUTO_RESUME_STATES;
 import static org.apache.aurora.scheduler.updater.JobUpdateStateMachine.GET_ACTIVE_RESUME_STATE;
@@ -125,6 +132,9 @@ class JobUpdateControllerImpl implements JobUpdateController {
   private final Map<IJobKey, UpdateFactory.Update> updates =
       Collections.synchronizedMap(Maps.newHashMap());
 
+  private final LoadingCache<JobUpdateStatus, AtomicLong> jobUpdateEventStats;
+  private final LoadingCache<JobUpdateAction, AtomicLong> jobUpdateActionStats;
+
   @Inject
   JobUpdateControllerImpl(
       UpdateFactory updateFactory,
@@ -134,7 +144,8 @@ class JobUpdateControllerImpl implements JobUpdateController {
       UpdateAgentReserver updateAgentReserver,
       Clock clock,
       Lifecycle lifecycle,
-      TaskEventBatchWorker batchWorker) {
+      TaskEventBatchWorker batchWorker,
+      StatsProvider statsProvider) {
 
     this.updateFactory = requireNonNull(updateFactory);
     this.storage = requireNonNull(storage);
@@ -145,6 +156,27 @@ class JobUpdateControllerImpl implements JobUpdateController {
     this.batchWorker = requireNonNull(batchWorker);
     this.pulseHandler = new PulseHandler(clock);
     this.updateAgentReserver = requireNonNull(updateAgentReserver);
+
+    this.jobUpdateEventStats = CacheBuilder.newBuilder()
+        .build(new CacheLoader<JobUpdateStatus, AtomicLong>() {
+          @Override
+          public AtomicLong load(JobUpdateStatus status) {
+            return statsProvider.makeCounter(jobUpdateStatusStatName(status));
+          }
+        });
+    for (JobUpdateStatus status : JobUpdateStatus.values()) {
+      jobUpdateEventStats.getUnchecked(status).get();
+    }
+    this.jobUpdateActionStats = CacheBuilder.newBuilder()
+        .build(new CacheLoader<JobUpdateAction, AtomicLong>() {
+          @Override
+          public AtomicLong load(JobUpdateAction action) {
+            return statsProvider.makeCounter(jobUpdateActionStatName(action));
+          }
+        });
+    for (JobUpdateAction action : JobUpdateAction.values()) {
+      jobUpdateActionStats.getUnchecked(action).get();
+    }
   }
 
   @Override
@@ -427,7 +459,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
     storage.write((NoResult<UpdateStateException>) storeProvider -> {
 
       Optional<IJobUpdateDetails> update = storeProvider.getJobUpdateStore().fetchJobUpdate(key);
-      if (update == null) {
+      if (!update.isPresent()) {
         throw new UpdateStateException("Update does not exist " + key);
       }
 
@@ -471,6 +503,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
       JobUpdateDetails mutable = updateStore.fetchJobUpdate(key).get().newBuilder();
       mutable.addToUpdateEvents(proposedEvent.setTimestampMs(clock.nowMillis()).setStatus(status));
       updateStore.saveJobUpdate(IJobUpdateDetails.build(mutable));
+      jobUpdateEventStats.getUnchecked(status).incrementAndGet();
     }
 
     if (JobUpdateStore.TERMINAL_STATES.contains(status)) {
@@ -619,6 +652,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
           JobUpdateDetails mutable = updateStore.fetchJobUpdate(key).get().newBuilder();
           mutable.addToInstanceEvents(event);
           updateStore.saveJobUpdate(IJobUpdateDetails.build(mutable));
+          jobUpdateActionStats.getUnchecked(action).incrementAndGet();
         }
       }
     }

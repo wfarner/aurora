@@ -16,66 +16,33 @@ package org.apache.aurora.scheduler.storage.mem;
 
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.inject.Inject;
-
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
+import com.google.common.primitives.Longs;
 
 import org.apache.aurora.common.base.MorePreconditions;
 import org.apache.aurora.common.inject.TimedInterceptor.Timed;
-import org.apache.aurora.common.stats.StatsProvider;
-import org.apache.aurora.gen.JobUpdateAction;
-import org.apache.aurora.gen.JobUpdateStatus;
+import org.apache.aurora.gen.JobUpdateDetails;
+import org.apache.aurora.gen.JobUpdateState;
 import org.apache.aurora.scheduler.storage.JobUpdateStore;
-import org.apache.aurora.scheduler.storage.Storage.StorageException;
+import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
+import org.apache.aurora.scheduler.storage.entities.IJobUpdateEvent;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateInstructions;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
 import org.apache.aurora.scheduler.storage.entities.IJobUpdateQuery;
 
 import static java.util.Objects.requireNonNull;
 
-import static org.apache.aurora.scheduler.storage.Util.jobUpdateActionStatName;
-import static org.apache.aurora.scheduler.storage.Util.jobUpdateStatusStatName;
-
 public class MemJobUpdateStore implements JobUpdateStore.Mutable {
 
   private final Map<IJobUpdateKey, IJobUpdateDetails> updates = Maps.newConcurrentMap();
-  private final LoadingCache<JobUpdateStatus, AtomicLong> jobUpdateEventStats;
-  private final LoadingCache<JobUpdateAction, AtomicLong> jobUpdateActionStats;
-
-  @Inject
-  public MemJobUpdateStore(StatsProvider statsProvider) {
-    this.jobUpdateEventStats = CacheBuilder.newBuilder()
-        .build(new CacheLoader<JobUpdateStatus, AtomicLong>() {
-          @Override
-          public AtomicLong load(JobUpdateStatus status) {
-            return statsProvider.makeCounter(jobUpdateStatusStatName(status));
-          }
-        });
-    for (JobUpdateStatus status : JobUpdateStatus.values()) {
-      jobUpdateEventStats.getUnchecked(status).get();
-    }
-    this.jobUpdateActionStats = CacheBuilder.newBuilder()
-        .build(new CacheLoader<JobUpdateAction, AtomicLong>() {
-          @Override
-          public AtomicLong load(JobUpdateAction action) {
-            return statsProvider.makeCounter(jobUpdateActionStatName(action));
-          }
-        });
-    for (JobUpdateAction action : JobUpdateAction.values()) {
-      jobUpdateActionStats.getUnchecked(action).get();
-    }
-  }
 
   @Timed("job_update_store_fetch_details_query")
   @Override
@@ -116,12 +83,10 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
     requireNonNull(update);
     validateInstructions(update.getUpdate().getInstructions());
 
-    IJobUpdateKey key = update.getUpdate().getSummary().getKey();
-    IJobUpdateDetails collision = updates.putIfAbsent(key, update);
-    if (collision != null) {
-      // TODO(wfarner): Revisit this behavior, it is non-idempotent.
-      throw new StorageException("Update already exists: " + key);
-    }
+    JobUpdateDetails mutable = update.newBuilder();
+    mutable.getUpdate().getSummary().setState(synthesizeUpdateState(update));
+
+    updates.put(update.getUpdate().getSummary().getKey(), IJobUpdateDetails.build(mutable));
   }
 
   @Timed("job_update_store_delete_updates")
@@ -135,6 +100,29 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
   @Override
   public synchronized void deleteAllUpdates() {
     updates.clear();
+  }
+
+  private static JobUpdateState synthesizeUpdateState(IJobUpdateDetails update) {
+    JobUpdateState state = new JobUpdateState();
+
+    IJobUpdateEvent firstEvent = Iterables.getFirst(update.getUpdateEvents(), null);
+    if (firstEvent != null) {
+      state.setCreatedTimestampMs(firstEvent.getTimestampMs());
+    }
+
+    IJobUpdateEvent lastEvent = Iterables.getLast(update.getUpdateEvents(), null);
+    if (lastEvent != null) {
+      state.setStatus(lastEvent.getStatus());
+      state.setLastModifiedTimestampMs(lastEvent.getTimestampMs());
+    }
+
+    IJobInstanceUpdateEvent lastInstanceEvent = Iterables.getLast(update.getInstanceEvents(), null);
+    if (lastInstanceEvent != null) {
+      state.setLastModifiedTimestampMs(
+          Longs.max(state.getLastModifiedTimestampMs(), lastInstanceEvent.getTimestampMs()));
+    }
+
+    return state;
   }
 
   private Stream<IJobUpdateDetails> performQuery(IJobUpdateQuery query) {
