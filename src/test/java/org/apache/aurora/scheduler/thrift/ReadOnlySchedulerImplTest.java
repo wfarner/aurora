@@ -597,7 +597,7 @@ public class ReadOnlySchedulerImplTest extends EasyMockTest {
 
     Response response = assertOkResponse(thrift.getJobUpdateSummaries(query));
     assertEquals(
-        details,
+        details.stream().map(u -> u.getUpdate().getSummary()).collect(Collectors.toList()),
         response.getResult().getGetJobUpdateSummariesResult().getUpdateSummaries());
   }
 

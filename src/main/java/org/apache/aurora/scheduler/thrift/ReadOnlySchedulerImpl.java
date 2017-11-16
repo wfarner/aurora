@@ -340,6 +340,7 @@ class ReadOnlySchedulerImpl implements ReadOnlyScheduler.Iface {
               // TODO(wfarner): Modification time is not a stable ordering for pagination, but we
               // use it as such here.  The behavior is carried over from DbJobupdateStore; determine
               // if it is desired.
+              // Before bothering to change this, determine if we even care about ordering here.
               .sorted(REVERSE_LAST_MODIFIED_ORDER)
               .collect(Collectors.toList()));
 

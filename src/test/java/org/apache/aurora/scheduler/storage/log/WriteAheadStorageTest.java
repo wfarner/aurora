@@ -92,7 +92,7 @@ public class WriteAheadStorageTest extends EasyMockTest {
     expectOp(Op.removeJobUpdate(
         new RemoveJobUpdates().setKeys(IJobUpdateKey.toBuildersSet(removed))));
 
-    control.resetToStrict();
+    control.replay();
 
     storage.removeJobUpdates(removed);
   }

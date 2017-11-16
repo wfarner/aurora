@@ -387,6 +387,9 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
           mutable.addToInstanceEvents(event.getEvent());
           writeBehindJobUpdateStore.saveJobUpdate(IJobUpdateDetails.build(mutable));
         })
+        .put(Op._Fields.PRUNE_JOB_UPDATE_HISTORY, op -> {
+          LOG.info("Dropping prune operation.  Updates will be pruned later.");
+        })
         .put(Op._Fields.REMOVE_JOB_UPDATE, op ->
           writeBehindJobUpdateStore.removeJobUpdates(
               IJobUpdateKey.setFromBuilders(op.getRemoveJobUpdate().getKeys())))

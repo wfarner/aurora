@@ -13,20 +13,26 @@
  */
 package org.apache.aurora.scheduler.pruning;
 
-import com.google.common.base.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
 import org.apache.aurora.common.quantity.Amount;
 import org.apache.aurora.common.quantity.Time;
 import org.apache.aurora.common.util.testing.FakeClock;
+import org.apache.aurora.gen.InstanceTaskConfig;
 import org.apache.aurora.gen.JobUpdate;
 import org.apache.aurora.gen.JobUpdateDetails;
 import org.apache.aurora.gen.JobUpdateEvent;
+import org.apache.aurora.gen.JobUpdateInstructions;
 import org.apache.aurora.gen.JobUpdateKey;
 import org.apache.aurora.gen.JobUpdateState;
 import org.apache.aurora.gen.JobUpdateStatus;
 import org.apache.aurora.gen.JobUpdateSummary;
+import org.apache.aurora.gen.Range;
+import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.pruning.JobUpdateHistoryPruner.HistoryPrunerSettings;
 import org.apache.aurora.scheduler.storage.JobUpdateStore;
@@ -60,24 +66,17 @@ public class JobUpdateHistoryPrunerTest {
 
   @Test
   public void testPruneHistory() {
-    IJobUpdateKey updateId1 = makeKey("u11");
-    IJobUpdateKey updateId2 = makeKey("u12");
-    IJobUpdateKey updateId3 = makeKey("u13");
-    IJobUpdateKey updateId4 = makeKey("u14");
     IJobKey job2 = JobKeys.from("testRole2", "testEnv2", "job2");
-    IJobUpdateKey updateId5 = makeKey(job2, "u15");
-    IJobUpdateKey updateId6 = makeKey(job2, "u16");
-    IJobUpdateKey updateId7 = makeKey(job2, "u17");
 
-    IJobUpdateDetails update1 = makeAndSave(updateId1, ROLLING_BACK, 123L, 123L);
-    IJobUpdateDetails update2 = makeAndSave(updateId2, ABORTED, 124L, 124L);
-    IJobUpdateDetails update3 = makeAndSave(updateId3, ROLLED_BACK, 125L, 125L);
-    IJobUpdateDetails update4 = makeAndSave(updateId4, FAILED, 126L, 126L);
-    IJobUpdateDetails update5 = makeAndSave(updateId5, ERROR, 123L, 123L);
-    IJobUpdateDetails update6 = makeAndSave(updateId6, FAILED, 125L, 125L);
-    IJobUpdateDetails update7 = makeAndSave(updateId7, ROLLING_FORWARD, 126L, 126L);
+    IJobUpdateDetails update1 = makeAndSave(makeKey("u1"), ROLLING_BACK, 123L, 123L);
+    IJobUpdateDetails update2 = makeAndSave(makeKey("u2"), ABORTED, 124L, 124L);
+    IJobUpdateDetails update3 = makeAndSave(makeKey("u3"), ROLLED_BACK, 125L, 125L);
+    IJobUpdateDetails update4 = makeAndSave(makeKey("u4"), FAILED, 126L, 126L);
+    IJobUpdateDetails update5 = makeAndSave(makeKey(job2, "u5"), ERROR, 123L, 123L);
+    IJobUpdateDetails update6 = makeAndSave(makeKey(job2, "u6"), FAILED, 125L, 125L);
+    IJobUpdateDetails update7 = makeAndSave(makeKey(job2, "u7"), ROLLING_FORWARD, 126L, 126L);
 
-    long pruningThreshold = 120L;
+    long pruningThreshold = 120;
 
     // No updates pruned.
     pruneHistory(3, pruningThreshold);
@@ -92,33 +91,23 @@ public class JobUpdateHistoryPrunerTest {
     assertRetainedUpdates(update1, update4, update6, update7);
 
     // The oldest update is pruned.
-    pruneHistory(1, 126L);
+    pruneHistory(1, 126);
     assertRetainedUpdates(update1, update4, update7);
 
     // Nothing survives the 0 per job count.
     pruneHistory(0, pruningThreshold);
     assertRetainedUpdates(update1, update7);
-
-    /*
-    assertEquals(0L, statsProvider.getValue(JOB_UPDATES_PRUNED));
-    executorClock.advance(Amount.of(1L, Time.MILLISECONDS));
-    assertEquals(1L, statsProvider.getValue(JOB_UPDATES_PRUNED));
-    executorClock.advance(Amount.of(1L, Time.MILLISECONDS));
-    assertEquals(1L, statsProvider.getValue(JOB_UPDATES_PRUNED));
-    */
-  }
-
-  private Optional<IJobUpdateDetails> getUpdate(IJobUpdateKey key) {
-    return storage.read(store -> store.getJobUpdateStore().fetchJobUpdate(key));
   }
 
   private void pruneHistory(int retainCount, long pruningThresholdMs) {
+    FakeClock clock = new FakeClock();
+    clock.setNowMillis(100 + pruningThresholdMs);
     JobUpdateHistoryPruner pruner = new JobUpdateHistoryPruner(
-        new FakeClock(),
+        clock,
         storage,
         new HistoryPrunerSettings(
             Amount.of(1L, Time.DAYS),
-            Amount.of(pruningThresholdMs, Time.MILLISECONDS),
+            Amount.of(100L, Time.MILLISECONDS),
             retainCount),
         new FakeStatsProvider());
     pruner.runForTest();
@@ -127,8 +116,11 @@ public class JobUpdateHistoryPrunerTest {
   private void assertRetainedUpdates(IJobUpdateDetails... updates) {
     storage.read(store -> {
       assertEquals(
-          ImmutableSet.of(updates),
-          store.getJobUpdateStore().fetchJobUpdates(JobUpdateStore.MATCH_ALL));
+          Stream.of(updates).map(u -> u.getUpdate().getSummary().getKey())
+              .collect(Collectors.toSet()),
+          store.getJobUpdateStore().fetchJobUpdates(JobUpdateStore.MATCH_ALL).stream()
+              .map(u -> u.getUpdate().getSummary().getKey())
+              .collect(Collectors.toSet()));
       return null;
     });
   }
@@ -155,6 +147,10 @@ public class JobUpdateHistoryPrunerTest {
         ))
         .setInstanceEvents(ImmutableList.of())
         .setUpdate(new JobUpdate()
+            .setInstructions(new JobUpdateInstructions()
+                .setDesiredState(new InstanceTaskConfig()
+                    .setTask(new TaskConfig())
+                    .setInstances(ImmutableSet.of(new Range()))))
             .setSummary(new JobUpdateSummary()
                 .setKey(key.newBuilder())
                 .setState(new JobUpdateState()
@@ -162,9 +158,8 @@ public class JobUpdateHistoryPrunerTest {
                     .setLastModifiedTimestampMs(lastMs)
                     .setStatus(status)))));
 
-    storage.write((NoResult.Quiet) storeProvider -> {
-      storeProvider.getJobUpdateStore().saveJobUpdate(update);
-    });
+    storage.write((NoResult.Quiet) storeProvider ->
+      storeProvider.getJobUpdateStore().saveJobUpdate(update));
     return update;
   }
 }
