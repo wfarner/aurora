@@ -17,7 +17,7 @@ plugins {
   id 'com.github.hierynomus.license' version '0.11.0'
   id 'com.moowork.node' version '1.2.0'
   id 'me.champeau.gradle.jmh' version '0.4.4'
-  id "net.morimekta.providence.gradle" version '0.7.2-012' apply false
+  id "net.morimekta.providence.gradle" version '0.7.2' apply false
 }
 
 apply plugin: 'application'
@@ -77,7 +77,6 @@ For more details, please see https://issues.apache.org/jira/browse/AURORA-1169
   ext.mybatisRev = '3.4.1'
   ext.nettyRev = '4.0.52.Final'
   ext.protobufRev = '2.6.1'
-  ext.providenceRev = '0.6.1'
   ext.servletRev = '3.1.0'
   ext.slf4jRev = '1.7.25'
   ext.stringTemplateRev = '3.2.1'
@@ -182,7 +181,6 @@ project(':commons') {
     compile "org.antlr:stringtemplate:${stringTemplateRev}"
     compile "org.apache.zookeeper:zookeeper:${zookeeperRev}"
     compile "org.easymock:easymock:3.4"
-    compile 'net.morimekta.providence:providence-core:0.6.1'
 
     // There are a few testing support libs in the src/main/java trees that use junit - currently:
     //   src/main/java/org/apache/aurora/common/zookeeper/testing
@@ -190,16 +188,6 @@ project(':commons') {
     compile "junit:junit:${junitRev}"
 
     testCompile "junit:junit:${junitRev}"
-  }
-
-  providence {
-    main {
-      requireFieldId = true
-      requireEnumValue = true
-      input = fileTree('commons/src/main/thrift/org/apache/aurora/common/thrift') {
-        include('endpoint.thrift')
-      }
-    }
   }
 }
 
@@ -211,7 +199,7 @@ project(':api') {
   }
 
   dependencies {
-    compile 'net.morimekta.providence:providence-core:0.6.1'
+    compile 'net.morimekta.providence:providence-core:0.7.2'
   }
 
   providence {
