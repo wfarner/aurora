@@ -19,7 +19,6 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
@@ -73,8 +72,6 @@ import org.apache.aurora.scheduler.events.PubsubEvent;
 import org.apache.aurora.scheduler.mesos.Driver;
 import org.apache.aurora.scheduler.scheduling.RescheduleCalculator;
 import org.apache.aurora.scheduler.scheduling.RescheduleCalculator.RescheduleCalculatorImpl;
-import org.apache.aurora.scheduler.state.LockManager;
-import org.apache.aurora.scheduler.state.LockManagerImpl;
 import org.apache.aurora.scheduler.state.StateChangeResult;
 import org.apache.aurora.scheduler.state.StateManager;
 import org.apache.aurora.scheduler.state.StateManagerImpl;
@@ -91,8 +88,6 @@ import org.apache.aurora.gen.JobUpdateDetails;
 import org.apache.aurora.gen.JobUpdateEvent;
 import org.apache.aurora.gen.JobUpdateKey;
 import org.apache.aurora.gen.JobUpdateSummary;
-import org.apache.aurora.gen.Lock;
-import org.apache.aurora.gen.LockKey;
 import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.storage.mem.MemStorageModule;
 import org.apache.aurora.scheduler.testing.FakeScheduledExecutor;
@@ -157,7 +152,6 @@ public class JobUpdaterIT extends EasyMockTest {
   private Driver driver;
   private EventBus eventBus;
   private Storage storage;
-  private LockManager lockManager;
   private StateManager stateManager;
   private JobUpdateEventSubscriber subscriber;
   private Command shutdownCommand;
@@ -201,7 +195,6 @@ public class JobUpdaterIT extends EasyMockTest {
                     FLAPPING_THRESHOLD,
                     new TimeAmount(1, Time.MINUTES)));
             bind(EventSink.class).toInstance(eventBus::post);
-            bind(LockManager.class).to(LockManagerImpl.class);
             bind(UUIDGenerator.class).to(UUIDGeneratorImpl.class);
             bind(Lifecycle.class).toInstance(new Lifecycle(shutdownCommand));
             bind(TaskEventBatchWorker.class).toInstance(batchWorker);
@@ -210,7 +203,6 @@ public class JobUpdaterIT extends EasyMockTest {
     updater = injector.getInstance(JobUpdateController.class);
     storage = injector.getInstance(Storage.class);
     storage.prepare();
-    lockManager = injector.getInstance(LockManager.class);
     stateManager = injector.getInstance(StateManager.class);
     eventBus.register(injector.getInstance(JobUpdateEventSubscriber.class));
     subscriber = injector.getInstance(JobUpdateEventSubscriber.class);
@@ -220,19 +212,6 @@ public class JobUpdaterIT extends EasyMockTest {
   @After
   public void validateExitState() {
     clock.assertEmpty();
-    assertEquals(ImmutableSet.of(), storage.read(p -> p.getLockStore().fetchLocks()));
-  }
-
-  @Test(expected = UpdateStateException.class)
-  public void testJobLocked() throws Exception {
-    control.replay();
-
-    lockManager.acquireLock(JOB, USER);
-    try {
-      updater.start(makeJobUpdate(makeInstanceConfig(0, 0, NEW_CONFIG)), AUDIT);
-    } finally {
-      lockManager.releaseLock(JOB);
-    }
   }
 
   private String getTaskId(JobKey job, int instanceId) {
@@ -264,12 +243,7 @@ public class JobUpdaterIT extends EasyMockTest {
   }
 
   private static final Ordering<IJobInstanceUpdateEvent> EVENT_ORDER = Ordering.natural()
-      .onResultOf(new Function<IJobInstanceUpdateEvent, Long>() {
-        @Override
-        public Long apply(IJobInstanceUpdateEvent event) {
-          return event.getTimestampMs();
-        }
-      });
+      .onResultOf(IJobInstanceUpdateEvent::getTimestampMs);
   private static final Function<IJobInstanceUpdateEvent, Integer> EVENT_TO_INSTANCE =
       IJobInstanceUpdateEvent::getInstanceId;
 
@@ -301,9 +275,9 @@ public class JobUpdaterIT extends EasyMockTest {
       Multimap<Integer, JobUpdateAction> expectedActions) {
 
     JobUpdateDetails details = getDetails(key);
-    Iterable<IJobInstanceUpdateEvent> orderedEvents =
+    Iterable<JobInstanceUpdateEvent> orderedEvents =
         EVENT_ORDER.sortedCopy(details.getInstanceEvents());
-    Multimap<Integer, IJobInstanceUpdateEvent> eventsByInstance =
+    Multimap<Integer, JobInstanceUpdateEvent> eventsByInstance =
         Multimaps.index(orderedEvents, EVENT_TO_INSTANCE);
     Multimap<Integer, JobUpdateAction> actionsByInstance =
         Multimaps.transformValues(eventsByInstance, JobUpdateControllerImpl.EVENT_TO_ACTION);
@@ -321,14 +295,9 @@ public class JobUpdaterIT extends EasyMockTest {
         stateManager.insertPendingTasks(storeProvider, task, instanceIds));
   }
 
-  private ILock insertInProgressUpdate(JobUpdate update) {
-    return storage.write(
-        storeProvider -> saveJobUpdate(storeProvider.getJobUpdateStore(), update, ROLLING_FORWARD));
-  }
-
   private void insertInitialTasks(JobUpdate update) {
     storage.write((NoResult.Quiet) storeProvider -> {
-      for (IInstanceTaskConfig config : update.getInstructions().getInitialState()) {
+      for (InstanceTaskConfig config : update.getInstructions().getInitialState()) {
         insertPendingTasks(config.getTask(), expandInstanceIds(ImmutableSet.of(config)));
       }
     });
@@ -473,8 +442,8 @@ public class JobUpdaterIT extends EasyMockTest {
     changeState(JOB, 1, ASSIGNED, STARTING, RUNNING);
     clock.advance(ONE_DAY);
 
-    storage.write(
-        storeProvider -> saveJobUpdate(storeProvider.getJobUpdateStore(), update, ROLLING_FORWARD));
+    storage.write((NoResult.Quiet) storeProvider ->
+        saveJobUpdate(storeProvider.getJobUpdateStore(), update, ROLLING_FORWARD));
 
     clock.advance(ONE_MINUTE);
 
@@ -518,7 +487,7 @@ public class JobUpdaterIT extends EasyMockTest {
     changeState(JOB, 0, ASSIGNED, STARTING, RUNNING);
     clock.advance(ONE_DAY);
 
-    storage.write(storeProvider ->
+    storage.write((NoResult.Quiet) storeProvider ->
         saveJobUpdate(storeProvider.getJobUpdateStore(), update, ROLL_FORWARD_AWAITING_PULSE));
 
     // The first pulse comes after one minute
@@ -562,7 +531,7 @@ public class JobUpdaterIT extends EasyMockTest {
     changeState(JOB, 0, ASSIGNED, STARTING, RUNNING);
     clock.advance(ONE_DAY);
 
-    storage.write(storeProvider ->
+    storage.write((NoResult.Quiet) storeProvider ->
         saveJobUpdate(storeProvider.getJobUpdateStore(), update, ROLL_FORWARD_AWAITING_PULSE));
 
     subscriber.startAsync().awaitRunning();
@@ -593,7 +562,7 @@ public class JobUpdaterIT extends EasyMockTest {
     changeState(JOB, 0, ASSIGNED, STARTING, RUNNING);
     clock.advance(ONE_DAY);
 
-    storage.write(storeProvider ->
+    storage.write((NoResult.Quiet) storeProvider ->
         saveJobUpdate(storeProvider.getJobUpdateStore(), update, ROLL_FORWARD_PAUSED));
 
     subscriber.startAsync().awaitRunning();
@@ -728,8 +697,8 @@ public class JobUpdaterIT extends EasyMockTest {
     changeState(JOB, 1, ASSIGNED, STARTING, RUNNING);
     clock.advance(ONE_DAY);
 
-    storage.write(
-        storeProvider -> saveJobUpdate(storeProvider.getJobUpdateStore(), update, ROLLING_FORWARD));
+    storage.write((NoResult.Quiet) storeProvider ->
+        saveJobUpdate(storeProvider.getJobUpdateStore(), update, ROLLING_FORWARD));
 
     clock.advance(ONE_MINUTE);
 
@@ -741,7 +710,6 @@ public class JobUpdaterIT extends EasyMockTest {
 
     storage.write((NoResult.Quiet) storeProvider -> {
       storeProvider.getJobUpdateStore().deleteAllUpdatesAndEvents();
-      releaseAllLocks();
     });
 
     // The pulse still returns OK but the error is handled.
@@ -762,7 +730,6 @@ public class JobUpdaterIT extends EasyMockTest {
     // Missing kill expectation will trigger failure.
     shutdownCommand.execute();
     expectLastCall().andAnswer(() -> {
-      storage.write((NoResult.Quiet) storeProvider -> releaseAllLocks());
       throw new IllegalStateException("Expected shutdown triggered.");
     });
 
@@ -1084,39 +1051,6 @@ public class JobUpdaterIT extends EasyMockTest {
     assertJobState(JOB, ImmutableMap.of(0, NEW_CONFIG, 1, OLD_CONFIG, 2, OLD_CONFIG));
   }
 
-  private void releaseAllLocks() {
-    for (ILock lock : storage.read(p -> p.getLockStore().fetchLocks())) {
-      lockManager.releaseLock(lock.getKey().getJob());
-    }
-  }
-
-  @Test
-  public void testLostLock() throws Exception {
-    // Validates the 'write-only' nature of locks in relation to job updates.  We are in backwards
-    // compatibility mode for LockStore, so it is not used to control behavior of updates.
-    // As a result, out-of-band removal of locks will not impact the progress of job updates.
-
-    expectTaskKilled();
-
-    control.replay();
-
-    JobUpdate update = makeJobUpdate(
-        makeInstanceConfig(0, 2, OLD_CONFIG));
-    insertInitialTasks(update);
-
-    changeState(JOB, 0, ASSIGNED, STARTING, RUNNING);
-    changeState(JOB, 1, ASSIGNED, STARTING, RUNNING);
-    clock.advance(WATCH_TIMEOUT);
-
-    // Instance 0 is updated.
-    updater.start(update, AUDIT);
-    releaseAllLocks();
-    changeState(JOB, 0, KILLED);
-    ImmutableMultimap.Builder<Integer, JobUpdateAction> actions = ImmutableMultimap.builder();
-    actions.putAll(0, INSTANCE_UPDATING);
-    assertState(ROLLING_FORWARD, actions.build());
-  }
-
   private void expectInvalid(JobUpdate update)
       throws UpdateStateException, UpdateConfigurationException {
 
@@ -1169,7 +1103,6 @@ public class JobUpdaterIT extends EasyMockTest {
 
       JobUpdate builder = update;
       builder.getInstructions().getSettings().setUpdateGroupSize(0);
-      releaseAllLocks();
       saveJobUpdate(store, builder, ROLLING_FORWARD);
     });
 
@@ -1187,21 +1120,13 @@ public class JobUpdaterIT extends EasyMockTest {
     assertState(ERROR, actions.build());
   }
 
-  private ILock saveJobUpdate(
+  private void saveJobUpdate(
       JobUpdateStore.Mutable store,
       JobUpdate update,
       JobUpdateStatus status) {
 
-    ILock lock;
-    try {
-      lock = lockManager.acquireLock(update.getSummary().getKey().getJob(), USER);
-    } catch (LockManager.LockException e) {
-      throw Throwables.propagate(e);
-    }
-
-    store.saveJobUpdate(update, Optional.of(lock.getToken()));
+    store.saveJobUpdate(update);
     saveJobUpdateEvent(store, update, status);
-    return lock;
   }
 
   private void saveJobUpdateEvent(
@@ -1229,8 +1154,8 @@ public class JobUpdaterIT extends EasyMockTest {
     changeState(JOB, 1, ASSIGNED, STARTING, RUNNING);
     clock.advance(ONE_DAY);
 
-    storage.write(
-        storeProvider -> saveJobUpdate(storeProvider.getJobUpdateStore(), update, ROLLING_FORWARD));
+    storage.write((NoResult.Quiet) storeProvider ->
+        saveJobUpdate(storeProvider.getJobUpdateStore(), update, ROLLING_FORWARD));
 
     subscriber.startAsync().awaitRunning();
 
@@ -1247,21 +1172,6 @@ public class JobUpdaterIT extends EasyMockTest {
         .putAll(1, INSTANCE_UPDATING, INSTANCE_UPDATED);
 
     assertState(ROLLED_FORWARD, actions.build());
-  }
-
-  @Test
-  public void testSystemResumeNoLock() throws Exception {
-    control.replay();
-
-    JobUpdate update = setInstanceCount(makeJobUpdate(makeInstanceConfig(0, 1, OLD_CONFIG)), 0);
-
-    storage.write((NoResult.Quiet) storeProvider -> {
-      ILock lock = saveJobUpdate(storeProvider.getJobUpdateStore(), update, ROLLING_FORWARD);
-      lockManager.releaseLock(lock.getKey().getJob());
-    });
-
-    subscriber.startAsync().awaitRunning();
-    assertState(ERROR, ImmutableMultimap.of());
   }
 
   @Test
@@ -1386,69 +1296,6 @@ public class JobUpdaterIT extends EasyMockTest {
     control.replay();
 
     updater.pause(UPDATE_ID, AUDIT);
-  }
-
-  @Test
-  public void testAbortAfterLostLock() throws Exception {
-    expectTaskKilled();
-
-    control.replay();
-
-    JobUpdate update = makeJobUpdate(makeInstanceConfig(0, 2, OLD_CONFIG));
-    insertInitialTasks(update);
-
-    changeState(JOB, 0, ASSIGNED, STARTING, RUNNING);
-    clock.advance(WATCH_TIMEOUT);
-
-    ImmutableMultimap.Builder<Integer, JobUpdateAction> actions = ImmutableMultimap.builder();
-
-    updater.start(update, AUDIT);
-    actions.putAll(0, INSTANCE_UPDATING);
-    assertState(ROLLING_FORWARD, actions.build());
-    releaseAllLocks();
-    updater.abort(update.getSummary().getKey(), AUDIT);
-    clock.advance(WATCH_TIMEOUT);
-    assertState(ABORTED, actions.build());
-  }
-
-  @Test
-  public void testStartUpdateAfterPausedAndLockLost() throws Exception {
-    // Tests for regression of AURORA-1023, in which a user could paint themselves into a corner
-    // by starting an update, pausing it, and forcibly releasing the job lock.  The result in this
-    // behavior should be to prevent further job updates until the user aborts the first one.
-
-    expectTaskKilled();
-
-    control.replay();
-
-    JobUpdate update = makeJobUpdate(makeInstanceConfig(0, 2, OLD_CONFIG));
-    insertInitialTasks(update);
-
-    changeState(JOB, 0, ASSIGNED, STARTING, RUNNING);
-    clock.advance(WATCH_TIMEOUT);
-
-    ImmutableMultimap.Builder<Integer, JobUpdateAction> actions = ImmutableMultimap.builder();
-
-    updater.start(update, AUDIT);
-    actions.putAll(0, INSTANCE_UPDATING);
-    assertState(ROLLING_FORWARD, actions.build());
-
-    updater.pause(update.getSummary().getKey(), AUDIT);
-    assertState(ROLL_FORWARD_PAUSED, actions.build());
-    clock.advance(WATCH_TIMEOUT);
-
-    releaseAllLocks();
-
-    JobUpdate builder = makeJobUpdate(makeInstanceConfig(0, 0, OLD_CONFIG));
-    builder.getSummary().getKey().setId("another update");
-    JobUpdate update2 = builder;
-
-    try {
-      updater.start(update2, AUDIT);
-      fail();
-    } catch (UpdateStateException e) {
-      // Expected.
-    }
   }
 
   @Test(expected = UpdateStateException.class)
@@ -1662,8 +1509,8 @@ public class JobUpdaterIT extends EasyMockTest {
     control.replay();
 
     JobUpdate inProgress = makeJobUpdate();
-    ILock lock = insertInProgressUpdate(inProgress);
-
+    storage.write((NoResult.Quiet) storeProvider ->
+        saveJobUpdate(storeProvider.getJobUpdateStore(), inProgress, ROLLING_FORWARD));
     JobUpdate anotherUpdate = makeJobUpdate();
     try {
       updater.start(anotherUpdate, AUDIT);
@@ -1673,9 +1520,6 @@ public class JobUpdaterIT extends EasyMockTest {
       assertEquals(
           inProgress.getSummary().setState(new JobUpdateState(ROLLING_FORWARD, 0, 0)),
           e.getInProgressUpdateSummary());
-      assertEquals(ImmutableSet.of(lock), storage.read(p -> p.getLockStore().fetchLocks()));
-    } finally {
-      lockManager.releaseLock(lock.getKey().getJob());
     }
   }
 

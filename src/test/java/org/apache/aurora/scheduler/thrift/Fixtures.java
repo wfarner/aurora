@@ -36,7 +36,6 @@ import org.apache.aurora.gen.JobKey;
 import org.apache.aurora.gen.JobSummary;
 import org.apache.aurora.gen.JobSummaryResult;
 import org.apache.aurora.gen.JobUpdateKey;
-import org.apache.aurora.gen.LockKey;
 import org.apache.aurora.gen.MesosContainer;
 import org.apache.aurora.gen.Resource;
 import org.apache.aurora.gen.Response;
@@ -63,7 +62,6 @@ final class Fixtures {
   static final Identity IDENTITY = Identity.builder().setUser(USER).build();
   static final String JOB_NAME = "job_foo";
   static final JobKey JOB_KEY = JobKeys.from(ROLE, "devel", JOB_NAME);
-  static final LockKey LOCK_KEY = LockKey.withJob(JOB_KEY);
   static final JobConfiguration CRON_JOB = makeJob().mutate().setCronSchedule("* * * * *").build();
   static final String TASK_ID = "task_id";
   static final String UPDATE_ID = "82d6d790-3212-11e3-aa6e-0800200c9a74";

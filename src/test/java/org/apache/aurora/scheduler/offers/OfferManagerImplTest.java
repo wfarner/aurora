@@ -14,6 +14,7 @@
 package org.apache.aurora.scheduler.offers;
 
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
@@ -23,10 +24,10 @@ import com.google.common.collect.Iterables;
 import org.apache.aurora.common.quantity.Amount;
 import org.apache.aurora.common.quantity.Time;
 import org.apache.aurora.common.testing.easymock.EasyMockTest;
+import org.apache.aurora.common.util.testing.FakeTicker;
 import org.apache.aurora.gen.HostAttributes;
 import org.apache.aurora.gen.MaintenanceMode;
 import org.apache.aurora.scheduler.HostOffer;
-import org.apache.aurora.scheduler.async.DelayExecutor;
 import org.apache.aurora.scheduler.base.TaskGroupKey;
 import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.events.PubsubEvent.DriverDisconnected;
@@ -107,6 +108,7 @@ public class OfferManagerImplTest extends EasyMockTest {
   private static final Filters OFFER_FILTER = Filters.newBuilder()
       .setRefuseSeconds(OFFER_FILTER_SECONDS)
       .build();
+  private static final FakeTicker FAKE_TICKER = new FakeTicker();
 
   private Driver driver;
   private OfferManagerImpl offerManager;
@@ -117,7 +119,11 @@ public class OfferManagerImplTest extends EasyMockTest {
     driver = createMock(Driver.class);
     OfferSettings offerSettings = new OfferSettings(
         Amount.of(OFFER_FILTER_SECONDS, Time.SECONDS),
-        ImmutableList.of(OfferOrder.RANDOM));
+        ImmutableList.of(OfferOrder.RANDOM),
+        RETURN_DELAY,
+        Long.MAX_VALUE,
+        FAKE_TICKER
+    );
     statsProvider = new FakeStatsProvider();
     offerManager = new OfferManagerImpl(driver, offerSettings, statsProvider, new Noop());
   }
@@ -234,7 +240,7 @@ public class OfferManagerImplTest extends EasyMockTest {
   }
 
   @Test
-  public void testStaticBanIsClearedOnOfferReturn() {
+  public void testStaticBanExpiresAfterMaxHoldTime() throws InterruptedException {
     control.replay();
 
     offerManager.addOffer(OFFER_A);
@@ -243,9 +249,9 @@ public class OfferManagerImplTest extends EasyMockTest {
     assertTrue(Iterables.isEmpty(offerManager.getOffers(GROUP_KEY)));
     assertEquals(1, statsProvider.getLongValue(STATICALLY_BANNED_OFFERS));
 
-    // Make sure the static ban is cleared when the offers are returned.
-    offerManager.cancelOffer(OFFER_A_ID);
-    offerManager.addOffer(OFFER_A);
+    // Make sure the static ban expires after maximum amount of time an offer is held.
+    FAKE_TICKER.advance(RETURN_DELAY);
+    offerManager.cleanupStaticBans();
     assertEquals(OFFER_A, Iterables.getOnlyElement(offerManager.getOffers(GROUP_KEY)));
     assertEquals(0, statsProvider.getLongValue(STATICALLY_BANNED_OFFERS));
   }
@@ -351,7 +357,12 @@ public class OfferManagerImplTest extends EasyMockTest {
 
   private OfferManager createOrderedManager(List<OfferOrder> order) {
     OfferSettings settings =
-        new OfferSettings(Amount.of(OFFER_FILTER_SECONDS, Time.SECONDS), order);
+        new OfferSettings(
+            Amount.of(OFFER_FILTER_SECONDS, Time.SECONDS),
+            order,
+            RETURN_DELAY,
+            Long.MAX_VALUE,
+            FAKE_TICKER);
     return new OfferManagerImpl(driver, settings, statsProvider, new Noop());
   }
 
@@ -523,9 +534,12 @@ public class OfferManagerImplTest extends EasyMockTest {
   public void testDelayedOfferReturn() {
     OfferSettings settings = new OfferSettings(
         Amount.of(OFFER_FILTER_SECONDS, Time.SECONDS),
-        ImmutableList.of(OfferOrder.RANDOM));
-    DelayExecutor executorMock = createMock(DelayExecutor.class);
-    FakeScheduledExecutor clock = FakeScheduledExecutor.fromDelayExecutor(executorMock);
+        ImmutableList.of(OfferOrder.RANDOM),
+        RETURN_DELAY,
+        Long.MAX_VALUE,
+        FAKE_TICKER);
+    ScheduledExecutorService executorMock = createMock(ScheduledExecutorService.class);
+    FakeScheduledExecutor clock = FakeScheduledExecutor.fromScheduledExecutorService(executorMock);
     addTearDown(clock::assertEmpty);
     offerManager = new OfferManagerImpl(
         driver,
@@ -538,13 +552,10 @@ public class OfferManagerImplTest extends EasyMockTest {
     control.replay();
 
     offerManager.addOffer(OFFER_A);
-    offerManager.banOfferForTaskGroup(OFFER_A_ID, GROUP_KEY);
     assertEquals(1, statsProvider.getLongValue(OUTSTANDING_OFFERS));
-    assertEquals(1, statsProvider.getLongValue(STATICALLY_BANNED_OFFERS));
 
     clock.advance(RETURN_DELAY);
     assertEquals(0, statsProvider.getLongValue(OUTSTANDING_OFFERS));
-    assertEquals(0, statsProvider.getLongValue(STATICALLY_BANNED_OFFERS));
   }
 
   @Test

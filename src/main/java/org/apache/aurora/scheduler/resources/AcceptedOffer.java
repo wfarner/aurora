@@ -20,7 +20,6 @@ import java.util.stream.StreamSupport;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 
-import org.apache.aurora.scheduler.TierInfo;
 import org.apache.aurora.gen.AssignedTask;
 import org.apache.mesos.v1.Protos.Offer;
 import org.apache.mesos.v1.Protos.Resource;
@@ -38,6 +37,10 @@ public final class AcceptedOffer {
    * Reserved resource filter.
    */
   @VisibleForTesting
+  // See: https://github.com/apache/mesos/commit/d06d05c76eca13745ca73039b93ad684b9d07196
+  // The role field has been deprecated. We'll need to migrate to the roles field instead
+  // and enable it via the MULTI_ROLES capability.
+  @SuppressWarnings("deprecation")
   static final Predicate<Resource> RESERVED = e -> e.hasRole() && !e.getRole().equals("*");
 
   /**
@@ -63,7 +66,7 @@ public final class AcceptedOffer {
       Offer offer,
       IAssignedTask task,
       ResourceBag executorOverhead,
-      TierInfo tierInfo) throws ResourceManager.InsufficientResourcesException {
+      boolean revocable) throws ResourceManager.InsufficientResourcesException {
 
     ImmutableList.Builder<Resource> taskResources = ImmutableList.builder();
     ImmutableList.Builder<Resource> executorResources = ImmutableList.builder();
@@ -73,13 +76,13 @@ public final class AcceptedOffer {
         .forEach(entry -> {
           ResourceType type = entry.getKey();
           Iterable<Resource.Builder> offerResources = StreamSupport
-              .stream(getOfferResources(offer, tierInfo, entry.getKey()).spliterator(), false)
+              .stream(getOfferResources(offer, revocable, entry.getKey()).spliterator(), false)
               // Note the reverse order of args in .compare(): we want RESERVED resources first.
               .sorted((l, r) -> Boolean.compare(RESERVED.test(r), RESERVED.test(l)))
               .map(Resource::toBuilder)
               .collect(toList());
 
-          boolean isRevocable = type.isMesosRevocable() && tierInfo.isRevocable();
+          boolean isRevocable = type.isMesosRevocable() && revocable;
 
           taskResources.addAll(type.getMesosResourceConverter().toMesosResource(
               offerResources,

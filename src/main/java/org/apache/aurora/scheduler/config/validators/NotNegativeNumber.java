@@ -11,14 +11,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.aurora.scheduler.storage.db;
+package org.apache.aurora.scheduler.config.validators;
 
-import org.apache.aurora.scheduler.storage.AbstractQuotaStoreTest;
-import org.apache.aurora.scheduler.storage.Storage;
+import com.beust.jcommander.IValueValidator;
+import com.beust.jcommander.ParameterException;
 
-public class QuotaStoreTest extends AbstractQuotaStoreTest {
+public class NotNegativeNumber implements IValueValidator<Number> {
   @Override
-  protected Storage createStorage() {
-    return DbUtil.createStorage();
+  public void validate(String name, Number value) throws ParameterException {
+    if (value.longValue() < 0) {
+      throw new ParameterException(String.format("%s must not be negative", name));
+    }
   }
 }

@@ -13,27 +13,19 @@
  */
 package org.apache.aurora.scheduler.storage.log;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
-import javax.sql.DataSource;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
-import com.google.inject.Injector;
 
 import org.apache.aurora.common.inject.TimedInterceptor.Timed;
 import org.apache.aurora.common.stats.SlidingStats;
@@ -44,7 +36,6 @@ import org.apache.aurora.gen.HostAttributes;
 import org.apache.aurora.gen.JobInstanceUpdateEvent;
 import org.apache.aurora.gen.JobUpdateDetails;
 import org.apache.aurora.gen.JobUpdateEvent;
-import org.apache.aurora.gen.Lock;
 import org.apache.aurora.gen.storage.QuotaConfiguration;
 import org.apache.aurora.gen.storage.SchedulerMetadata;
 import org.apache.aurora.gen.storage.Snapshot;
@@ -57,11 +48,6 @@ import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
 import org.apache.aurora.scheduler.storage.Storage.Volatile;
-import org.apache.aurora.scheduler.storage.db.DbModule;
-import org.apache.aurora.scheduler.storage.db.DbStorage;
-import org.apache.aurora.scheduler.storage.db.DbUtil;
-import org.apache.aurora.scheduler.storage.db.EnumBackfill;
-import org.apache.aurora.scheduler.storage.db.MigrationManager;
 import org.apache.aurora.gen.HostAttributes;
 import org.apache.aurora.gen.JobConfiguration;
 import org.apache.aurora.gen.JobInstanceUpdateEvent;
@@ -88,13 +74,6 @@ public class SnapshotStoreImpl implements SnapshotStore<Snapshot> {
 
   private static final Logger LOG = LoggerFactory.getLogger(SnapshotStoreImpl.class);
 
-  /**
-   * Number of rows to run in a single batch during dbsnapshot restore.
-   */
-  private static final int DB_BATCH_SIZE = 20;
-
-  private static final String DB_SCRIPT_FIELD = "dbscript";
-  private static final String LOCK_FIELD = "locks";
   private static final String HOST_ATTRIBUTES_FIELD = "hosts";
   private static final String QUOTA_FIELD = "quota";
   private static final String TASK_FIELD = "tasks";
@@ -110,96 +89,6 @@ public class SnapshotStoreImpl implements SnapshotStore<Snapshot> {
   }
 
   private final Iterable<SnapshotField> snapshotFields = Arrays.asList(
-      // Order is critical here. The DB snapshot should always be tried first to ensure
-      // graceful migration to DBTaskStore. Otherwise, there is a direct risk of losing the cluster.
-      // The following scenario illustrates how that can happen:
-      // - Dbsnapshot:ON, DBTaskStore:OFF
-      // - Scheduler is updated with DBTaskStore:ON, restarts and populates all tasks from snapshot
-      // - Should the dbsnapshot get applied last, all tables would be dropped and recreated BUT
-      //   since there was no task data stored in dbsnapshot (DBTaskStore was OFF last time
-      //   snapshot was cut), all tasks would be erased
-      // - If the above is not detected before a new snapshot is cut all tasks will be dropped the
-      //   moment a new snapshot is created
-      new SnapshotField() {
-        @Override
-        public String getName() {
-          return DB_SCRIPT_FIELD;
-        }
-
-        @Override
-        public void saveToSnapshot(MutableStoreProvider store, Snapshot snapshot) {
-          // No-op.
-        }
-
-        @Override
-        public void restoreFromSnapshot(MutableStoreProvider store, Snapshot snapshot) {
-          if (snapshot.hasDbScript()) {
-            LOG.info("Loading contents from legacy dbScript field");
-
-            Injector injector = DbUtil.createStorageInjector(DbModule.testModuleWithWorkQueue());
-
-            DbStorage tempStorage = injector.getInstance(DbStorage.class);
-            MigrationManager migrationManager = injector.getInstance(MigrationManager.class);
-            EnumBackfill enumBackfill = injector.getInstance(EnumBackfill.class);
-
-            try (Connection c = ((DataSource) tempStorage.getUnsafeStoreAccess()).getConnection()) {
-              LOG.info("Dropping all tables");
-              try (PreparedStatement drop = c.prepareStatement("DROP ALL OBJECTS")) {
-                drop.executeUpdate();
-              }
-
-              LOG.info("Restoring dbsnapshot. Row count: " + snapshot.getDbScript().size());
-              // Partition the restore script into manageable size batches to avoid possible OOM
-              // due to large size DML statement.
-              List<List<String>> batches = Lists.partition(snapshot.getDbScript(), DB_BATCH_SIZE);
-              for (List<String> batch : batches) {
-                try (PreparedStatement restore = c.prepareStatement(Joiner.on("").join(batch))) {
-                  restore.executeUpdate();
-                }
-              }
-            } catch (SQLException e) {
-              throw new RuntimeException(e);
-            }
-
-            try {
-              migrationManager.migrate();
-            } catch (SQLException e) {
-              throw new RuntimeException(e);
-            }
-
-            // This ensures any subsequently added enum values since the last snapshot exist in
-            // the db.
-            enumBackfill.backfill();
-
-            // Load the contents of the DB into the main storage.
-            Snapshot dbSnapshot = createSnapshot(tempStorage);
-            applySnapshot(dbSnapshot);
-          }
-        }
-      },
-      new SnapshotField() {
-        @Override
-        public String getName() {
-          return LOCK_FIELD;
-        }
-
-        // It's important for locks to be replayed first, since there are relations that expect
-        // references to be valid on insertion.
-        @Override
-        public void saveToSnapshot(MutableStoreProvider store, Snapshot snapshot) {
-          snapshot.setLocks(ILock.toBuildersSet(store.getLockStore().fetchLocks()));
-        }
-
-        @Override
-        public void restoreFromSnapshot(MutableStoreProvider store, Snapshot snapshot) {
-          if (snapshot.getLocksSize() > 0) {
-            store.getLockStore().deleteLocks();
-            for (Lock lock : snapshot.getLocks()) {
-              store.getLockStore().saveLock(ILock.build(lock));
-            }
-          }
-        }
-      },
       new SnapshotField() {
         @Override
         public String getName() {
@@ -329,7 +218,10 @@ public class SnapshotStoreImpl implements SnapshotStore<Snapshot> {
 
         @Override
         public void saveToSnapshot(MutableStoreProvider store, Snapshot snapshot) {
-          snapshot.setJobUpdateDetails(store.getJobUpdateStore().fetchAllJobUpdateDetails());
+          snapshot.setJobUpdateDetails(
+              store.getJobUpdateStore().fetchAllJobUpdateDetails().stream()
+                  .map(u -> new StoredJobUpdateDetails().setDetails(u.newBuilder()))
+                  .collect(Collectors.toSet()));
         }
 
         @Override
@@ -339,9 +231,7 @@ public class SnapshotStoreImpl implements SnapshotStore<Snapshot> {
             updateStore.deleteAllUpdatesAndEvents();
             for (StoredJobUpdateDetails storedDetails : snapshot.getJobUpdateDetails()) {
               JobUpdateDetails details = storedDetails.getDetails();
-              updateStore.saveJobUpdate(
-                  thriftBackfill.backFillJobUpdate(details.getUpdate()),
-                  Optional.fromNullable(storedDetails.getLockToken()));
+              updateStore.saveJobUpdate(thriftBackfill.backFillJobUpdate(details.getUpdate()));
 
               if (details.getUpdateEventsSize() > 0) {
                 for (JobUpdateEvent updateEvent : details.getUpdateEvents()) {

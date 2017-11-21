@@ -1,5 +1,17 @@
-0.19.0 (unreleased)
+0.20.0 (unreleased)
 ===================
+
+### New/updated:
+
+- Updated to Mesos 1.4.0.
+
+### Deprecations and removals:
+
+- Removed the ability to recover from SQL-based backups and snapshots.  An 0.20.0 scheduler
+  will not be able to recover backups or replicated log data created prior to 0.19.0.
+
+0.19.0
+======
 
 ### New/updated:
 
