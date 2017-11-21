@@ -353,7 +353,7 @@ class SchedulerThriftInterface implements AnnotatedAuroraAdmin {
   @Override
   public Response descheduleCronJob(JobKey jobKey) {
     try {
-      IJobKey jobKey = JobKeys.assertValid(IJobKey.build(mutableJobKey));
+      JobKeys.assertValid(jobKey);
       jobUpdateController.assertNotUpdating(jobKey);
 
       if (cronJobManager.deleteJob(jobKey)) {
