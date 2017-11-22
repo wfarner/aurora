@@ -115,9 +115,10 @@ import static org.apache.aurora.scheduler.thrift.Responses.ok;
 
 class ReadOnlySchedulerImpl implements ReadOnlyScheduler.Iface {
   private static final Function<Entry<TaskConfig, Collection<Integer>>, ConfigGroup> TO_GROUP =
-      input -> new ConfigGroup()
-          .setConfig(input.getKey().newBuilder())
-          .setInstances(Range.toBuildersSet(convertRanges(toRanges(input.getValue()))));
+      input -> ConfigGroup.builder()
+          .setConfig(input.getKey())
+          .setInstances(convertRanges(toRanges(input.getValue())))
+          .build();
 
   private final ConfigurationManager configurationManager;
   private final Storage storage;
@@ -148,10 +149,9 @@ class ReadOnlySchedulerImpl implements ReadOnlyScheduler.Iface {
     requireNonNull(description);
 
     try {
-      TaskConfig populatedTaskConfig = SanitizedConfiguration.fromUnsanitized(
-          configurationManager,
-          JobConfiguration.build(description)).getJobConfig().getTaskConfig();
-      return ok(Result.populateJobResult(
+      TaskConfig populatedTaskConfig = SanitizedConfiguration
+          .fromUnsanitized(configurationManager, description).getJobConfig().getTaskConfig();
+      return ok(Result.withPopulateJobResult(
           new PopulateJobResult().setTaskConfig(populatedTaskConfig.newBuilder())));
     } catch (TaskDescriptionException e) {
       return invalidRequest("Invalid configuration: " + e.getMessage());
@@ -161,7 +161,7 @@ class ReadOnlySchedulerImpl implements ReadOnlyScheduler.Iface {
   // TODO(William Farner): Provide status information about cron jobs here.
   @Override
   public Response getTasksStatus(TaskQuery query) {
-    return ok(Result.scheduleStatusResult(
+    return ok(Result.withScheduleStatusResult(
         new ScheduleStatusResult().setTasks(getTasks(query))));
   }
 
@@ -174,7 +174,7 @@ class ReadOnlySchedulerImpl implements ReadOnlyScheduler.Iface {
           return task;
         });
 
-    return ok(Result.scheduleStatusResult(new ScheduleStatusResult().setTasks(tasks)));
+    return ok(Result.withScheduleStatusResult(new ScheduleStatusResult().setTasks(tasks)));
   }
 
   @Override
@@ -207,7 +207,7 @@ class ReadOnlySchedulerImpl implements ReadOnlyScheduler.Iface {
               .setReason(reason);
         }).toSet();
 
-    return ok(Result.getPendingReasonResult(new GetPendingReasonResult(reasons)));
+    return ok(Result.withGetPendingReasonResult(new GetPendingReasonResult(reasons)));
   }
 
   @Override
@@ -306,8 +306,8 @@ class ReadOnlySchedulerImpl implements ReadOnlyScheduler.Iface {
   }
 
   @Override
-  public Response getJobUpdateSummaries(JobUpdateQuery mutableQuery) {
-    JobUpdateQuery query = IJobUpdateQuery.build(requireNonNull(mutableQuery));
+  public Response getJobUpdateSummaries(JobUpdateQuery query) {
+    requireNonNull(query);
     return ok(Result.withGetJobUpdateSummariesResult(
         new GetJobUpdateSummariesResult()
             .setUpdateSummaries(JobUpdateSummary.toBuildersList(storage.read(
@@ -316,14 +316,12 @@ class ReadOnlySchedulerImpl implements ReadOnlyScheduler.Iface {
   }
 
   @Override
-  public Response getJobUpdateDetails(JobUpdateKey mutableKey, JobUpdateQuery mutableQuery) {
-    if (mutableKey == null && mutableQuery == null)  {
-      return error("Either key or query must be set.");
+  public Response getJobUpdateDetails(JobUpdateKey key, JobUpdateQuery query) {
+    if (key == null && query == null)  {
+      return error("Either key or query must be set.").build();
     }
 
-    if (mutableQuery != null) {
-      JobUpdateQuery query = IJobUpdateQuery.build(mutableQuery);
-
+    if (query != null) {
       List<JobUpdateDetails> details = storage.read(storeProvider ->
           storeProvider.getJobUpdateStore().fetchJobUpdateDetails(query));
 
@@ -331,8 +329,7 @@ class ReadOnlySchedulerImpl implements ReadOnlyScheduler.Iface {
           .setDetailsList(JobUpdateDetails.toBuildersList(details))));
     }
 
-    // TODO(zmanji): Remove this code once `mutableKey` is removed in AURORA-1765
-    JobUpdateKey key = JobUpdateKey.build(mutableKey);
+    // TODO(zmanji): Remove this code once `key` is removed in AURORA-1765
     Optional<JobUpdateDetails> details = storage.read(storeProvider ->
         storeProvider.getJobUpdateStore().fetchJobUpdateDetails(key));
 
