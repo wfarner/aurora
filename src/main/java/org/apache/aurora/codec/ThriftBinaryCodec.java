@@ -24,15 +24,26 @@ import java.util.zip.InflaterInputStream;
 import javax.annotation.Nullable;
 
 import net.morimekta.providence.PMessage;
+import net.morimekta.providence.descriptor.PField;
+import net.morimekta.providence.descriptor.PStructDescriptor;
 import net.morimekta.providence.serializer.BinarySerializer;
 import net.morimekta.providence.serializer.Serializer;
 import net.morimekta.providence.serializer.binary.BinaryReader;
 import net.morimekta.providence.serializer.binary.BinaryWriter;
+import net.morimekta.providence.thrift.TBinaryProtocolSerializer;
 
 import org.apache.aurora.common.quantity.Amount;
 import org.apache.aurora.common.quantity.Data;
 import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.gen.storage.Snapshot;
+import org.apache.thrift.TBase;
+import org.apache.thrift.TDeserializer;
+import org.apache.thrift.TException;
+import org.apache.thrift.TSerializer;
+import org.apache.thrift.protocol.TBinaryProtocol;
+import org.apache.thrift.protocol.TProtocol;
+import org.apache.thrift.transport.TIOStreamTransport;
+import org.apache.thrift.transport.TTransport;
 
 import static java.util.Objects.requireNonNull;
 
@@ -57,18 +68,15 @@ public final class ThriftBinaryCodec {
    * @throws CodingException If the message could not be decoded.
    */
   @Nullable
-  public static <T extends PMessage<?, ?>> T decode(@Nullable byte[] buffer)
-      throws CodingException {
+  public static <T extends PMessage<T, F>, F extends PField> T decode(
+      PStructDescriptor<T, F> descriptor,
+      @Nullable byte[] buffer) throws CodingException {
 
     if (buffer == null) {
       return null;
     }
 
-    try {
-      return (T) SERIALIZER.deserialize(new ByteArrayInputStream(buffer), ScheduledTask.kDescriptor);
-    } catch (IOException e) {
-      throw new CodingException("Failed to decode", e);
-    }
+    return decodeNonNull(descriptor, buffer);
   }
 
   /**
@@ -80,21 +88,18 @@ public final class ThriftBinaryCodec {
    * @return A populated message.
    * @throws CodingException If the message could not be decoded.
    */
-  public static <T extends BinaryReader> T decodeNonNull(T readInto, byte[] buffer)
-      throws CodingException {
+  public static <T extends PMessage<T, F>, F extends PField> T decodeNonNull(
+      PStructDescriptor<T, F> descriptor,
+      byte[] buffer) throws CodingException {
 
-    requireNonNull(readInto);
+    requireNonNull(descriptor);
     requireNonNull(buffer);
 
-    return new BinarySerializer().deserialize(new ByteArrayInputStream(buffer), Snapshot.kDescriptor)
-    readInto.readBinary();
-
     try {
-      T t = newInstance(clazz);
-      new TDeserializer(PROTOCOL_FACTORY).deserialize(t, buffer);
-      return t;
-    } catch (TException e) {
-      throw new CodingException("Failed to deserialize thrift object.", e);
+      return new TBinaryProtocolSerializer()
+          .deserialize(new ByteArrayInputStream(buffer), descriptor);
+    } catch (IOException e) {
+      throw new CodingException("Failed to decode", e);
     }
   }
 
@@ -106,7 +111,8 @@ public final class ThriftBinaryCodec {
    * @throws CodingException If the object could not be encoded.
    */
   @Nullable
-  public static byte[] encode(@Nullable BinaryWriter object) throws CodingException {
+  public static <Message extends PMessage<Message, Field>, Field extends PField> byte[]
+  encode(Message object) throws CodingException {
     if (object== null) {
       return null;
     }
@@ -120,14 +126,19 @@ public final class ThriftBinaryCodec {
    * @return Encoded object.
    * @throws CodingException If the object could not be encoded.
    */
-  public static byte[] encodeNonNull(BinaryWriter object) throws CodingException {
+  public static <Message extends PMessage<Message, Field>, Field extends PField> byte[]
+  encodeNonNull(Message object) throws CodingException {
+
     requireNonNull(object);
 
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    ScheduledTask.builder().build();
+
     try {
-      object.writeBinary()
-      return new TSerializer(PROTOCOL_FACTORY).serialize(tBase);
-    } catch (TException e) {
-      throw new CodingException("Failed to serialize: " + tBase, e);
+      new TBinaryProtocolSerializer().serialize(out, object);
+      return out.toByteArray();
+    } catch (IOException e) {
+      throw new CodingException("Failed to serialize: " + object, e);
     }
   }
 
@@ -147,8 +158,9 @@ public final class ThriftBinaryCodec {
    * @return Deflated, encoded object.
    * @throws CodingException If the object could not be encoded.
    */
-  public static byte[] deflateNonNull(TBase<?, ?> tBase) throws CodingException {
-    requireNonNull(tBase);
+  public static <Message extends PMessage<Message, Field>, Field extends PField> byte[]
+  deflateNonNull(Message object) throws CodingException {
+    requireNonNull(object);
 
     // NOTE: Buffering is needed here for performance.
     // There are actually 2 buffers in play here - the BufferedOutputStream prevents thrift from
@@ -157,19 +169,15 @@ public final class ThriftBinaryCodec {
     // copy the intermediate compressed output to outBytes.
     // See http://bugs.java.com/bugdatabase/view_bug.do?bug_id=4986239
     ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
-    TTransport transport = new TIOStreamTransport(
-        new BufferedOutputStream(
-            new DeflaterOutputStream(outBytes, new Deflater(DEFLATE_LEVEL), DEFLATER_BUFFER_SIZE),
-            DEFLATER_BUFFER_SIZE));
+    BufferedOutputStream buffer = new BufferedOutputStream(
+        new DeflaterOutputStream(outBytes, new Deflater(DEFLATE_LEVEL), DEFLATER_BUFFER_SIZE),
+        DEFLATER_BUFFER_SIZE);
     try {
-      TProtocol protocol = PROTOCOL_FACTORY.getProtocol(transport);
-      tBase.write(protocol);
-      transport.close(); // calls finish() on the underlying stream, completing the compression
+      new TBinaryProtocolSerializer().serialize(buffer, object);
+      buffer.close(); // calls finish() on the underlying stream, completing the compression
       return outBytes.toByteArray();
-    } catch (TException e) {
-      throw new CodingException("Failed to serialize: " + tBase, e);
-    } finally {
-      transport.close();
+    } catch (IOException e) {
+      throw new CodingException("Failed to serialize: " + object, e);
     }
   }
 
@@ -181,23 +189,18 @@ public final class ThriftBinaryCodec {
    * @return A populated message.
    * @throws CodingException If the message could not be decoded.
    */
-  public static <T extends TBase<T, ?>> T inflateNonNull(Class<T> clazz, byte[] buffer)
-      throws CodingException {
+  public static <T extends PMessage<T, F>, F extends PField> T inflateNonNull(
+      PStructDescriptor<T, F> descriptor,
+      byte[] buffer) throws CodingException {
 
-    requireNonNull(clazz);
+    requireNonNull(descriptor);
     requireNonNull(buffer);
 
-    T tBase = newInstance(clazz);
-    TTransport transport = new TIOStreamTransport(
-          new InflaterInputStream(new ByteArrayInputStream(buffer)));
     try {
-      TProtocol protocol = PROTOCOL_FACTORY.getProtocol(transport);
-      tBase.read(protocol);
-      return tBase;
-    } catch (TException e) {
+      return new TBinaryProtocolSerializer()
+          .deserialize(new InflaterInputStream(new ByteArrayInputStream(buffer)), descriptor);
+    } catch (IOException e) {
       throw new CodingException("Failed to deserialize: " + e, e);
-    } finally {
-      transport.close();
     }
   }
 

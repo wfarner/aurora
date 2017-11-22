@@ -25,22 +25,22 @@ public class ThriftBinaryCodecTest {
 
   @Test
   public void testRoundTrip() throws CodingException {
-    ScheduledTask original = TaskTestUtil.makeTask("id", TaskTestUtil.JOB).newBuilder();
+    ScheduledTask original = TaskTestUtil.makeTask("id", TaskTestUtil.JOB);
     assertEquals(original,
-        ThriftBinaryCodec.decode(ScheduledTask.class, ThriftBinaryCodec.encode(original)));
+        ThriftBinaryCodec.decode(ScheduledTask.kDescriptor, ThriftBinaryCodec.encode(original)));
   }
 
   @Test
   public void testRoundTripNull() throws CodingException {
-    assertNull(ThriftBinaryCodec.decode(ScheduledTask.class, ThriftBinaryCodec.encode(null)));
+    assertNull(ThriftBinaryCodec.decode(ScheduledTask.kDescriptor, ThriftBinaryCodec.encode(null)));
   }
 
   @Test
   public void testRoundTripNonNull() throws CodingException {
-    ScheduledTask original = TaskTestUtil.makeTask("id", TaskTestUtil.JOB).newBuilder();
+    ScheduledTask original = TaskTestUtil.makeTask("id", TaskTestUtil.JOB);
     assertEquals(original,
         ThriftBinaryCodec.decodeNonNull(
-            ScheduledTask.class,
+            ScheduledTask.kDescriptor,
             ThriftBinaryCodec.encodeNonNull(original)));
   }
 
@@ -51,16 +51,16 @@ public class ThriftBinaryCodecTest {
 
   @Test(expected = NullPointerException.class)
   public void testDecodeNonNull() throws CodingException {
-    ThriftBinaryCodec.decodeNonNull(ScheduledTask.class, null);
+    ThriftBinaryCodec.decodeNonNull(ScheduledTask.kDescriptor, null);
   }
 
   @Test
   public void testInflateDeflateRoundTrip() throws CodingException {
-    ScheduledTask original = TaskTestUtil.makeTask("id", TaskTestUtil.JOB).newBuilder();
+    ScheduledTask original = TaskTestUtil.makeTask("id", TaskTestUtil.JOB);
 
     byte[] deflated = ThriftBinaryCodec.deflateNonNull(original);
 
-    ScheduledTask inflated = ThriftBinaryCodec.inflateNonNull(ScheduledTask.class, deflated);
+    ScheduledTask inflated = ThriftBinaryCodec.inflateNonNull(ScheduledTask.kDescriptor, deflated);
 
     assertEquals(original, inflated);
   }
