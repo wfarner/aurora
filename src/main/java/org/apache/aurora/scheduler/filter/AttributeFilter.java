@@ -51,7 +51,7 @@ final class AttributeFilter {
    * @return {@code true} if the limit constraint is satisfied, {@code false} otherwise.
    */
   static boolean matches(
-      final IAttribute attribute,
+      final Attribute attribute,
       int limit,
       AttributeAggregate attributeAggregate) {
 

@@ -13,7 +13,6 @@
  */
 package org.apache.aurora.scheduler.storage.log;
 
-import java.nio.ByteBuffer;
 import java.util.Iterator;
 
 import javax.inject.Inject;
@@ -22,6 +21,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.HashFunction;
+import net.morimekta.util.Binary;
 
 import org.apache.aurora.common.inject.TimedInterceptor.Timed;
 import org.apache.aurora.common.quantity.Amount;
@@ -77,7 +77,9 @@ public interface EntrySerializer {
       final int chunks = (int) Math.ceil(entry.length / (double) maxEntrySizeBytes);
 
       final byte[] header = encode(
-          Frame.header(new FrameHeader(chunks, ByteBuffer.wrap(checksum(entry)))));
+          Frame.withHeader(FrameHeader.builder()
+              .setChunkCount(chunks)
+              .setChecksum(Binary.wrap(checksum(entry)))));
 
       return () -> streamFrames(header, chunks, entry);
     }
@@ -93,10 +95,10 @@ public interface EntrySerializer {
             result = header;
           } else if (i < chunks) {
             int offset = i * maxEntrySizeBytes;
-            ByteBuffer chunk =
-                ByteBuffer.wrap(entry, offset, Math.min(maxEntrySizeBytes, entry.length - offset));
+            Binary chunk =
+                Binary.copy(entry, offset, Math.min(maxEntrySizeBytes, entry.length - offset));
             try {
-              result = encode(Frame.chunk(new FrameChunk(chunk)));
+              result = encode(Frame.withChunk(FrameChunk.builder().setData(chunk)));
             } catch (CodingException e) {
               throw new RuntimeException(e);
             }
@@ -118,7 +120,7 @@ public interface EntrySerializer {
 
     @Timed("log_entry_encode")
     protected byte[] encode(Frame frame) throws CodingException {
-      return Entries.thriftBinaryEncode(LogEntry.frame(frame));
+      return Entries.thriftBinaryEncode(LogEntry.withFrame(frame));
     }
   }
 }

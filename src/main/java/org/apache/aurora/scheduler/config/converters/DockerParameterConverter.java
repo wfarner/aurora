@@ -31,6 +31,9 @@ public class DockerParameterConverter extends BaseConverter<DockerParameter> {
       throw new ParameterException(getErrorString(value, "formatted as name=value"));
     }
 
-    return new DockerParameter(value.substring(0, pos), value.substring(pos + 1));
+    return DockerParameter.builder()
+        .setName(value.substring(0, pos))
+        .setValue(value.substring(pos + 1))
+        .build();
   }
 }

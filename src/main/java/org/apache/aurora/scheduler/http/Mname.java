@@ -198,7 +198,7 @@ public class Mname {
       return respond(NOT_FOUND, "The selected instance is currently in state " + task.getStatus());
     }
 
-    IAssignedTask assignedTask = task.getAssignedTask();
+    AssignedTask assignedTask = task.getAssignedTask();
     Optional<Integer> port = getRedirectPort(assignedTask);
     if (!port.isPresent()) {
       return respond(NOT_FOUND, "The task does not have a registered http port.");
@@ -219,7 +219,7 @@ public class Mname {
   }
 
   @VisibleForTesting
-  static Optional<Integer> getRedirectPort(IAssignedTask task) {
+  static Optional<Integer> getRedirectPort(AssignedTask task) {
     Map<String, Integer> ports = task.getAssignedPorts();
     for (String httpPortName : HTTP_PORT_NAMES) {
       Integer port = ports.get(httpPortName);

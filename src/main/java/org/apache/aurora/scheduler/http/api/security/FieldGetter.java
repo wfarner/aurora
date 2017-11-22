@@ -30,28 +30,16 @@ interface FieldGetter<T, V> extends Function<T, Optional<V>> {
    */
   Class<T> getStructClass();
 
-  /**
-   * The type of the optionally-contained struct.
-   */
-  Class<V> getValueClass();
-
   abstract class AbstractFieldGetter<T, V> implements FieldGetter<T, V> {
     private final Class<T> structClass;
-    private final Class<V> valueClass;
 
-    protected AbstractFieldGetter(Class<T> structClass, Class<V> valueClass) {
+    protected AbstractFieldGetter(Class<T> structClass) {
       this.structClass = requireNonNull(structClass);
-      this.valueClass = requireNonNull(valueClass);
     }
 
     @Override
     public final Class<T> getStructClass() {
       return structClass;
-    }
-
-    @Override
-    public final Class<V> getValueClass() {
-      return valueClass;
     }
   }
 
@@ -62,7 +50,7 @@ interface FieldGetter<T, V> extends Function<T, Optional<V>> {
    */
   class IdentityFieldGetter<T> extends AbstractFieldGetter<T, T> {
     IdentityFieldGetter(Class<T> structClass) {
-      super(structClass, structClass);
+      super(structClass);
     }
 
     @Override

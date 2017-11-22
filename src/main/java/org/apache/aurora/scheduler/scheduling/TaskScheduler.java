@@ -136,7 +136,7 @@ public interface TaskScheduler extends EventSubscriber {
       ImmutableSet<String> taskIds = ImmutableSet.copyOf(tasks);
       String taskIdValues = Joiner.on(",").join(taskIds);
       LOG.debug("Attempting to schedule tasks {}", taskIdValues);
-      ImmutableSet<IAssignedTask> assignedTasks =
+      ImmutableSet<AssignedTask> assignedTasks =
           ImmutableSet.copyOf(Iterables.transform(
               store.getTaskStore().fetchTasks(Query.taskScoped(taskIds).byStatus(PENDING)),
               ScheduledTask::getAssignedTask));
@@ -154,7 +154,7 @@ public interface TaskScheduler extends EventSubscriber {
           "Found multiple task groups for %s",
           taskIdValues);
 
-      Map<String, IAssignedTask> assignableTaskMap =
+      Map<String, AssignedTask> assignableTaskMap =
           assignedTasks.stream().collect(toMap(t -> t.getTaskId(), t -> t));
 
       if (taskIds.size() != assignedTasks.size()) {
@@ -200,7 +200,7 @@ public interface TaskScheduler extends EventSubscriber {
     }
 
     private void maybePreemptFor(
-        IAssignedTask task,
+        AssignedTask task,
         AttributeAggregate jobState,
         MutableStoreProvider storeProvider) {
 
@@ -216,7 +216,7 @@ public interface TaskScheduler extends EventSubscriber {
     @Subscribe
     public void taskChanged(final TaskStateChange stateChangeEvent) {
       if (Optional.of(PENDING).equals(stateChangeEvent.getOldState())) {
-        IAssignedTask assigned = stateChangeEvent.getTask().getAssignedTask();
+        AssignedTask assigned = stateChangeEvent.getTask().getAssignedTask();
         if (assigned.getSlaveId() != null) {
           reservations.remove(assigned.getSlaveId(), TaskGroupKey.from(assigned.getTask()));
         }

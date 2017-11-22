@@ -121,9 +121,9 @@ public class TaskVars extends AbstractIdleService implements EventSubscriber {
         JobKeys.canonicalString(task.getAssignedTask().getTask().getJob()));
   }
 
-  private static final Predicate<IAttribute> IS_RACK = attr -> "rack".equals(attr.getName());
+  private static final Predicate<Attribute> IS_RACK = attr -> "rack".equals(attr.getName());
 
-  private static final Function<IAttribute, String> ATTR_VALUE =
+  private static final Function<Attribute, String> ATTR_VALUE =
       attr -> Iterables.getOnlyElement(attr.getValues());
 
   private Counter getCounter(ScheduleStatus status) {
@@ -145,7 +145,7 @@ public class TaskVars extends AbstractIdleService implements EventSubscriber {
       rack = Optional.absent();
     } else {
       rack = storage.read(storeProvider -> {
-        Optional<IAttribute> rack1 = FluentIterable
+        Optional<Attribute> rack1 = FluentIterable
             .from(AttributeStore.Util.attributesOrNone(storeProvider, host))
             .firstMatch(IS_RACK);
         return rack1.transform(ATTR_VALUE);

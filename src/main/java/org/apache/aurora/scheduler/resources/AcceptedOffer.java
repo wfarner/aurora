@@ -64,7 +64,7 @@ public final class AcceptedOffer {
 
   public static AcceptedOffer create(
       Offer offer,
-      IAssignedTask task,
+      AssignedTask task,
       ResourceBag executorOverhead,
       boolean revocable) throws ResourceManager.InsufficientResourcesException {
 

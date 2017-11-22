@@ -90,14 +90,14 @@ public class SchedulingFilterImpl implements SchedulingFilter {
   }
 
   private static boolean isValueConstraint(Constraint constraint) {
-    return constraint.getConstraint().getSetField() == TaskConstraint._Fields.VALUE;
+    return constraint.getConstraint().unionField() == TaskConstraint._Field.VALUE;
   }
 
   private static final Ordering<Constraint> VALUES_FIRST = Ordering.from(
       new Comparator<Constraint>() {
         @Override
-        public int compare(Constraint a, IConstraint b) {
-          if (a.getConstraint().getSetField() == b.getConstraint().getSetField()) {
+        public int compare(Constraint a, Constraint b) {
+          if (a.getConstraint().unionField() == b.getConstraint().unionField()) {
             return 0;
           }
           return isValueConstraint(a) ? -1 : 1;
@@ -107,7 +107,7 @@ public class SchedulingFilterImpl implements SchedulingFilter {
   private Optional<Veto> getConstraintVeto(
       Iterable<Constraint> taskConstraints,
       AttributeAggregate jobState,
-      Iterable<IAttribute> offerAttributes) {
+      Iterable<Attribute> offerAttributes) {
 
     for (Constraint constraint : VALUES_FIRST.sortedCopy(taskConstraints)) {
       Optional<Veto> veto = ConstraintMatcher.getVeto(jobState, offerAttributes, constraint);
@@ -138,7 +138,7 @@ public class SchedulingFilterImpl implements SchedulingFilter {
     return Optional.absent();
   }
 
-  private boolean isDedicated(IHostAttributes attributes) {
+  private boolean isDedicated(HostAttributes attributes) {
     return Iterables.any(
         attributes.getAttributes(),
         new ConstraintMatcher.NameFilter(DEDICATED_ATTRIBUTE));

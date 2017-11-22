@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Provider;
 
@@ -47,9 +48,9 @@ import org.apache.aurora.gen.Response;
 import org.apache.aurora.gen.ResponseCode;
 import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.base.JobKeys;
+import org.apache.aurora.scheduler.http.api.security.FieldGetter.AbstractFieldGetter;
 import org.apache.aurora.scheduler.http.api.security.FieldGetter.IdentityFieldGetter;
 import org.apache.aurora.scheduler.spi.Permissions;
-import org.apache.aurora.gen.JobKey;
 import org.apache.aurora.scheduler.thrift.Responses;
 import org.apache.shiro.authz.Permission;
 import org.apache.shiro.subject.Subject;
@@ -92,32 +93,45 @@ class ShiroAuthorizingParamInterceptor implements MethodInterceptor {
     }
   }
 
-  private static final FieldGetter<JobUpdateRequest, TaskConfig> UPDATE_REQUEST_GETTER =
-      new ThriftFieldGetter<>(
-          JobUpdateRequest.class,
-          JobUpdateRequest._Fields.TASK_CONFIG,
-          TaskConfig.class);
-
-  private static final FieldGetter<TaskConfig, JobKey> TASK_CONFIG_GETTER =
-      new ThriftFieldGetter<>(TaskConfig.class, TaskConfig._Fields.JOB, JobKey.class);
-
-  private static final FieldGetter<JobConfiguration, JobKey> JOB_CONFIGURATION_GETTER =
-      new ThriftFieldGetter<>(JobConfiguration.class, JobConfiguration._Fields.KEY, JobKey.class);
-
-  private static final FieldGetter<JobUpdateKey, JobKey> JOB_UPDATE_KEY_GETTER =
-      new ThriftFieldGetter<>(JobUpdateKey.class, JobUpdateKey._Fields.JOB, JobKey.class);
-
-  private static final FieldGetter<InstanceKey, JobKey> INSTANCE_KEY_GETTER =
-      new ThriftFieldGetter<>(InstanceKey.class, InstanceKey._Fields.JOB_KEY, JobKey.class);
-
   @SuppressWarnings("unchecked")
   private static final Set<FieldGetter<?, JobKey>> FIELD_GETTERS =
       ImmutableSet.of(
-          FieldGetters.compose(UPDATE_REQUEST_GETTER, TASK_CONFIG_GETTER),
-          TASK_CONFIG_GETTER,
-          JOB_CONFIGURATION_GETTER,
-          JOB_UPDATE_KEY_GETTER,
-          INSTANCE_KEY_GETTER,
+          new AbstractFieldGetter<JobUpdateRequest, JobKey>(JobUpdateRequest.class) {
+            @Override
+            public Optional<JobKey> apply(@Nullable JobUpdateRequest input) {
+              return Optional.fromNullable(input)
+                  .transform(update -> update.getTaskConfig())
+                  .transform(task -> task.getJob());
+            }
+          },
+          new AbstractFieldGetter<TaskConfig, JobKey>(TaskConfig.class) {
+            @Override
+            public Optional<JobKey> apply(@Nullable TaskConfig input) {
+              return Optional.fromNullable(input)
+                  .transform(task -> task.getJob());
+            }
+          },
+          new AbstractFieldGetter<JobConfiguration, JobKey>(JobConfiguration.class) {
+            @Override
+            public Optional<JobKey> apply(@Nullable JobConfiguration input) {
+              return Optional.fromNullable(input)
+                  .transform(job -> job.getKey());
+            }
+          },
+          new AbstractFieldGetter<JobUpdateKey, JobKey>(JobUpdateKey.class) {
+            @Override
+            public Optional<JobKey> apply(@Nullable JobUpdateKey input) {
+              return Optional.fromNullable(input)
+                  .transform(key -> key.getJob());
+            }
+          },
+          new AbstractFieldGetter<InstanceKey, JobKey>(InstanceKey.class) {
+            @Override
+            public Optional<JobKey> apply(@Nullable InstanceKey input) {
+              return Optional.fromNullable(input)
+                  .transform(key -> key.getJobKey());
+            }
+          },
           new IdentityFieldGetter<>(JobKey.class));
 
   private static final Map<Class<?>, Function<?, Optional<JobKey>>> FIELD_GETTERS_BY_TYPE =
@@ -279,8 +293,7 @@ class ShiroAuthorizingParamInterceptor implements MethodInterceptor {
 
     Optional<JobKey> jobKey = authorizingParamGetters
         .getUnchecked(invocation.getMethod())
-        .apply(invocation.getArguments())
-        .transform(JobKey::build);
+        .apply(invocation.getArguments());
     if (jobKey.isPresent() && JobKeys.isValid(jobKey.get())) {
       Permission targetPermission = makeTargetPermission(method.getName(), jobKey.get());
       if (subject.isPermitted(targetPermission)) {

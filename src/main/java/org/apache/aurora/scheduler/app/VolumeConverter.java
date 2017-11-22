@@ -49,6 +49,10 @@ public class VolumeConverter extends BaseConverter<Volume> {
           getErrorString(raw, "Read/Write spec must be in " + Joiner.on(", ").join(Mode.values())),
           e);
     }
-    return new Volume(split[1], split[0], mode);
+    return Volume.builder()
+        .setHostPath(split[0])
+        .setContainerPath(split[1])
+        .setMode(mode)
+        .build();
   }
 }

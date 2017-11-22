@@ -211,18 +211,18 @@ class ReadOnlySchedulerImpl implements ReadOnlyScheduler.Iface {
   }
 
   @Override
-  public Response getConfigSummary(JobKey job) throws TException {
+  public Response getConfigSummary(JobKey job) {
     JobKey jobKey = JobKeys.assertValid(JobKey.build(job));
 
-    Iterable<IAssignedTask> assignedTasks = Iterables.transform(
+    Iterable<AssignedTask> assignedTasks = Iterables.transform(
         Storage.Util.fetchTasks(storage, Query.jobScoped(jobKey).active()),
         ScheduledTask::getAssignedTask);
     Map<Integer, TaskConfig> tasksByInstance = Maps.transformValues(
-        Maps.uniqueIndex(assignedTasks, IAssignedTask::getInstanceId),
-        IAssignedTask::getTask);
+        Maps.uniqueIndex(assignedTasks, AssignedTask::getInstanceId),
+        AssignedTask::getTask);
     Set<ConfigGroup> groups = instancesToConfigGroups(tasksByInstance);
 
-    return ok(Result.configSummaryResult(
+    return ok(Result.withConfigSummaryResult(
         new ConfigSummaryResult().setSummary(new ConfigSummary(job, groups))));
   }
 
@@ -244,7 +244,7 @@ class ReadOnlySchedulerImpl implements ReadOnlyScheduler.Iface {
             cronJobsByRole.get(role).size()))
         .toSet();
 
-    return ok(Result.roleSummaryResult(new RoleSummaryResult(summaries)));
+    return ok(Result.withRoleSummaryResult(new RoleSummaryResult(summaries)));
   }
 
   @Override
@@ -272,14 +272,14 @@ class ReadOnlySchedulerImpl implements ReadOnlyScheduler.Iface {
     ImmutableSet<JobSummary> jobSummaries =
         FluentIterable.from(jobs.keySet()).transform(makeJobSummary).toSet();
 
-    return ok(Result.jobSummaryResult(new JobSummaryResult().setSummaries(jobSummaries)));
+    return ok(Result.withJobSummaryResult(new JobSummaryResult().setSummaries(jobSummaries)));
   }
 
   @Override
   public Response getJobs(@Nullable String maybeNullRole) {
     Optional<String> ownerRole = Optional.fromNullable(maybeNullRole);
 
-    return ok(Result.getJobsResult(
+    return ok(Result.withGetJobsResult(
         new GetJobsResult()
             .setConfigs(JobConfiguration.toBuildersSet(
                 getJobs(ownerRole, getTasks(maybeRoleScoped(ownerRole).active())).values()))));
@@ -301,14 +301,14 @@ class ReadOnlySchedulerImpl implements ReadOnlyScheduler.Iface {
           .setNonProdDedicatedConsumption(aggregateFromBag(
               quotaInfo.getNonProdDedicatedConsumption()).newBuilder());
 
-      return ok(Result.getQuotaResult(result));
+      return ok(Result.withGetQuotaResult(result));
     });
   }
 
   @Override
   public Response getJobUpdateSummaries(JobUpdateQuery mutableQuery) {
     JobUpdateQuery query = IJobUpdateQuery.build(requireNonNull(mutableQuery));
-    return ok(Result.getJobUpdateSummariesResult(
+    return ok(Result.withGetJobUpdateSummariesResult(
         new GetJobUpdateSummariesResult()
             .setUpdateSummaries(JobUpdateSummary.toBuildersList(storage.read(
                 storeProvider ->
@@ -384,7 +384,7 @@ class ReadOnlySchedulerImpl implements ReadOnlyScheduler.Iface {
           replaced,
           Predicates.in(Sets.intersection(replaced.keySet(), replacements.keySet())));
 
-      return ok(Result.getJobUpdateDiffResult(new GetJobUpdateDiffResult()
+      return ok(Result.withGetJobUpdateDiffResult(new GetJobUpdateDiffResult()
           .setAdd(instancesToConfigGroups(add))
           .setRemove(instancesToConfigGroups(remove))
           .setUpdate(instancesToConfigGroups(update))
@@ -394,7 +394,7 @@ class ReadOnlySchedulerImpl implements ReadOnlyScheduler.Iface {
 
   @Override
   public Response getTierConfigs() throws TException {
-    return ok(Result.getTierConfigResult(
+    return ok(Result.withGetTierConfigResult(
         new GetTierConfigResult(
             tierManager.getDefaultTierName(),
             tierManager.getTiers()

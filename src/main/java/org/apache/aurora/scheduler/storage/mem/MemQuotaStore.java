@@ -19,15 +19,15 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
+import org.apache.aurora.gen.ResourceAggregate;
 import org.apache.aurora.scheduler.storage.QuotaStore;
-import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
 
 /**
  * An in-memory quota store.
  */
 class MemQuotaStore implements QuotaStore.Mutable {
 
-  private final Map<String, IResourceAggregate> quotas = Maps.newConcurrentMap();
+  private final Map<String, ResourceAggregate> quotas = Maps.newConcurrentMap();
 
   @Override
   public void deleteQuotas() {
@@ -40,17 +40,17 @@ class MemQuotaStore implements QuotaStore.Mutable {
   }
 
   @Override
-  public void saveQuota(String role, IResourceAggregate quota) {
+  public void saveQuota(String role, ResourceAggregate quota) {
     quotas.put(role, quota);
   }
 
   @Override
-  public Optional<IResourceAggregate> fetchQuota(String role) {
+  public Optional<ResourceAggregate> fetchQuota(String role) {
     return Optional.fromNullable(quotas.get(role));
   }
 
   @Override
-  public Map<String, IResourceAggregate> fetchQuotas() {
+  public Map<String, ResourceAggregate> fetchQuotas() {
     return ImmutableMap.copyOf(quotas);
   }
 }

@@ -62,7 +62,6 @@ import org.apache.aurora.scheduler.mesos.LibMesosLoadingModule;
 import org.apache.aurora.scheduler.stats.StatsModule;
 import org.apache.aurora.scheduler.storage.Storage.Volatile;
 import org.apache.aurora.scheduler.storage.backup.BackupModule;
-import org.apache.aurora.gen.ServerInfo;
 import org.apache.aurora.scheduler.storage.log.LogStorageModule;
 import org.apache.aurora.scheduler.storage.log.SnapshotStoreImpl;
 import org.apache.aurora.scheduler.storage.mem.MemStorageModule;
@@ -241,11 +240,11 @@ public class SchedulerMain {
           @Override
           protected void configure() {
             bind(CliOptions.class).toInstance(options);
-            bind(IServerInfo.class).toInstance(
-                IServerInfo.build(
-                    new ServerInfo()
-                        .setClusterName(options.main.clusterName)
-                        .setStatsUrlPrefix(options.main.statsUrlPrefix)));
+            bind(ServerInfo.class).toInstance(
+                ServerInfo.builder()
+                    .setClusterName(options.main.clusterName)
+                    .setStatsUrlPrefix(options.main.statsUrlPrefix)
+                    .build());
           }
         });
 

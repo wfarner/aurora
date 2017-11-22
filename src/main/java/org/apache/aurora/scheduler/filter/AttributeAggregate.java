@@ -22,14 +22,15 @@ import com.google.common.collect.ImmutableMultiset;
 import com.google.common.collect.Multiset;
 
 import org.apache.aurora.common.collections.Pair;
-import org.apache.aurora.scheduler.base.Query;
-import org.apache.aurora.scheduler.base.Tasks;
-import org.apache.aurora.scheduler.storage.AttributeStore;
-import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
+import org.apache.aurora.gen.Api_Constants;
 import org.apache.aurora.gen.Attribute;
 import org.apache.aurora.gen.HostAttributes;
 import org.apache.aurora.gen.JobKey;
 import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.scheduler.base.Query;
+import org.apache.aurora.scheduler.base.Tasks;
+import org.apache.aurora.scheduler.storage.AttributeStore;
+import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
 
 import static java.util.Objects.requireNonNull;
 
@@ -77,7 +78,7 @@ public final class AttributeAggregate {
 
     return create(
         () -> storeProvider.getTaskStore()
-            .fetchTasks(Query.jobScoped(jobKey).byStatus(Tasks.SLAVE_ASSIGNED_STATES)),
+            .fetchTasks(Query.jobScoped(jobKey).byStatus(Api_Constants.SLAVE_ASSIGNED_STATES)),
         storeProvider.getAttributeStore());
   }
 
@@ -86,7 +87,7 @@ public final class AttributeAggregate {
       final Supplier<Iterable<ScheduledTask>> taskSupplier,
       final AttributeStore attributeStore) {
 
-    final Function<String, Iterable<IAttribute>> getHostAttributes =
+    final Function<String, Iterable<Attribute>> getHostAttributes =
         host -> {
           // Note: this assumes we have access to attributes for hosts where all active tasks
           // reside.
@@ -102,7 +103,7 @@ public final class AttributeAggregate {
   }
 
   @VisibleForTesting
-  static AttributeAggregate create(Supplier<Iterable<IAttribute>> attributes) {
+  static AttributeAggregate create(Supplier<Iterable<Attribute>> attributes) {
     Supplier<Multiset<Pair<String, String>>> aggregator = Suppliers.compose(
         attributes1 -> addAttributes(ImmutableMultiset.builder(), attributes1).build(),
         attributes);
@@ -112,9 +113,9 @@ public final class AttributeAggregate {
 
   private static ImmutableMultiset.Builder<Pair<String, String>> addAttributes(
       ImmutableMultiset.Builder<Pair<String, String>> builder,
-      Iterable<IAttribute> attributes) {
+      Iterable<Attribute> attributes) {
 
-    for (IAttribute attribute : attributes) {
+    for (Attribute attribute : attributes) {
       for (String value : attribute.getValues()) {
         builder.add(Pair.of(attribute.getName(), value));
       }
@@ -122,7 +123,7 @@ public final class AttributeAggregate {
     return builder;
   }
 
-  public void updateAttributeAggregate(IHostAttributes attributes) {
+  public void updateAttributeAggregate(HostAttributes attributes) {
     // If the aggregate supplier has not been populated there is no need to update it here.
     // All tasks attributes will be picked up by the wrapped task query if executed at a
     // later point in time.

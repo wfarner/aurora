@@ -14,11 +14,11 @@
 package org.apache.aurora.scheduler.storage.log;
 
 import com.google.common.base.Preconditions;
+import net.morimekta.util.Binary;
 
 import org.apache.aurora.codec.ThriftBinaryCodec;
 import org.apache.aurora.codec.ThriftBinaryCodec.CodingException;
 import org.apache.aurora.gen.storage.LogEntry;
-import org.apache.aurora.gen.storage.LogEntry._Fields;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +47,7 @@ public final class Entries {
    * @throws CodingException If the value could not be encoded or deflated.
    */
   public static LogEntry deflate(LogEntry entry) throws CodingException {
-    return LogEntry.deflatedEntry(ThriftBinaryCodec.deflateNonNull(entry));
+    return LogEntry.withDeflatedEntry(Binary.wrap(ThriftBinaryCodec.deflateNonNull(entry)));
   }
 
   /**
@@ -61,11 +61,11 @@ public final class Entries {
    * @throws CodingException If the value could not be inflated or decoded.
    */
   static LogEntry inflate(LogEntry entry) throws CodingException {
-    Preconditions.checkArgument(entry.isSet(_Fields.DEFLATED_ENTRY));
+    Preconditions.checkArgument(entry.hasDeflatedEntry());
 
-    byte[] data = entry.getDeflatedEntry();
-    LOG.info("Inflating deflated log entry of size " + data.length);
-    return ThriftBinaryCodec.inflateNonNull(LogEntry.class, entry.getDeflatedEntry());
+    Binary data = entry.getDeflatedEntry();
+    LOG.info("Inflating deflated log entry of size " + data.length());
+    return ThriftBinaryCodec.inflateNonNull(LogEntry.kDescriptor, data);
   }
 
   /**
@@ -87,6 +87,6 @@ public final class Entries {
    * @throws CodingException If the entry could not be deserialized.
    */
   static LogEntry thriftBinaryDecode(byte[] contents) throws CodingException {
-    return ThriftBinaryCodec.decodeNonNull(LogEntry.class, contents);
+    return ThriftBinaryCodec.decodeNonNull(LogEntry.kDescriptor, contents);
   }
 }

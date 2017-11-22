@@ -20,8 +20,20 @@ import java.util.Set;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableSet;
 
+import org.apache.aurora.gen.HostAttributes;
+import org.apache.aurora.gen.JobConfiguration;
+import org.apache.aurora.gen.JobInstanceUpdateEvent;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.JobUpdate;
+import org.apache.aurora.gen.JobUpdateDetails;
+import org.apache.aurora.gen.JobUpdateEvent;
+import org.apache.aurora.gen.JobUpdateInstructions;
+import org.apache.aurora.gen.JobUpdateKey;
+import org.apache.aurora.gen.JobUpdateQuery;
+import org.apache.aurora.gen.JobUpdateSummary;
+import org.apache.aurora.gen.ResourceAggregate;
+import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.gen.storage.Op;
 import org.apache.aurora.gen.storage.PruneJobUpdateHistory;
 import org.apache.aurora.gen.storage.RemoveJob;
@@ -45,21 +57,6 @@ import org.apache.aurora.scheduler.storage.QuotaStore;
 import org.apache.aurora.scheduler.storage.SchedulerStore;
 import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
 import org.apache.aurora.scheduler.storage.TaskStore;
-import org.apache.aurora.gen.HostAttributes;
-import org.apache.aurora.gen.JobConfiguration;
-import org.apache.aurora.gen.JobInstanceUpdateEvent;
-import org.apache.aurora.gen.JobKey;
-import org.apache.aurora.gen.JobUpdate;
-import org.apache.aurora.gen.JobUpdateDetails;
-import org.apache.aurora.gen.JobUpdateEvent;
-import org.apache.aurora.gen.JobUpdateInstructions;
-import org.apache.aurora.gen.JobUpdateKey;
-import org.apache.aurora.gen.JobUpdateQuery;
-import org.apache.aurora.gen.JobUpdateSummary;
-import org.apache.aurora.gen.Lock;
-import org.apache.aurora.gen.LockKey;
-import org.apache.aurora.gen.ResourceAggregate;
-import org.apache.aurora.gen.ScheduledTask;
 import org.slf4j.Logger;
 
 import static java.util.Objects.requireNonNull;
@@ -134,7 +131,7 @@ class WriteAheadStorage implements
   public void saveFrameworkId(final String frameworkId) {
     requireNonNull(frameworkId);
 
-    write(Op.saveFrameworkId(new SaveFrameworkId(frameworkId)));
+    write(Op.withSaveFrameworkId(SaveFrameworkId.builder().setId(frameworkId)));
     schedulerStore.saveFrameworkId(frameworkId);
   }
 
@@ -142,7 +139,7 @@ class WriteAheadStorage implements
   public void deleteTasks(final Set<String> taskIds) {
     requireNonNull(taskIds);
 
-    write(Op.removeTasks(new RemoveTasks(taskIds)));
+    write(Op.withRemoveTasks(RemoveTasks.builder().setTaskIds(taskIds)));
     taskStore.deleteTasks(taskIds);
   }
 
@@ -150,7 +147,7 @@ class WriteAheadStorage implements
   public void saveTasks(final Set<ScheduledTask> newTasks) {
     requireNonNull(newTasks);
 
-    write(Op.saveTasks(new SaveTasks(ScheduledTask.toBuildersSet(newTasks))));
+    write(Op.withSaveTasks(SaveTasks.builder().setTasks(newTasks)));
     taskStore.saveTasks(newTasks);
   }
 
@@ -161,7 +158,7 @@ class WriteAheadStorage implements
 
     Optional<ScheduledTask> mutated = taskStore.mutateTask(taskId, mutator);
     log.debug("Storing updated task to log: {}={}", taskId, mutated.get().getStatus());
-    write(Op.saveTasks(new SaveTasks(ImmutableSet.of(mutated.get().newBuilder()))));
+    write(Op.withSaveTasks(SaveTasks.builder().addToTasks(mutated.get())));
 
     return mutated;
   }
@@ -171,17 +168,17 @@ class WriteAheadStorage implements
     requireNonNull(role);
     requireNonNull(quota);
 
-    write(Op.saveQuota(new SaveQuota(role, quota.newBuilder())));
+    write(Op.withSaveQuota(SaveQuota.builder().setRole(role).setQuota(quota)));
     quotaStore.saveQuota(role, quota);
   }
 
   @Override
-  public boolean saveHostAttributes(final IHostAttributes attrs) {
+  public boolean saveHostAttributes(final HostAttributes attrs) {
     requireNonNull(attrs);
 
     boolean changed = attributeStore.saveHostAttributes(attrs);
     if (changed) {
-      write(Op.saveHostAttributes(new SaveHostAttributes(attrs.newBuilder())));
+      write(Op.withSaveHostAttributes(SaveHostAttributes.builder().setHostAttributes(attrs)));
       eventSink.post(new PubsubEvent.HostAttributesChanged(attrs));
     }
     return changed;
@@ -191,7 +188,7 @@ class WriteAheadStorage implements
   public void removeJob(final JobKey jobKey) {
     requireNonNull(jobKey);
 
-    write(Op.removeJob(new RemoveJob().setJobKey(jobKey.newBuilder())));
+    write(Op.withRemoveJob(RemoveJob.builder().setJobKey(jobKey)));
     jobStore.removeJob(jobKey);
   }
 
@@ -199,7 +196,7 @@ class WriteAheadStorage implements
   public void saveAcceptedJob(final JobConfiguration jobConfig) {
     requireNonNull(jobConfig);
 
-    write(Op.saveCronJob(new SaveCronJob(jobConfig.newBuilder())));
+    write(Op.withSaveCronJob(SaveCronJob.builder().setJobConfig(jobConfig)));
     jobStore.saveAcceptedJob(jobConfig);
   }
 
@@ -207,7 +204,7 @@ class WriteAheadStorage implements
   public void removeQuota(final String role) {
     requireNonNull(role);
 
-    write(Op.removeQuota(new RemoveQuota(role)));
+    write(Op.withRemoveQuota(RemoveQuota.builder().setRole(role)));
     quotaStore.removeQuota(role);
   }
 
@@ -215,7 +212,7 @@ class WriteAheadStorage implements
   public void saveJobUpdate(JobUpdate update) {
     requireNonNull(update);
 
-    write(Op.saveJobUpdate(new SaveJobUpdate().setJobUpdate(update.newBuilder())));
+    write(Op.withSaveJobUpdate(SaveJobUpdate.builder().setJobUpdate(update)));
     jobUpdateStore.saveJobUpdate(update);
   }
 
@@ -224,7 +221,7 @@ class WriteAheadStorage implements
     requireNonNull(key);
     requireNonNull(event);
 
-    write(Op.saveJobUpdateEvent(new SaveJobUpdateEvent(event.newBuilder(), key.newBuilder())));
+    write(Op.withSaveJobUpdateEvent(SaveJobUpdateEvent.builder().setEvent(event).setKey(key)));
     jobUpdateStore.saveJobUpdateEvent(key, event);
   }
 
@@ -233,8 +230,8 @@ class WriteAheadStorage implements
     requireNonNull(key);
     requireNonNull(event);
 
-    write(Op.saveJobInstanceUpdateEvent(
-        new SaveJobInstanceUpdateEvent(event.newBuilder(), key.newBuilder())));
+    write(Op.withSaveJobInstanceUpdateEvent(
+        SaveJobInstanceUpdateEvent.builder().setEvent(event).setKey(key)));
     jobUpdateStore.saveJobInstanceUpdateEvent(key, event);
   }
 
@@ -250,8 +247,9 @@ class WriteAheadStorage implements
       // provide eventual consistency between volatile and persistent storage upon scheduler
       // restart. By generating an out of band pruning during log replay the consistency is
       // achieved sooner without potentially exposing pruned but not yet persisted data.
-      write(Op.pruneJobUpdateHistory(
-          new PruneJobUpdateHistory(perJobRetainCount, historyPruneThresholdMs)));
+      write(Op.withPruneJobUpdateHistory(PruneJobUpdateHistory.builder()
+          .setPerJobRetainCount(perJobRetainCount)
+          .setHistoryPruneThresholdMs(historyPruneThresholdMs)));
     }
     return prunedUpdates;
   }
@@ -372,12 +370,12 @@ class WriteAheadStorage implements
   }
 
   @Override
-  public List<JobUpdateSummary> fetchJobUpdateSummaries(IJobUpdateQuery query) {
+  public List<JobUpdateSummary> fetchJobUpdateSummaries(JobUpdateQuery query) {
     return this.jobUpdateStore.fetchJobUpdateSummaries(query);
   }
 
   @Override
-  public List<JobUpdateDetails> fetchJobUpdateDetails(IJobUpdateQuery query) {
+  public List<JobUpdateDetails> fetchJobUpdateDetails(JobUpdateQuery query) {
     return this.jobUpdateStore.fetchJobUpdateDetails(query);
   }
 
@@ -397,12 +395,12 @@ class WriteAheadStorage implements
   }
 
   @Override
-  public Set<IJobUpdateDetails> fetchAllJobUpdateDetails() {
+  public Set<JobUpdateDetails> fetchAllJobUpdateDetails() {
     return this.jobUpdateStore.fetchAllJobUpdateDetails();
   }
 
   @Override
-  public List<IJobInstanceUpdateEvent> fetchInstanceEvents(JobUpdateKey key, int instanceId) {
+  public List<JobInstanceUpdateEvent> fetchInstanceEvents(JobUpdateKey key, int instanceId) {
     return this.jobUpdateStore.fetchInstanceEvents(key, instanceId);
   }
 }

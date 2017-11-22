@@ -16,7 +16,7 @@ package org.apache.aurora.scheduler.mesos;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
-import org.apache.aurora.gen.apiConstants;
+import org.apache.aurora.gen.Api_Constants;
 import org.apache.aurora.scheduler.configuration.executor.ExecutorConfig;
 import org.apache.aurora.scheduler.configuration.executor.ExecutorSettings;
 import org.apache.aurora.scheduler.configuration.executor.Executors;
@@ -37,7 +37,7 @@ public final class TestExecutorSettings {
   }
 
   public static final ExecutorInfo THERMOS_EXECUTOR_INFO = ExecutorInfo.newBuilder()
-      .setName(apiConstants.AURORA_EXECUTOR_NAME)
+      .setName(Api_Constants.AURORA_EXECUTOR_NAME)
       .setExecutorId(Executors.PLACEHOLDER_EXECUTOR_ID)
       .setCommand(CommandInfo.newBuilder().setValue("thermos_executor.pex")
           .addAllArguments(ImmutableList.of(
@@ -70,7 +70,7 @@ public final class TestExecutorSettings {
 
   public static final ExecutorSettings THERMOS_EXECUTOR = new ExecutorSettings(
       ImmutableMap.<String, ExecutorConfig>builder()
-          .put(apiConstants.AURORA_EXECUTOR_NAME, THERMOS_CONFIG)
+          .put(Api_Constants.AURORA_EXECUTOR_NAME, THERMOS_CONFIG)
           .build(),
       false /* populate discovery info */);
 
@@ -82,7 +82,7 @@ public final class TestExecutorSettings {
     executor.clearResources().addAllResources(resources);
     return new ExecutorSettings(
         ImmutableMap.<String, ExecutorConfig>builder().put(
-            apiConstants.AURORA_EXECUTOR_NAME,
+            Api_Constants.AURORA_EXECUTOR_NAME,
             new ExecutorConfig(
                 executor.build(),
                 config.getVolumeMounts(),

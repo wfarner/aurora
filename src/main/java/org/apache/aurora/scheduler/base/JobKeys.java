@@ -22,7 +22,6 @@ import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
 
-import org.apache.aurora.gen.JobKey;
 import org.apache.aurora.gen.JobConfiguration;
 import org.apache.aurora.gen.JobKey;
 import org.apache.aurora.gen.TaskQuery;
@@ -61,8 +60,9 @@ public final class JobKeys {
    * @return The validated jobKey argument.
    * @throws IllegalArgumentException if the key struct fails to validate.
    */
-  public static void assertValid(JobKey jobKey) throws IllegalArgumentException {
+  public static JobKey assertValid(JobKey jobKey) throws IllegalArgumentException {
     checkArgument(isValid(jobKey));
+    return jobKey;
   }
 
   /**
@@ -77,11 +77,11 @@ public final class JobKeys {
   public static JobKey from(String role, String environment, String name)
       throws IllegalArgumentException {
 
-    JobKey job = JobKey.build(new JobKey()
+    return assertValid(JobKey.builder()
         .setRole(role)
         .setEnvironment(environment)
-        .setName(name));
-    return assertValid(job);
+        .setName(name)
+        .build());
   }
 
   /**

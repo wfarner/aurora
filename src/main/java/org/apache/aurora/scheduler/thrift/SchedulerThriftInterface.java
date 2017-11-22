@@ -92,17 +92,6 @@ import org.apache.aurora.scheduler.storage.Storage.NonVolatileStorage;
 import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
 import org.apache.aurora.scheduler.storage.backup.Recovery;
 import org.apache.aurora.scheduler.storage.backup.StorageBackup;
-import org.apache.aurora.scheduler.storage.entities.IHostStatus;
-import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdate;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateRequest;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateSettings;
-import org.apache.aurora.scheduler.storage.entities.IMetadata;
-import org.apache.aurora.scheduler.storage.entities.IRange;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
 import org.apache.aurora.scheduler.storage.log.ThriftBackfill;
 import org.apache.aurora.scheduler.thrift.aop.AnnotatedAuroraAdmin;
 import org.apache.aurora.scheduler.thrift.aop.ThriftWorkload;
@@ -119,13 +108,13 @@ import org.slf4j.LoggerFactory;
 import static java.util.Objects.requireNonNull;
 
 import static org.apache.aurora.common.base.MorePreconditions.checkNotBlank;
+import static org.apache.aurora.gen.Api_Constants.ACTIVE_STATES;
+import static org.apache.aurora.gen.Api_Constants.TERMINAL_STATES;
 import static org.apache.aurora.gen.ResponseCode.INVALID_REQUEST;
 import static org.apache.aurora.gen.ResponseCode.JOB_UPDATING_ERROR;
 import static org.apache.aurora.gen.ResponseCode.OK;
 import static org.apache.aurora.scheduler.base.Numbers.convertRanges;
 import static org.apache.aurora.scheduler.base.Numbers.toRanges;
-import static org.apache.aurora.scheduler.base.Tasks.ACTIVE_STATES;
-import static org.apache.aurora.scheduler.base.Tasks.TERMINAL_STATES;
 import static org.apache.aurora.scheduler.quota.QuotaCheckResult.Result.INSUFFICIENT_QUOTA;
 import static org.apache.aurora.scheduler.thrift.Responses.addMessage;
 import static org.apache.aurora.scheduler.thrift.Responses.empty;
@@ -463,7 +452,7 @@ class SchedulerThriftInterface implements AnnotatedAuroraAdmin {
         return error(JOB_UPDATING_ERROR, e);
       }
 
-      Iterable<IScheduledTask> tasks = storeProvider.getTaskStore().fetchTasks(query);
+      Iterable<ScheduledTask> tasks = storeProvider.getTaskStore().fetchTasks(query);
 
       LOG.info("Killing tasks matching " + query);
 
@@ -668,7 +657,6 @@ class SchedulerThriftInterface implements AnnotatedAuroraAdmin {
       return invalidRequest(INVALID_INSTANCE_COUNT);
     }
 
-    Response response = empty();
     return storage.write(storeProvider -> {
       try {
         if (getCronJob(storeProvider, jobKey).isPresent()) {

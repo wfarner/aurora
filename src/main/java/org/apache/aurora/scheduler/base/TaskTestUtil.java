@@ -21,13 +21,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
+import org.apache.aurora.gen.Api_Constants;
 import org.apache.aurora.gen.AssignedTask;
 import org.apache.aurora.gen.Constraint;
 import org.apache.aurora.gen.Container;
-import org.apache.aurora.gen.Container._Fields;
+import org.apache.aurora.gen.Container._Field;
 import org.apache.aurora.gen.DockerContainer;
 import org.apache.aurora.gen.DockerParameter;
 import org.apache.aurora.gen.Identity;
+import org.apache.aurora.gen.JobKey;
 import org.apache.aurora.gen.LimitConstraint;
 import org.apache.aurora.gen.MesosFetcherURI;
 import org.apache.aurora.gen.Metadata;
@@ -39,7 +41,6 @@ import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.gen.TaskConstraint;
 import org.apache.aurora.gen.TaskEvent;
 import org.apache.aurora.gen.ValueConstraint;
-import org.apache.aurora.gen.apiConstants;
 import org.apache.aurora.scheduler.TierInfo;
 import org.apache.aurora.scheduler.TierManager;
 import org.apache.aurora.scheduler.TierManager.TierManagerImpl.TierConfig;
@@ -47,9 +48,6 @@ import org.apache.aurora.scheduler.configuration.ConfigurationManager;
 import org.apache.aurora.scheduler.configuration.ConfigurationManager.ConfigurationManagerSettings;
 import org.apache.aurora.scheduler.configuration.executor.ExecutorConfig;
 import org.apache.aurora.scheduler.configuration.executor.ExecutorSettings;
-import org.apache.aurora.gen.JobKey;
-import org.apache.aurora.gen.ScheduledTask;
-import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.storage.log.ThriftBackfill;
 import org.apache.mesos.v1.Protos;
 import org.apache.mesos.v1.Protos.ExecutorID;
@@ -81,7 +79,7 @@ public final class TaskTestUtil {
   public static final ThriftBackfill THRIFT_BACKFILL = new ThriftBackfill(TIER_MANAGER);
   public static final ConfigurationManagerSettings CONFIGURATION_MANAGER_SETTINGS =
       new ConfigurationManagerSettings(
-          ImmutableSet.of(_Fields.MESOS),
+          ImmutableSet.of(_Field.MESOS),
           false,
           ImmutableList.of(),
           true,
@@ -94,7 +92,7 @@ public final class TaskTestUtil {
       .build();
   public static final ExecutorInfo EXECUTOR_INFO = ExecutorInfo.newBuilder()
       .setExecutorId(EXECUTOR_ID)
-      .setName(apiConstants.AURORA_EXECUTOR_NAME)
+      .setName(Api_Constants.AURORA_EXECUTOR_NAME)
       .setCommand(Protos.CommandInfo.newBuilder().build()).build();
   public static final ExecutorSettings EXECUTOR_SETTINGS = new ExecutorSettings(
       ImmutableMap.<String, ExecutorConfig>builder()
@@ -124,7 +122,7 @@ public final class TaskTestUtil {
         .setMaxTaskFailures(-1)
         .setProduction(true)
         .setTier(PROD_TIER_NAME)
-        .setPartitionPolicy(new PartitionPolicy().setDelaySecs(5).setReschedule(true))
+        .setPartitionPolicy(PartitionPolicy.builder().setDelaySecs(5).setReschedule(true))
         .setConstraints(ImmutableSet.of(
             Constraint.builder()
                 .setName("valueConstraint")
@@ -143,19 +141,20 @@ public final class TaskTestUtil {
         .setMesosFetcherUris(ImmutableSet.of(
             MesosFetcherURI.builder().setValue("pathA").setExtract(true).setCache(true).build(),
             MesosFetcherURI.builder().setValue("pathB").setExtract(true).setCache(true).build()))
-        .setExecutorConfig(new org.apache.aurora.gen.ExecutorConfig(
-            EXECUTOR_INFO.getName(),
-            "config"))
+        .setExecutorConfig(org.apache.aurora.gen.ExecutorConfig.builder()
+            .setName(EXECUTOR_INFO.getName())
+            .setData("config"))
         .setContainer(Container.withDocker(
             DockerContainer.builder().setImage("imagename")
                 .setParameters(ImmutableList.of(
-                    new DockerParameter("a", "b"),
-                    new DockerParameter("c", "d")))))
+                    DockerParameter.builder().setName("a").setValue("b").build(),
+                    DockerParameter.builder().setName("c").setValue("d").build()))))
         .setResources(ImmutableSet.of(
             Resource.withNumCpus(1.0),
             Resource.withRamMb(1024),
             Resource.withDiskMb(1024),
-            Resource.withNamedPort("http")));
+            Resource.withNamedPort("http")))
+        .build();
   }
 
   public static ScheduledTask makeTask(String id, JobKey job) {
@@ -184,28 +183,34 @@ public final class TaskTestUtil {
       int instanceId,
       Optional<String> agentId) {
 
-    AssignedTask assignedTask = new AssignedTask()
+    AssignedTask._Builder assignedTask = AssignedTask.builder()
         .setInstanceId(instanceId)
         .setTaskId(id)
         .setAssignedPorts(ImmutableMap.of("http", 1000))
-        .setTask(config.newBuilder());
+        .setTask(config);
     if (agentId.isPresent()) {
       assignedTask.setSlaveId(agentId.get());
     }
 
-    return ScheduledTask.build(new ScheduledTask()
+    return ScheduledTask.builder()
         .setStatus(ScheduleStatus.ASSIGNED)
-        .setTaskEvents(ImmutableList.of(
-            new TaskEvent(100L, ScheduleStatus.PENDING)
-                .setMessage("message")
-                .setScheduler("scheduler"),
-            new TaskEvent(101L, ScheduleStatus.ASSIGNED)
-                .setMessage("message")
-                .setScheduler("scheduler2")))
+        .addToTaskEvents(TaskEvent.builder()
+            .setTimestamp(100)
+            .setStatus(ScheduleStatus.PENDING)
+            .setMessage("message")
+            .setScheduler("scheduler")
+            .build())
+        .addToTaskEvents(TaskEvent.builder()
+            .setTimestamp(101)
+            .setStatus(ScheduleStatus.ASSIGNED)
+            .setMessage("message")
+            .setScheduler("scheduler2")
+            .build())
         .setAncestorId("ancestor")
         .setFailureCount(3)
         .setTimesPartitioned(2)
-        .setAssignedTask(assignedTask));
+        .setAssignedTask(assignedTask)
+        .build();
   }
 
   public static ScheduledTask addStateTransition(
@@ -213,13 +218,14 @@ public final class TaskTestUtil {
       ScheduleStatus status,
       long timestamp) {
 
-    ScheduledTask builder = task.newBuilder();
+    ScheduledTask._Builder builder = task.mutate();
     builder.setStatus(status);
-    builder.addToTaskEvents(new TaskEvent()
+    builder.addToTaskEvents(TaskEvent.builder()
         .setTimestamp(timestamp)
         .setStatus(status)
-        .setScheduler("scheduler"));
-    return ScheduledTask.build(builder);
+        .setScheduler("scheduler")
+        .build());
+    return builder.build();
   }
 
   public static String tierConfigFile() {
@@ -240,9 +246,12 @@ public final class TaskTestUtil {
 
   public static Set<org.apache.aurora.gen.TierConfig> tierConfigs() {
     return ImmutableSet.of(
-        new org.apache.aurora.gen.TierConfig("preferred", PREFERRED_TIER.toMap()),
-        new org.apache.aurora.gen.TierConfig("preemptible", DEV_TIER.toMap()),
-        new org.apache.aurora.gen.TierConfig("revocable", REVOCABLE_TIER.toMap())
+        org.apache.aurora.gen.TierConfig.builder()
+            .setName("preferred").setSettings(PREFERRED_TIER.toMap()).build(),
+        org.apache.aurora.gen.TierConfig.builder()
+            .setName("preemptible").setSettings(DEV_TIER.toMap()).build(),
+        org.apache.aurora.gen.TierConfig.builder()
+            .setName("revocable").setSettings(REVOCABLE_TIER.toMap()).build()
     );
   }
 }

@@ -37,12 +37,21 @@ import org.apache.aurora.common.collections.Pair;
 import org.apache.aurora.common.quantity.Amount;
 import org.apache.aurora.common.quantity.Time;
 import org.apache.aurora.common.util.Clock;
+import org.apache.aurora.gen.Api_Constants;
+import org.apache.aurora.gen.InstanceKey;
 import org.apache.aurora.gen.JobInstanceUpdateEvent;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.JobUpdate;
 import org.apache.aurora.gen.JobUpdateAction;
+import org.apache.aurora.gen.JobUpdateDetails;
 import org.apache.aurora.gen.JobUpdateEvent;
+import org.apache.aurora.gen.JobUpdateInstructions;
+import org.apache.aurora.gen.JobUpdateKey;
 import org.apache.aurora.gen.JobUpdatePulseStatus;
 import org.apache.aurora.gen.JobUpdateQuery;
 import org.apache.aurora.gen.JobUpdateStatus;
+import org.apache.aurora.gen.JobUpdateSummary;
+import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.BatchWorker;
 import org.apache.aurora.scheduler.SchedulerModule.TaskEventBatchWorker;
 import org.apache.aurora.scheduler.base.InstanceKeys;
@@ -53,17 +62,6 @@ import org.apache.aurora.scheduler.storage.JobUpdateStore;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
 import org.apache.aurora.scheduler.storage.TaskStore;
-import org.apache.aurora.gen.InstanceKey;
-import org.apache.aurora.gen.JobInstanceUpdateEvent;
-import org.apache.aurora.gen.JobKey;
-import org.apache.aurora.gen.JobUpdate;
-import org.apache.aurora.gen.JobUpdateDetails;
-import org.apache.aurora.gen.JobUpdateEvent;
-import org.apache.aurora.gen.JobUpdateInstructions;
-import org.apache.aurora.gen.JobUpdateKey;
-import org.apache.aurora.gen.JobUpdateQuery;
-import org.apache.aurora.gen.JobUpdateSummary;
-import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.updater.StateEvaluator.Failure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -176,7 +174,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
         JobUpdateSummary activeJobUpdate = activeJobUpdates.get(0);
         throw new UpdateInProgressException("An active update already exists for this job, "
             + "please terminate it before starting another. "
-            + "Active updates are those in states " + Updates.ACTIVE_JOB_UPDATE_STATES,
+            + "Active updates are those in states " + Api_Constants.ACTIVE_JOB_UPDATE_STATES,
             activeJobUpdate);
       }
 
@@ -312,7 +310,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
           LOG.info("Automatically resuming update " + key);
 
           try {
-            changeJobUpdateStatus(storeProvider, key, newEvent(status), false);
+            changeJobUpdateStatus(storeProvider, key, newEvent(status).build(), false);
           } catch (UpdateStateException e) {
             throw new RuntimeException(e);
           }
@@ -344,7 +342,9 @@ class JobUpdateControllerImpl implements JobUpdateController {
             try {
               unscopedChangeUpdateStatus(
                   key,
-                  status -> new JobUpdateEvent().setStatus(GET_UNBLOCKED_STATE.apply(status)));
+                  status -> JobUpdateEvent.builder()
+                      .setStatus(GET_UNBLOCKED_STATE.apply(status))
+                      .build());
             } catch (UpdateStateException e) {
               LOG.error(String.format("Error processing job update pulse for %s: %s", key, e));
             }
@@ -395,15 +395,16 @@ class JobUpdateControllerImpl implements JobUpdateController {
     });
   }
 
-  private JobUpdateSummary getOnlyMatch(JobUpdateStore store, IJobUpdateQuery query) {
+  private JobUpdateSummary getOnlyMatch(JobUpdateStore store, JobUpdateQuery query) {
     return Iterables.getOnlyElement(store.fetchJobUpdateSummaries(query));
   }
 
   @VisibleForTesting
   static JobUpdateQuery queryActiveByJob(JobKey job) {
-    return JobUpdateQuery.build(new JobUpdateQuery()
-        .setJobKey(job.newBuilder())
-        .setUpdateStatuses(Updates.ACTIVE_JOB_UPDATE_STATES));
+    return JobUpdateQuery.builder()
+        .setJobKey(job)
+        .setUpdateStatuses(Api_Constants.ACTIVE_JOB_UPDATE_STATES)
+        .build();
   }
 
   /**
@@ -467,7 +468,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
     if (record) {
       updateStore.saveJobUpdateEvent(
           key,
-          JobUpdateEvent.build(proposedEvent.setTimestampMs(clock.nowMillis()).setStatus(status)));
+          proposedEvent.mutate().setTimestampMs(clock.nowMillis()).setStatus(status).build());
     }
 
     if (JobUpdateStore.TERMINAL_STATES.contains(status)) {
@@ -496,7 +497,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
         changeJobUpdateStatus(
             storeProvider,
             key,
-            newEvent(ERROR).setMessage("Internal scheduler error: " + e.getMessage()),
+            newEvent(ERROR).setMessage("Internal scheduler error: " + e.getMessage()).build(),
             true);
         return;
       }
@@ -563,7 +564,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
       changeUpdateStatus(
           storeProvider,
           summary,
-          newEvent(blockedStatus).setMessage(PULSE_TIMEOUT_MESSAGE));
+          newEvent(blockedStatus).setMessage(PULSE_TIMEOUT_MESSAGE).build());
       return;
     }
 
@@ -578,7 +579,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
       Iterable<InstanceUpdateStatus> statusChanges;
 
       int instanceId = entry.getKey();
-      List<IJobInstanceUpdateEvent> savedEvents = updateStore.fetchInstanceEvents(key, instanceId);
+      List<JobInstanceUpdateEvent> savedEvents = updateStore.fetchInstanceEvents(key, instanceId);
 
       Set<JobUpdateAction> savedActions =
           FluentIterable.from(savedEvents).transform(EVENT_TO_ACTION).toSet();
@@ -603,11 +604,11 @@ class JobUpdateControllerImpl implements JobUpdateController {
         if (savedActions.contains(action)) {
           LOG.info("Suppressing duplicate update {} for instance {}.", action, instanceId);
         } else {
-          IJobInstanceUpdateEvent event = IJobInstanceUpdateEvent.build(
-              new JobInstanceUpdateEvent()
-                  .setInstanceId(instanceId)
-                  .setTimestampMs(clock.nowMillis())
-                  .setAction(action));
+          JobInstanceUpdateEvent event = JobInstanceUpdateEvent.builder()
+              .setInstanceId(instanceId)
+              .setTimestampMs(clock.nowMillis())
+              .setAction(action)
+              .build();
           updateStore.saveJobInstanceUpdateEvent(summary.getKey(), event);
         }
       }
@@ -620,7 +621,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
             "A terminal state should not specify actions: " + result);
       }
 
-      JobUpdateEvent event = new JobUpdateEvent();
+      JobUpdateEvent._Builder event = JobUpdateEvent.builder();
       if (status == SUCCEEDED) {
         event.setStatus(update.getSuccessStatus());
       } else {
@@ -637,7 +638,7 @@ class JobUpdateControllerImpl implements JobUpdateController {
           }
         }
       }
-      changeUpdateStatus(storeProvider, summary, event);
+      changeUpdateStatus(storeProvider, summary, event.build());
     } else {
       LOG.info("Executing side-effects for update of " + key + ": " + result.getSideEffects());
       for (Map.Entry<Integer, SideEffect> entry : result.getSideEffects().entrySet()) {
@@ -668,8 +669,8 @@ class JobUpdateControllerImpl implements JobUpdateController {
   }
 
   @VisibleForTesting
-  static final Function<IJobInstanceUpdateEvent, JobUpdateAction> EVENT_TO_ACTION =
-      IJobInstanceUpdateEvent::getAction;
+  static final Function<JobInstanceUpdateEvent, JobUpdateAction> EVENT_TO_ACTION =
+      JobInstanceUpdateEvent::getAction;
 
   @VisibleForTesting
   static String failureMessage(int instanceId, Failure failure) {
@@ -703,16 +704,17 @@ class JobUpdateControllerImpl implements JobUpdateController {
 
   @VisibleForTesting
   static JobUpdateQuery queryByUpdate(JobUpdateKey key) {
-    return JobUpdateQuery.build(new JobUpdateQuery().setKey(key.newBuilder()));
+    return JobUpdateQuery.builder().setKey(key).build();
   }
 
-  private static JobUpdateEvent newEvent(JobUpdateStatus status) {
-    return new JobUpdateEvent().setStatus(status);
+  private static JobUpdateEvent._Builder newEvent(JobUpdateStatus status) {
+    return JobUpdateEvent.builder().setStatus(status);
   }
 
-  private static JobUpdateEvent addAuditData(JobUpdateEvent event, AuditData auditData) {
+  private static JobUpdateEvent addAuditData(JobUpdateEvent._Builder event, AuditData auditData) {
     return event.setMessage(auditData.getMessage().orNull())
-        .setUser(auditData.getUser());
+        .setUser(auditData.getUser())
+        .build();
   }
 
   private Runnable getDeferredEvaluator(final InstanceKey instance, final JobUpdateKey key) {

@@ -25,7 +25,6 @@ import com.google.common.collect.Range;
 
 import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.cron.CrontabEntry;
-import org.apache.aurora.gen.JobKey;
 import org.quartz.CronExpression;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.CronTrigger;
@@ -89,14 +88,14 @@ final class Quartz {
   /**
    * Convert a Quartz JobKey to an Aurora JobKey.
    */
-  static JobKey auroraJobKey(JobKey jobKey) {
+  static org.apache.aurora.gen.JobKey auroraJobKey(JobKey jobKey) {
     return JobKeys.parse(jobKey.getName());
   }
 
   /**
    * Convert an Aurora JobKey to a Quartz JobKey.
    */
-  static JobKey jobKey(JobKey jobKey) {
+  static JobKey jobKey(org.apache.aurora.gen.JobKey jobKey) {
     return JobKey.jobKey(JobKeys.canonicalString(jobKey));
   }
 
@@ -107,7 +106,7 @@ final class Quartz {
         .build();
   }
 
-  static JobDetail jobDetail(JobKey jobKey, Class<? extends Job> jobClass) {
+  static JobDetail jobDetail(org.apache.aurora.gen.JobKey jobKey, Class<? extends Job> jobClass) {
     requireNonNull(jobKey);
     requireNonNull(jobClass);
 

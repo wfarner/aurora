@@ -221,7 +221,7 @@ public interface MesosCallbackHandler {
         //                offers when the host attributes cannot be found. (AURORA-137)
         storage.write((Storage.MutateWork.NoResult.Quiet) storeProvider -> {
           for (Offer offer : offers) {
-            IHostAttributes attributes =
+            HostAttributes attributes =
                 AttributeStore.Util.mergeOffer(storeProvider.getAttributeStore(), offer);
             storeProvider.getAttributeStore().saveHostAttributes(attributes);
             log.info("Received offer: {}", offer.getId().getValue());

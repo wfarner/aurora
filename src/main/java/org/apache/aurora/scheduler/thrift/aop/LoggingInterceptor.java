@@ -50,21 +50,21 @@ class LoggingInterceptor implements MethodInterceptor {
       ImmutableMap.of(
           JobConfiguration.class,
           input -> {
-            JobConfiguration configuration = ((JobConfiguration) input).deepCopy();
-            if (configuration.hasTaskConfig()) {
-              configuration.getTaskConfig().setExecutorConfig(
-                  new ExecutorConfig("BLANKED", "BLANKED"));
+            JobConfiguration._Builder configuration = ((JobConfiguration) input).mutate();
+            if (configuration.getTaskConfig() != null) {
+              configuration.mutableTaskConfig().setExecutorConfig(
+                  ExecutorConfig.builder().setName("BLANKED").setData("BLANKED"));
             }
-            return configuration.toString();
+            return configuration.build().asString();
           },
           JobUpdateRequest.class,
           input -> {
-            JobUpdateRequest configuration = ((JobUpdateRequest) input).deepCopy();
-            if (configuration.hasTaskConfig()) {
-              configuration.getTaskConfig().setExecutorConfig(
-                  new ExecutorConfig("BLANKED", "BLANKED"));
+            JobUpdateRequest._Builder configuration = ((JobUpdateRequest) input).mutate();
+            if (configuration.getTaskConfig() != null) {
+              configuration.mutableTaskConfig().setExecutorConfig(
+                  ExecutorConfig.builder().setName("BLANKED").setData("BLANKED"));
             }
-            return configuration.toString();
+            return configuration.build().asString();
           }
       );
 
@@ -98,13 +98,13 @@ class LoggingInterceptor implements MethodInterceptor {
       response = (Response) invocation.proceed();
     } catch (Storage.TransientStorageException e) {
       LOG.warn("Uncaught transient exception while handling {}({})", methodName, messageArgs, e);
-      response = Responses.addMessage(Responses.empty(), ResponseCode.ERROR_TRANSIENT, e);
+      response = Responses.addMessage(Responses.empty(), ResponseCode.ERROR_TRANSIENT, e).build();
     } catch (RuntimeException e) {
       // We need shiro's exceptions to bubble up to the Shiro servlet filter so we intentionally
       // do not swallow them here.
       Throwables.throwIfInstanceOf(e, ShiroException.class);
       LOG.warn("Uncaught exception while handling {}({})", methodName, messageArgs, e);
-      response = Responses.addMessage(Responses.empty(), ResponseCode.ERROR, e);
+      response = Responses.addMessage(Responses.empty(), ResponseCode.ERROR, e).build();
     } finally {
       if (response != null) {
         responseCodeCounters.getUnchecked(response.getResponseCode()).incrementAndGet();

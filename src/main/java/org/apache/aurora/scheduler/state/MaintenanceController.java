@@ -27,9 +27,11 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.common.eventbus.Subscribe;
 
+import org.apache.aurora.gen.HostAttributes;
 import org.apache.aurora.gen.HostStatus;
 import org.apache.aurora.gen.MaintenanceMode;
 import org.apache.aurora.gen.ScheduleStatus;
+import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.BatchWorker;
 import org.apache.aurora.scheduler.SchedulerModule.TaskEventBatchWorker;
 import org.apache.aurora.scheduler.base.Query;
@@ -39,9 +41,6 @@ import org.apache.aurora.scheduler.events.PubsubEvent.TaskStateChange;
 import org.apache.aurora.scheduler.storage.AttributeStore;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
-import org.apache.aurora.gen.HostAttributes;
-import org.apache.aurora.gen.HostStatus;
-import org.apache.aurora.gen.ScheduledTask;
 import org.apache.mesos.v1.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -183,7 +182,7 @@ public interface MaintenanceController {
         batchWorker.execute(store -> {
           // If the task _was_ associated with a draining host, and it was the last task on the
           // host.
-          Optional<IHostAttributes> attributes =
+          Optional<HostAttributes> attributes =
               store.getAttributeStore().getHostAttributes(host);
           if (attributes.isPresent() && attributes.get().getMode() == DRAINING) {
             Query.Builder builder = Query.slaveScoped(host).active();
@@ -237,20 +236,17 @@ public interface MaintenanceController {
       }
     }
 
-    private static final Function<IHostAttributes, String> HOST_NAME =
-        IHostAttributes::getHost;
-
-    private static final Function<IHostAttributes, HostStatus> ATTRS_TO_STATUS =
-        attributes -> HostStatus.build(
-            new HostStatus().setHost(attributes.getHost()).setMode(attributes.getMode()));
-
-    private static final Function<HostStatus, MaintenanceMode> GET_MODE = IHostStatus::getMode;
+    private static final Function<HostAttributes, HostStatus> ATTRS_TO_STATUS =
+        attributes -> HostStatus.builder()
+            .setHost(attributes.getHost())
+            .setMode(attributes.getMode())
+            .build();
 
     @Override
     public MaintenanceMode getMode(final String host) {
       return storage.read(storeProvider -> storeProvider.getAttributeStore().getHostAttributes(host)
           .transform(ATTRS_TO_STATUS)
-          .transform(GET_MODE)
+          .transform(HostStatus::getMode)
           .or(MaintenanceMode.NONE));
     }
 
@@ -260,7 +256,7 @@ public interface MaintenanceController {
         // Warning - this is filtering _all_ host attributes.  If using this to frequently query
         // for a small set of hosts, a getHostAttributes variant should be added.
         return FluentIterable.from(storeProvider.getAttributeStore().getHostAttributes())
-            .filter(Predicates.compose(Predicates.in(hosts), HOST_NAME))
+            .filter(Predicates.compose(Predicates.in(hosts), HostAttributes::getHost))
             .transform(ATTRS_TO_STATUS)
             .toSet();
       });
@@ -281,11 +277,11 @@ public interface MaintenanceController {
       ImmutableSet.Builder<HostStatus> statuses = ImmutableSet.builder();
       for (String host : hosts) {
         LOG.info("Setting maintenance mode to {} for host {}", mode, host);
-        Optional<IHostAttributes> toSave = AttributeStore.Util.mergeMode(store, host, mode);
+        Optional<HostAttributes> toSave = AttributeStore.Util.mergeMode(store, host, mode);
         if (toSave.isPresent()) {
           store.saveHostAttributes(toSave.get());
           LOG.info("Updated host attributes: " + toSave.get());
-          statuses.add(HostStatus.build(new HostStatus().setHost(host).setMode(mode)));
+          statuses.add(HostStatus.builder().setHost(host).setMode(mode).build());
         }
       }
       return statuses.build();

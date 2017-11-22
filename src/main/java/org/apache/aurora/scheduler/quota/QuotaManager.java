@@ -30,17 +30,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.RangeSet;
 
-import org.apache.aurora.gen.JobUpdateQuery;
-import org.apache.aurora.scheduler.base.JobKeys;
-import org.apache.aurora.scheduler.base.Query;
-import org.apache.aurora.scheduler.base.Tasks;
-import org.apache.aurora.scheduler.configuration.ConfigurationManager;
-import org.apache.aurora.scheduler.resources.ResourceBag;
-import org.apache.aurora.scheduler.resources.ResourceManager;
-import org.apache.aurora.scheduler.resources.ResourceType;
-import org.apache.aurora.scheduler.storage.JobUpdateStore;
-import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
-import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
+import org.apache.aurora.gen.Api_Constants;
 import org.apache.aurora.gen.AssignedTask;
 import org.apache.aurora.gen.InstanceTaskConfig;
 import org.apache.aurora.gen.JobConfiguration;
@@ -53,7 +43,16 @@ import org.apache.aurora.gen.Range;
 import org.apache.aurora.gen.ResourceAggregate;
 import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.gen.TaskConfig;
-import org.apache.aurora.scheduler.updater.Updates;
+import org.apache.aurora.scheduler.base.JobKeys;
+import org.apache.aurora.scheduler.base.Query;
+import org.apache.aurora.scheduler.base.Tasks;
+import org.apache.aurora.scheduler.configuration.ConfigurationManager;
+import org.apache.aurora.scheduler.resources.ResourceBag;
+import org.apache.aurora.scheduler.resources.ResourceManager;
+import org.apache.aurora.scheduler.resources.ResourceType;
+import org.apache.aurora.scheduler.storage.JobUpdateStore;
+import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
+import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
 
 import static java.util.Objects.requireNonNull;
 
@@ -270,7 +269,7 @@ public interface QuotaManager {
         Optional<JobUpdate> requestedUpdate,
         StoreProvider storeProvider) {
 
-      FluentIterable<IAssignedTask> tasks = FluentIterable
+      FluentIterable<AssignedTask> tasks = FluentIterable
           .from(storeProvider.getTaskStore().fetchTasks(Query.roleScoped(role).active()))
           .transform(ScheduledTask::getAssignedTask);
 
@@ -302,15 +301,15 @@ public interface QuotaManager {
     }
 
     private ResourceBag getConsumption(
-        FluentIterable<IAssignedTask> tasks,
+        FluentIterable<AssignedTask> tasks,
         Map<JobKey, JobUpdateInstructions> updatesByKey,
         Map<JobKey, JobConfiguration> cronTemplatesByKey,
         Predicate<TaskConfig> filter) {
 
-      FluentIterable<IAssignedTask> filteredTasks =
-          tasks.filter(compose(filter, IAssignedTask::getTask));
+      FluentIterable<AssignedTask> filteredTasks =
+          tasks.filter(compose(filter, AssignedTask::getTask));
 
-      Predicate<IAssignedTask> excludeCron = compose(
+      Predicate<AssignedTask> excludeCron = compose(
           not(in(cronTemplatesByKey.keySet())),
           Tasks::getJob);
 
@@ -323,14 +322,14 @@ public interface QuotaManager {
           Iterables.filter(
               cronTemplatesByKey.values(),
               compose(filter, JobConfiguration::getTaskConfig)),
-          filteredTasks.transform(IAssignedTask::getTask));
+          filteredTasks.transform(AssignedTask::getTask));
 
       return nonCronConsumption.add(cronConsumption);
     }
 
     private static ResourceBag getNonCronConsumption(
         Map<JobKey, JobUpdateInstructions> updatesByKey,
-        FluentIterable<IAssignedTask> tasks,
+        FluentIterable<AssignedTask> tasks,
         final Predicate<TaskConfig> configFilter) {
 
       // 1. Get all active tasks that belong to jobs without active updates OR unaffected by an
@@ -346,10 +345,10 @@ public interface QuotaManager {
 
       ResourceBag nonUpdateConsumption = fromTasks(tasks
           .filter(buildNonUpdatingTasksFilter(updatesByKey))
-          .transform(IAssignedTask::getTask));
+          .transform(AssignedTask::getTask));
 
-      final Predicate<IInstanceTaskConfig> instanceFilter =
-          compose(configFilter, IInstanceTaskConfig::getTask);
+      final Predicate<InstanceTaskConfig> instanceFilter =
+          compose(configFilter, InstanceTaskConfig::getTask);
 
       ResourceBag updateConsumption =
           addAll(Iterables.transform(updatesByKey.values(), updateResources(instanceFilter)));
@@ -377,7 +376,7 @@ public interface QuotaManager {
                   .max(fromTasks(taskConfigsByKey.get(config.getKey())))));
     }
 
-    private static Predicate<IAssignedTask> buildNonUpdatingTasksFilter(
+    private static Predicate<AssignedTask> buildNonUpdatingTasksFilter(
         final Map<JobKey, JobUpdateInstructions> roleJobUpdates) {
 
       return task -> {
@@ -402,7 +401,7 @@ public interface QuotaManager {
         final JobUpdateStore jobUpdateStore,
         String role) {
 
-      Function<JobUpdateSummary, IJobUpdate> fetchUpdate =
+      Function<JobUpdateSummary, JobUpdate> fetchUpdate =
           summary -> jobUpdateStore.fetchJobUpdate(summary.getKey()).get();
 
       return Maps.transformValues(
@@ -414,16 +413,17 @@ public interface QuotaManager {
 
     @VisibleForTesting
     static JobUpdateQuery updateQuery(String role) {
-      return JobUpdateQuery.build(new JobUpdateQuery()
+      return JobUpdateQuery.builder()
           .setRole(role)
-          .setUpdateStatuses(Updates.ACTIVE_JOB_UPDATE_STATES));
+          .setUpdateStatuses(Api_Constants.ACTIVE_JOB_UPDATE_STATES)
+          .build();
     }
 
-    private static final Function<IInstanceTaskConfig, ResourceBag> INSTANCE_RESOURCES =
+    private static final Function<InstanceTaskConfig, ResourceBag> INSTANCE_RESOURCES =
         config -> scale(config.getTask(), getUpdateInstanceCount(config.getInstances()));
 
     private static ResourceBag instructionsToResources(
-        Iterable<IInstanceTaskConfig> instructions) {
+        Iterable<InstanceTaskConfig> instructions) {
 
       return addAll(FluentIterable.from(instructions).transform(INSTANCE_RESOURCES));
     }
@@ -442,12 +442,12 @@ public interface QuotaManager {
      *       is accounted.
      */
     private static Function<JobUpdateInstructions, ResourceBag> updateResources(
-        final Predicate<IInstanceTaskConfig> instanceFilter) {
+        final Predicate<InstanceTaskConfig> instanceFilter) {
 
       return instructions -> {
-        Iterable<IInstanceTaskConfig> initialState =
+        Iterable<InstanceTaskConfig> initialState =
             Iterables.filter(instructions.getInitialState(), instanceFilter);
-        Iterable<IInstanceTaskConfig> desiredState = Iterables.filter(
+        Iterable<InstanceTaskConfig> desiredState = Iterables.filter(
             Optional.fromNullable(instructions.getDesiredState()).asSet(),
             instanceFilter);
 

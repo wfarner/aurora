@@ -55,7 +55,7 @@ public class Utilization {
   private final StringTemplateHelper templateHelper;
 
   @Inject
-  Utilization(ResourceCounter counter, IServerInfo serverInfo) {
+  Utilization(ResourceCounter counter, ServerInfo serverInfo) {
     templateHelper = new StringTemplateHelper(getClass(), "utilization", true);
     this.counter = Objects.requireNonNull(counter);
     this.clusterName = MorePreconditions.checkNotBlank(serverInfo.getClusterName());

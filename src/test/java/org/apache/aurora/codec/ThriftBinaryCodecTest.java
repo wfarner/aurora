@@ -13,6 +13,8 @@
  */
 package org.apache.aurora.codec;
 
+import net.morimekta.util.Binary;
+
 import org.apache.aurora.codec.ThriftBinaryCodec.CodingException;
 import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.base.TaskTestUtil;
@@ -60,7 +62,8 @@ public class ThriftBinaryCodecTest {
 
     byte[] deflated = ThriftBinaryCodec.deflateNonNull(original);
 
-    ScheduledTask inflated = ThriftBinaryCodec.inflateNonNull(ScheduledTask.kDescriptor, deflated);
+    ScheduledTask inflated =
+        ThriftBinaryCodec.inflateNonNull(ScheduledTask.kDescriptor, Binary.wrap(deflated));
 
     assertEquals(original, inflated);
   }

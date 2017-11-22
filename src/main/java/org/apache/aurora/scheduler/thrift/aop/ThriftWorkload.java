@@ -44,21 +44,21 @@ public @interface ThriftWorkload {
     public Integer apply(Result result) {
       int count = 0;
       if (result.hasScheduleStatusResult()) {
-        count = result.getScheduleStatusResult().getTasksSize();
+        count = result.getScheduleStatusResult().getTasks().size();
       } else if (result.hasGetPendingReasonResult()) {
-        count = result.getGetPendingReasonResult().getReasonsSize();
+        count = result.getGetPendingReasonResult().getReasons().size();
       } else if (result.hasConfigSummaryResult()) {
-        count = result.getConfigSummaryResult().getSummary().getGroupsSize();
+        count = result.getConfigSummaryResult().getSummary().getGroups().size();
       } else if (result.hasRoleSummaryResult()) {
-        count = result.getRoleSummaryResult().getSummariesSize();
+        count = result.getRoleSummaryResult().getSummaries().size();
       } else if (result.hasJobSummaryResult()) {
-        count = result.getJobSummaryResult().getSummariesSize();
+        count = result.getJobSummaryResult().getSummaries().size();
       } else if (result.hasGetJobsResult()) {
-        count = result.getGetJobsResult().getConfigsSize();
+        count = result.getGetJobsResult().getConfigs().size();
       } else if (result.hasGetJobUpdateSummariesResult()) {
-        count = result.getGetJobUpdateSummariesResult().getUpdateSummariesSize();
+        count = result.getGetJobUpdateSummariesResult().getUpdateSummaries().size();
       } else if (result.hasGetJobUpdateDetailsResult()) {
-        count = result.getGetJobUpdateDetailsResult().getDetailsListSize();
+        count = result.getGetJobUpdateDetailsResult().getDetailsList().size();
       }
       return count;
     }

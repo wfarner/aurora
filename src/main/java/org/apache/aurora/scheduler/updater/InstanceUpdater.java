@@ -78,7 +78,7 @@ class InstanceUpdater implements StateEvaluator<Optional<ScheduledTask>> {
     boolean wasKilling =
         Iterables.any(
             task.getTaskEvents(),
-            Predicates.compose(Predicates.equalTo(KILLING), ITaskEvent::getStatus));
+            Predicates.compose(Predicates.equalTo(KILLING), TaskEvent::getStatus));
     return task.getStatus() != KILLING && wasKilling;
   }
 
@@ -123,7 +123,7 @@ class InstanceUpdater implements StateEvaluator<Optional<ScheduledTask>> {
         .greaterThanOrEqualTo(bagFromResources(desired.getResources()));
   }
 
-  private boolean constraintsMatch(ITaskConfig desired, ITaskConfig existing) {
+  private boolean constraintsMatch(TaskConfig desired, TaskConfig existing) {
     return desired.getConstraints().equals(existing.getConstraints());
   }
 

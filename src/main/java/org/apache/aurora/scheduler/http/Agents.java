@@ -51,13 +51,13 @@ public class Agents extends JerseyTemplateServlet {
    * @param storage store to fetch the host attributes from
    */
   @Inject
-  public Agents(IServerInfo serverInfo, Storage storage) {
+  public Agents(ServerInfo serverInfo, Storage storage) {
     super("agents");
     this.clusterName = checkNotBlank(serverInfo.getClusterName());
     this.storage = requireNonNull(storage);
   }
 
-  private Iterable<IHostAttributes> getHostAttributes() {
+  private Iterable<HostAttributes> getHostAttributes() {
     return storage.read(storeProvider -> storeProvider.getAttributeStore().getHostAttributes());
   }
 
@@ -77,10 +77,10 @@ public class Agents extends JerseyTemplateServlet {
     });
   }
 
-  private static final Ordering<IAttribute> ATTR_ORDER = Ordering.natural().onResultOf(
-      new Function<IAttribute, String>() {
+  private static final Ordering<Attribute> ATTR_ORDER = Ordering.natural().onResultOf(
+      new Function<Attribute, String>() {
         @Override
-        public String apply(IAttribute attr) {
+        public String apply(Attribute attr) {
           return attr .getName();
         }
       });
@@ -89,9 +89,9 @@ public class Agents extends JerseyTemplateServlet {
    * Template object to represent a agent.
    */
   private static class Agent {
-    private final IHostAttributes attributes;
+    private final HostAttributes attributes;
 
-    Agent(IHostAttributes attributes) {
+    Agent(HostAttributes attributes) {
       this.attributes = attributes;
     }
 
@@ -107,7 +107,7 @@ public class Agents extends JerseyTemplateServlet {
       return attributes.getMode();
     }
 
-    private static final Function<IAttribute, String> ATTR_TO_STRING =
+    private static final Function<Attribute, String> ATTR_TO_STRING =
         attr -> attr.getName() + "=[" + Joiner.on(",").join(attr.getValues()) + "]";
 
     public String getAttributes() {

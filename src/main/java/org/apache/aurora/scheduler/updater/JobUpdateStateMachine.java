@@ -25,9 +25,9 @@ import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 
+import org.apache.aurora.gen.Api_Constants;
 import org.apache.aurora.gen.JobUpdateQuery;
 import org.apache.aurora.gen.JobUpdateStatus;
-import org.apache.aurora.gen.JobUpdateQuery;
 
 import static org.apache.aurora.gen.JobUpdateStatus.ABORTED;
 import static org.apache.aurora.gen.JobUpdateStatus.ERROR;
@@ -107,8 +107,8 @@ final class JobUpdateStateMachine {
           ROLL_FORWARD_AWAITING_PULSE, ROLL_FORWARD_PAUSED,
           ROLL_BACK_AWAITING_PULSE, ROLL_BACK_PAUSED);
 
-  static final JobUpdateQuery ACTIVE_QUERY = IJobUpdateQuery.build(
-      new JobUpdateQuery().setUpdateStatuses(Updates.ACTIVE_JOB_UPDATE_STATES));
+  static final JobUpdateQuery ACTIVE_QUERY = JobUpdateQuery.builder()
+      .setUpdateStatuses(Api_Constants.ACTIVE_JOB_UPDATE_STATES).build();
 
   static final Set<JobUpdateStatus> AUTO_RESUME_STATES =
       Sets.immutableEnumSet(ACTIVE_TO_PAUSED_STATES.keySet());

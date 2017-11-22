@@ -30,13 +30,14 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 
+import org.apache.aurora.gen.Api_Constants;
+import org.apache.aurora.gen.HostAttributes;
 import org.apache.aurora.gen.MaintenanceMode;
+import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.base.Query;
 import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
-import org.apache.aurora.gen.HostAttributes;
-import org.apache.aurora.gen.ScheduledTask;
 
 import static org.apache.aurora.gen.MaintenanceMode.DRAINED;
 import static org.apache.aurora.gen.MaintenanceMode.DRAINING;
@@ -62,8 +63,8 @@ public class Maintenance {
           Multimaps.transformValues(
             Multimaps.index(
                 storeProvider.getAttributeStore().getHostAttributes(),
-                IHostAttributes::getMode),
-              IHostAttributes::getHost);
+                HostAttributes::getMode),
+              HostAttributes::getHost);
 
       Map<MaintenanceMode, Object> hosts = ImmutableMap.of(
           DRAINED, ImmutableSet.copyOf(hostsByMode.get(DRAINED)),
@@ -80,7 +81,7 @@ public class Maintenance {
 
     ImmutableSet.Builder<ScheduledTask> drainingTasks = ImmutableSet.builder();
     drainingTasks.addAll(provider.getTaskStore()
-        .fetchTasks(Query.slaveScoped(hosts).byStatus(Tasks.SLAVE_ASSIGNED_STATES)));
+        .fetchTasks(Query.slaveScoped(hosts).byStatus(Api_Constants.SLAVE_ASSIGNED_STATES)));
     return Multimaps.transformValues(
         Multimaps.index(drainingTasks.build(), Tasks::scheduledToSlaveHost),
         Tasks::id);

@@ -30,7 +30,7 @@ import org.apache.aurora.common.stats.Stats;
 import org.apache.aurora.common.stats.StatsProvider;
 import org.apache.aurora.common.util.Clock;
 import org.apache.aurora.gen.Container;
-import org.apache.aurora.gen.Container._Fields;
+import org.apache.aurora.gen.Container._Field;
 import org.apache.aurora.gen.DockerParameter;
 import org.apache.aurora.scheduler.SchedulerModule;
 import org.apache.aurora.scheduler.SchedulerServicesModule;
@@ -86,7 +86,7 @@ public class AppModule extends AbstractModule {
 
     @Parameter(names = "-allowed_container_types",
         description = "Container types that are allowed to be used by jobs.")
-    public List<_Fields> allowedContainerTypes = ImmutableList.of(Container._Fields.MESOS);
+    public List<_Field> allowedContainerTypes = ImmutableList.of(Container._Field.MESOS);
 
     @Parameter(names = "-allow_docker_parameters",
         description = "Allow to pass docker container parameters in the job.",

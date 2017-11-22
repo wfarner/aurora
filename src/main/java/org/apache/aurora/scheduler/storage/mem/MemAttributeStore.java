@@ -22,17 +22,15 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 
-import org.apache.aurora.gen.Attribute;
 import org.apache.aurora.gen.HostAttributes;
 import org.apache.aurora.gen.MaintenanceMode;
 import org.apache.aurora.scheduler.storage.AttributeStore;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
 
 /**
  * An in-memory attribute store.
  */
 class MemAttributeStore implements AttributeStore.Mutable {
-  private final Map<String, IHostAttributes> hostAttributes = Maps.newConcurrentMap();
+  private final Map<String, HostAttributes> hostAttributes = Maps.newConcurrentMap();
 
   @Override
   public void deleteHostAttributes() {
@@ -40,24 +38,24 @@ class MemAttributeStore implements AttributeStore.Mutable {
   }
 
   @Override
-  public boolean saveHostAttributes(IHostAttributes attributes) {
+  public boolean saveHostAttributes(HostAttributes attributes) {
     Preconditions.checkArgument(
         FluentIterable.from(attributes.getAttributes()).allMatch(a -> !a.getValues().isEmpty()));
-    Preconditions.checkArgument(attributes.isSetMode());
+    Preconditions.checkArgument(attributes.hasMode());
 
-    IHostAttributes previous = hostAttributes.put(
+    HostAttributes previous = hostAttributes.put(
         attributes.getHost(),
         merge(attributes, Optional.fromNullable(hostAttributes.get(attributes.getHost()))));
     return !attributes.equals(previous);
   }
 
-  private IHostAttributes merge(IHostAttributes newAttributes, Optional<IHostAttributes> previous) {
-    HostAttributes attributes = newAttributes.newBuilder();
+  private HostAttributes merge(HostAttributes newAttributes, Optional<HostAttributes> previous) {
+    HostAttributes._Builder attributes = newAttributes.mutate();
     if (!attributes.isSetMode()) {
       // If the newly-saved value does not explicitly set the mode, use the previous value
       // or the default.
       MaintenanceMode mode;
-      if (previous.isPresent() && previous.get().isSetMode()) {
+      if (previous.isPresent() && previous.get().hasMode()) {
         mode = previous.get().getMode();
       } else {
         mode = MaintenanceMode.NONE;
@@ -65,18 +63,18 @@ class MemAttributeStore implements AttributeStore.Mutable {
       attributes.setMode(mode);
     }
     if (!attributes.isSetAttributes()) {
-      attributes.setAttributes(ImmutableSet.<Attribute>of());
+      attributes.setAttributes(ImmutableSet.of());
     }
-    return IHostAttributes.build(attributes);
+    return attributes.build();
   }
 
   @Override
-  public Optional<IHostAttributes> getHostAttributes(String host) {
+  public Optional<HostAttributes> getHostAttributes(String host) {
     return Optional.fromNullable(hostAttributes.get(host));
   }
 
   @Override
-  public Set<IHostAttributes> getHostAttributes() {
+  public Set<HostAttributes> getHostAttributes() {
     return ImmutableSet.copyOf(hostAttributes.values());
   }
 }

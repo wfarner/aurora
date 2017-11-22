@@ -61,8 +61,7 @@ import static org.apache.aurora.gen.ScheduleStatus.PENDING;
 /**
  * A collection of task groups, where a task group is a collection of tasks that are known to be
  * equal in the way they schedule. This is expected to be tasks associated with the same job key,
- * who also have {@code equal()} {@link org.apache.aurora.scheduler.storage.entities.TaskConfig}
- * values.
+ * who also have {@code equal()} {@link org.apache.aurora.gen.TaskConfig} values.
  * <p>
  * This is used to prevent redundant work in trying to schedule tasks as well as to provide
  * nearly-equal responsiveness when scheduling across jobs.  In other words, a 1000 instance job
@@ -236,7 +235,7 @@ public class TaskGroups implements EventSubscriber {
    */
   @Subscribe
   public synchronized void tasksDeleted(TasksDeleted deleted) {
-    for (IAssignedTask task
+    for (AssignedTask task
         : Iterables.transform(deleted.getTasks(), ScheduledTask::getAssignedTask)) {
       TaskGroup group = groups.get(TaskGroupKey.from(task.getTask()));
       if (group != null) {

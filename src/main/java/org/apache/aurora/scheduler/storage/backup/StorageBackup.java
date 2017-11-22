@@ -37,6 +37,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
 import com.google.common.io.Files;
+import net.morimekta.providence.thrift.TBinaryProtocolSerializer;
 
 import org.apache.aurora.common.quantity.Amount;
 import org.apache.aurora.common.quantity.Time;
@@ -44,11 +45,6 @@ import org.apache.aurora.common.stats.Stats;
 import org.apache.aurora.common.util.Clock;
 import org.apache.aurora.gen.storage.Snapshot;
 import org.apache.aurora.scheduler.storage.SnapshotStore;
-import org.apache.thrift.TException;
-import org.apache.thrift.protocol.TBinaryProtocol;
-import org.apache.thrift.protocol.TProtocol;
-import org.apache.thrift.transport.TIOStreamTransport;
-import org.apache.thrift.transport.TTransport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -163,17 +159,12 @@ public interface StorageBackup {
       try (
           OutputStream tempFileStream = new BufferedOutputStream(new FileOutputStream(tempFile))) {
 
-        TTransport transport = new TIOStreamTransport(tempFileStream);
-        TProtocol protocol = new TBinaryProtocol(transport);
-        snapshot.write(protocol);
+        new TBinaryProtocolSerializer().serialize(tempFileStream, snapshot);
         Files.move(tempFile, new File(config.dir, backupName));
         successes.incrementAndGet();
       } catch (IOException e) {
         failures.incrementAndGet();
         LOG.error("Failed to prepare backup " + backupName + ": " + e, e);
-      } catch (TException e) {
-        LOG.error("Failed to encode backup " + backupName + ": " + e, e);
-        failures.incrementAndGet();
       } finally {
         if (tempFile.exists()) {
           LOG.info("Deleting incomplete backup file " + tempFile);

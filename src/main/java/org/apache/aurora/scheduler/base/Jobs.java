@@ -15,11 +15,10 @@ package org.apache.aurora.scheduler.base;
 
 import java.util.EnumSet;
 
+import org.apache.aurora.gen.Api_Constants;
 import org.apache.aurora.gen.JobStats;
 import org.apache.aurora.gen.JobUpdateStatus;
 import org.apache.aurora.gen.ScheduleStatus;
-import org.apache.aurora.gen.apiConstants;
-import org.apache.aurora.gen.JobStats;
 import org.apache.aurora.gen.ScheduledTask;
 
 /**
@@ -35,7 +34,7 @@ public final class Jobs {
    * States of updates that are blocked on pulses.
    */
   public static final EnumSet<JobUpdateStatus> AWAITING_PULSE_STATES =
-      EnumSet.copyOf(apiConstants.AWAITNG_PULSE_JOB_UPDATE_STATES);
+      EnumSet.copyOf(Api_Constants.AWAITNG_PULSE_JOB_UPDATE_STATES);
 
   /**
    * For a given collection of tasks compute statistics based on the state of the task.
@@ -43,15 +42,15 @@ public final class Jobs {
    * @param tasks a collection of tasks for which statistics are sought
    * @return an JobStats object containing the statistics about the tasks.
    */
-  public static IJobStats getJobStats(Iterable<ScheduledTask> tasks) {
-    JobStats stats = new JobStats();
+  public static JobStats getJobStats(Iterable<ScheduledTask> tasks) {
+    JobStats._Builder stats = JobStats.builder();
     for (ScheduledTask task : tasks) {
       updateStats(stats, task.getStatus());
     }
-    return IJobStats.build(stats);
+    return stats.build();
   }
 
-  private static void updateStats(JobStats stats, ScheduleStatus status) {
+  private static void updateStats(JobStats._Builder stats, ScheduleStatus status) {
     switch (status) {
       case INIT:
       case PENDING:

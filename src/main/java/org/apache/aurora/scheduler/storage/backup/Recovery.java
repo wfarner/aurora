@@ -26,18 +26,16 @@ import javax.inject.Inject;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.Atomics;
+import net.morimekta.providence.thrift.TBinaryProtocolSerializer;
 
 import org.apache.aurora.codec.ThriftBinaryCodec.CodingException;
 import org.apache.aurora.common.base.Command;
+import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.gen.storage.Snapshot;
 import org.apache.aurora.scheduler.base.Query;
 import org.apache.aurora.scheduler.storage.DistributedSnapshotStore;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
-import org.apache.aurora.gen.ScheduledTask;
-import org.apache.thrift.TException;
-import org.apache.thrift.protocol.TBinaryProtocol;
-import org.apache.thrift.transport.TIOStreamTransport;
 
 import static java.util.Objects.requireNonNull;
 
@@ -141,14 +139,11 @@ public interface Recovery {
         throw new RecoveryException("Backup " + backupName + " does not exist.");
       }
 
-      Snapshot snapshot = new Snapshot();
+      Snapshot snapshot;
       try {
-        TBinaryProtocol prot = new TBinaryProtocol(
-            new TIOStreamTransport(new BufferedInputStream(new FileInputStream(backupFile))));
-
-        snapshot.read(prot);
-      } catch (TException e) {
-        throw new RecoveryException("Failed to decode backup " + e, e);
+        snapshot = new TBinaryProtocolSerializer().deserialize(
+            new BufferedInputStream(new FileInputStream(backupFile)),
+            Snapshot.kDescriptor);
       } catch (IOException e) {
         throw new RecoveryException("Failed to read backup " + e, e);
       }

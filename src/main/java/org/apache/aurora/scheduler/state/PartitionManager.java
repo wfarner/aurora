@@ -24,14 +24,14 @@ import com.google.inject.Inject;
 
 import org.apache.aurora.common.util.Clock;
 import org.apache.aurora.gen.ScheduleStatus;
+import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.base.AsyncUtil;
 import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.events.PubsubEvent;
 import org.apache.aurora.scheduler.events.PubsubEvent.TaskStateChange;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult.Quiet;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,7 +74,7 @@ public class PartitionManager implements PubsubEvent.EventSubscriber {
       AsyncUtil.singleThreadLoggingScheduledExecutor("PartitionManager", LOG));
   }
 
-  private long getLastTransitionSecsAgo(IScheduledTask task) {
+  private long getLastTransitionSecsAgo(ScheduledTask task) {
     return Duration.ofMillis(
         clock.nowMillis() - Tasks.getLatestEvent(task).getTimestamp()).getSeconds();
   }
@@ -85,12 +85,12 @@ public class PartitionManager implements PubsubEvent.EventSubscriber {
    */
   @Subscribe
   public void handle(TaskStateChange stateChange) {
-    ITaskConfig config = stateChange.getTask().getAssignedTask().getTask();
+    TaskConfig config = stateChange.getTask().getAssignedTask().getTask();
     String taskId = Tasks.id(stateChange.getTask());
     // Partition Policy can be null, in which case its equivalent to reschedule with 0s delay.
     if (stateChange.getNewState().equals(ScheduleStatus.PARTITIONED)
-        && (!config.isSetPartitionPolicy() || config.getPartitionPolicy().isReschedule())) {
-      long delay = config.isSetPartitionPolicy() ? config.getPartitionPolicy().getDelaySecs() : 0;
+        && (!config.hasPartitionPolicy() || config.getPartitionPolicy().isReschedule())) {
+      long delay = config.hasPartitionPolicy() ? config.getPartitionPolicy().getDelaySecs() : 0;
       // We're recovering from a failover, so modify the delay based on last event time.
       if (!stateChange.isTransition()) {
         delay = Math.max(0, delay - getLastTransitionSecsAgo(stateChange.getTask()));
@@ -99,7 +99,7 @@ public class PartitionManager implements PubsubEvent.EventSubscriber {
       // Use the timestamp to verify the task state hasn't changed when we execute after the delay.
       long lastTimestamp = Tasks.getLatestEvent(stateChange.getTask()).getTimestamp();
       executor.schedule(() -> storage.write((Quiet) storeProvider -> {
-        Optional<IScheduledTask> maybeTask = storeProvider.getTaskStore().fetchTask(taskId);
+        Optional<ScheduledTask> maybeTask = storeProvider.getTaskStore().fetchTask(taskId);
         if (maybeTask.isPresent()
             && Tasks.getLatestEvent(maybeTask.get()).getTimestamp() == lastTimestamp) {
           stateManager.changeState(

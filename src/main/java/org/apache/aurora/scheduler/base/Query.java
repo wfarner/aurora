@@ -21,6 +21,7 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Ints;
 
+import org.apache.aurora.gen.Api_Constants;
 import org.apache.aurora.gen.InstanceKey;
 import org.apache.aurora.gen.JobKey;
 import org.apache.aurora.gen.ScheduleStatus;
@@ -351,21 +352,21 @@ public final class Query {
     }
 
     /**
-     * A convenience method to scope this builder to {@link Tasks#ACTIVE_STATES}.
+     * A convenience method to scope this builder to {@link Api_Constants#ACTIVE_STATES}.
      *
      * @return A new Builder scoped to Tasks#ACTIVE_STATES.
      */
     public Builder active() {
-      return byStatus(Tasks.ACTIVE_STATES);
+      return byStatus(Api_Constants.ACTIVE_STATES);
     }
 
     /**
-     * A convenience method to scope this builder to {@link Tasks#TERMINAL_STATES}.
+     * A convenience method to scope this builder to {@link Api_Constants#TERMINAL_STATES}.
      *
      * @return A new Builder scoped to Tasks#TERMINAL_STATES.
      */
     public Builder terminal() {
-      return byStatus(Tasks.TERMINAL_STATES);
+      return byStatus(Api_Constants.TERMINAL_STATES);
     }
   }
 }

@@ -223,6 +223,6 @@ public class MesosLogStreamModule extends PrivateModule {
   @Singleton
   @MesosLog.NoopEntry
   byte[] provideNoopEntry() throws ThriftBinaryCodec.CodingException {
-    return ThriftBinaryCodec.encodeNonNull(LogEntry.noop(true));
+    return ThriftBinaryCodec.encodeNonNull(LogEntry.withNoop(true));
   }
 }

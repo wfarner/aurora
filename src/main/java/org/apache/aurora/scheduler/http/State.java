@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+
 import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -28,16 +29,15 @@ import javax.ws.rs.core.Response;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
+import com.google.gson.Gson;
 
+import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.preemptor.ClusterState;
 import org.apache.aurora.scheduler.preemptor.ClusterStateImpl;
 import org.apache.aurora.scheduler.preemptor.PreemptionVictim;
-import org.apache.aurora.gen.TaskConfig;
 
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
-
-import static org.apache.aurora.scheduler.http.api.GsonMessageBodyHandler.GSON;
 
 /**
  * Servlet that exposes cluster state as JSON.
@@ -95,7 +95,7 @@ public class State {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   public Response getState() {
-    return Response.ok(GSON.toJson(NormalizedClusterState.fromClusterState(
+    return Response.ok(new Gson().toJson(NormalizedClusterState.fromClusterState(
         clusterState.getSlavesToActiveTasks()))).build();
   }
 }

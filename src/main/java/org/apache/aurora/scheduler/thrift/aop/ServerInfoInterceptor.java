@@ -23,12 +23,11 @@ import org.apache.aurora.gen.ServerInfo;
 class ServerInfoInterceptor implements MethodInterceptor {
 
   @Inject
-  private IServerInfo serverInfo;
+  private ServerInfo serverInfo;
 
   @Override
   public Object invoke(MethodInvocation invocation) throws Throwable {
     Response resp = (Response) invocation.proceed();
-    resp.setServerInfo(serverInfo.newBuilder());
-    return resp;
+    return resp.mutate().setServerInfo(serverInfo).build();
   }
 }

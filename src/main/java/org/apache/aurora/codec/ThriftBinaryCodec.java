@@ -25,25 +25,16 @@ import javax.annotation.Nullable;
 
 import net.morimekta.providence.PMessage;
 import net.morimekta.providence.descriptor.PField;
-import net.morimekta.providence.descriptor.PStructDescriptor;
+import net.morimekta.providence.descriptor.PMessageDescriptor;
 import net.morimekta.providence.serializer.BinarySerializer;
 import net.morimekta.providence.serializer.Serializer;
-import net.morimekta.providence.serializer.binary.BinaryReader;
 import net.morimekta.providence.serializer.binary.BinaryWriter;
 import net.morimekta.providence.thrift.TBinaryProtocolSerializer;
+import net.morimekta.util.Binary;
 
 import org.apache.aurora.common.quantity.Amount;
 import org.apache.aurora.common.quantity.Data;
 import org.apache.aurora.gen.ScheduledTask;
-import org.apache.aurora.gen.storage.Snapshot;
-import org.apache.thrift.TBase;
-import org.apache.thrift.TDeserializer;
-import org.apache.thrift.TException;
-import org.apache.thrift.TSerializer;
-import org.apache.thrift.protocol.TBinaryProtocol;
-import org.apache.thrift.protocol.TProtocol;
-import org.apache.thrift.transport.TIOStreamTransport;
-import org.apache.thrift.transport.TTransport;
 
 import static java.util.Objects.requireNonNull;
 
@@ -69,7 +60,7 @@ public final class ThriftBinaryCodec {
    */
   @Nullable
   public static <T extends PMessage<T, F>, F extends PField> T decode(
-      PStructDescriptor<T, F> descriptor,
+      PMessageDescriptor<T, F> descriptor,
       @Nullable byte[] buffer) throws CodingException {
 
     if (buffer == null) {
@@ -89,7 +80,7 @@ public final class ThriftBinaryCodec {
    * @throws CodingException If the message could not be decoded.
    */
   public static <T extends PMessage<T, F>, F extends PField> T decodeNonNull(
-      PStructDescriptor<T, F> descriptor,
+      PMessageDescriptor<T, F> descriptor,
       byte[] buffer) throws CodingException {
 
     requireNonNull(descriptor);
@@ -132,8 +123,6 @@ public final class ThriftBinaryCodec {
     requireNonNull(object);
 
     ByteArrayOutputStream out = new ByteArrayOutputStream();
-    ScheduledTask.builder().build();
-
     try {
       new TBinaryProtocolSerializer().serialize(out, object);
       return out.toByteArray();
@@ -190,15 +179,15 @@ public final class ThriftBinaryCodec {
    * @throws CodingException If the message could not be decoded.
    */
   public static <T extends PMessage<T, F>, F extends PField> T inflateNonNull(
-      PStructDescriptor<T, F> descriptor,
-      byte[] buffer) throws CodingException {
+      PMessageDescriptor<T, F> descriptor,
+      Binary binary) throws CodingException {
 
     requireNonNull(descriptor);
-    requireNonNull(buffer);
+    requireNonNull(binary);
 
     try {
       return new TBinaryProtocolSerializer()
-          .deserialize(new InflaterInputStream(new ByteArrayInputStream(buffer)), descriptor);
+          .deserialize(new InflaterInputStream(binary.getInputStream()), descriptor);
     } catch (IOException e) {
       throw new CodingException("Failed to deserialize: " + e, e);
     }

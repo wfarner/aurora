@@ -30,7 +30,7 @@ import com.google.common.io.Resources;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.apache.aurora.gen.apiConstants.BYPASS_LEADER_REDIRECT_HEADER_NAME;
+import static org.apache.aurora.gen.Api_Constants.BYPASS_LEADER_REDIRECT_HEADER_NAME;
 import static org.apache.aurora.scheduler.http.LeaderRedirect.LeaderStatus;
 
 /**

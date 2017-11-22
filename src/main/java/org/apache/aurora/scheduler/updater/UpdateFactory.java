@@ -136,15 +136,15 @@ interface UpdateFactory {
     }
 
     @VisibleForTesting
-    static Set<Integer> expandInstanceIds(Set<IInstanceTaskConfig> instanceGroups) {
+    static Set<Integer> expandInstanceIds(Set<InstanceTaskConfig> instanceGroups) {
       return Updates.getInstanceIds(instanceGroups).asSet(DiscreteDomain.integers());
     }
 
     private static Optional<TaskConfig> getConfig(
         int id,
-        Set<IInstanceTaskConfig> instanceGroups) {
+        Set<InstanceTaskConfig> instanceGroups) {
 
-      for (IInstanceTaskConfig group : instanceGroups) {
+      for (InstanceTaskConfig group : instanceGroups) {
         for (Range range : group.getInstances()) {
           if (toRange(range).contains(id)) {
             return Optional.of(group.getTask());

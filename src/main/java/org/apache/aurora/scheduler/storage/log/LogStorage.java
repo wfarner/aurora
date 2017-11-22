@@ -345,7 +345,7 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
             LOG.info("Dropping host attributes with no agent ID: " + attributes);
           }
         })
-        .put(Op._Fields.SAVE_JOB_UPDATE, op ->
+        .put(Op._Field.SAVE_JOB_UPDATE, op ->
           writeBehindJobUpdateStore.saveJobUpdate(
               thriftBackfill.backFillJobUpdate(op.getSaveJobUpdate().getJobUpdate())))
         .put(Op._Field.SAVE_JOB_UPDATE_EVENT, op -> {

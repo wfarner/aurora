@@ -153,7 +153,7 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
   }
 
   private static void validateInstructions(JobUpdateInstructions instructions) {
-    if (!instructions.isSetDesiredState() && instructions.getInitialState().isEmpty()) {
+    if (!instructions.hasDesiredState() && instructions.getInitialState().isEmpty()) {
       throw new IllegalArgumentException(
           "Missing both initial and desired states. At least one is required.");
     }
@@ -183,13 +183,13 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
       throw new StorageException("Update already exists: " + update.getSummary().getKey());
     }
 
-    JobUpdateDetails mutable = new JobUpdateDetails()
-        .setUpdate(update.newBuilder())
+    JobUpdateDetails._Builder mutable = JobUpdateDetails.builder()
+        .setUpdate(update)
         .setUpdateEvents(ImmutableList.of())
         .setInstanceEvents(ImmutableList.of());
-    mutable.getUpdate().getSummary().setState(synthesizeUpdateState(mutable));
+    mutable.mutableUpdate().mutableSummary().setState(synthesizeUpdateState(mutable.build()));
 
-    updates.put(update.getSummary().getKey(), JobUpdateDetails.build(mutable));
+    updates.put(update.getSummary().getKey(), mutable.build());
   }
 
   private static final Ordering<JobUpdateEvent> EVENT_ORDERING = Ordering.natural()
@@ -198,16 +198,16 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
   @Timed("job_update_store_save_event")
   @Override
   public synchronized void saveJobUpdateEvent(JobUpdateKey key, JobUpdateEvent event) {
-    IJobUpdateDetails update = updates.get(key);
+    JobUpdateDetails update = updates.get(key);
     if (update == null) {
       throw new StorageException("Update not found: " + key);
     }
 
-    JobUpdateDetails mutable = update.newBuilder();
-    mutable.addToUpdateEvents(event.newBuilder());
-    mutable.setUpdateEvents(EVENT_ORDERING.sortedCopy(mutable.getUpdateEvents()));
-    mutable.getUpdate().getSummary().setState(synthesizeUpdateState(mutable));
-    updates.put(key, IJobUpdateDetails.build(mutable));
+    JobUpdateDetails._Builder mutable = update.mutate();
+    mutable.addToUpdateEvents(event);
+    mutable.setUpdateEvents(EVENT_ORDERING.sortedCopy(mutable.mutableUpdateEvents()));
+    mutable.mutableUpdate().mutableSummary().setState(synthesizeUpdateState(mutable.build()));
+    updates.put(key, mutable.build());
     jobUpdateEventStats.getUnchecked(event.getStatus()).incrementAndGet();
   }
 
@@ -225,11 +225,11 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
       throw new StorageException("Update not found: " + key);
     }
 
-    JobUpdateDetails mutable = update.newBuilder();
-    mutable.addToInstanceEvents(event.newBuilder());
-    mutable.setInstanceEvents(INSTANCE_EVENT_ORDERING.sortedCopy(mutable.getInstanceEvents()));
-    mutable.getUpdate().getSummary().setState(synthesizeUpdateState(mutable));
-    updates.put(key, IJobUpdateDetails.build(mutable));
+    JobUpdateDetails._Builder mutable = update.mutate();
+    mutable.addToInstanceEvents(event);
+    mutable.setInstanceEvents(INSTANCE_EVENT_ORDERING.sortedCopy(mutable.mutableInstanceEvents()));
+    mutable.mutableUpdate().mutableSummary().setState(synthesizeUpdateState(mutable.build()));
+    updates.put(key, mutable.build());
     jobUpdateActionStats.getUnchecked(event.getAction()).incrementAndGet();
   }
 
@@ -286,9 +286,9 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
   }
 
   private static JobUpdateState synthesizeUpdateState(JobUpdateDetails update) {
-    JobUpdateState state = update.getUpdate().getSummary().getState();
+    JobUpdateState._Builder state = update.getUpdate().getSummary().getState().mutate();
     if (state == null) {
-      state = new JobUpdateState();
+      state = JobUpdateState.builder();
     }
 
     JobUpdateEvent firstEvent = Iterables.getFirst(update.getUpdateEvents(), null);
@@ -308,7 +308,7 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
           Longs.max(state.getLastModifiedTimestampMs(), lastInstanceEvent.getTimestampMs()));
     }
 
-    return state;
+    return state.build();
   }
 
   private Stream<JobUpdateDetails> performQuery(JobUpdateQuery query) {

@@ -30,12 +30,13 @@ import com.google.common.collect.Lists;
 import org.apache.aurora.common.quantity.Time;
 import org.apache.aurora.common.util.BackoffStrategy;
 import org.apache.aurora.common.util.Random;
+import org.apache.aurora.gen.Api_Constants;
 import org.apache.aurora.gen.ScheduleStatus;
+import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.gen.TaskEvent;
 import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.config.types.TimeAmount;
 import org.apache.aurora.scheduler.storage.Storage;
-import org.apache.aurora.gen.ScheduledTask;
-import org.apache.aurora.gen.TaskEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,7 +78,7 @@ public interface RescheduleCalculator {
     private final Random random = Random.Util.newDefaultRandom();
 
     private static final Predicate<ScheduleStatus> IS_ACTIVE_STATUS =
-        Predicates.in(Tasks.ACTIVE_STATES);
+        Predicates.in(Api_Constants.ACTIVE_STATES);
 
     private static final Set<ScheduleStatus> INTERRUPTED_TASK_STATES =
         EnumSet.of(RESTARTING, KILLING, DRAINING);
@@ -89,22 +90,22 @@ public interface RescheduleCalculator {
           return false;
         }
 
-        List<ITaskEvent> events = Lists.reverse(task.getTaskEvents());
+        List<TaskEvent> events = Lists.reverse(task.getTaskEvents());
 
         // Avoid penalizing tasks that were interrupted by outside action, such as a user
         // restarting them.
-        if (Iterables.any(Iterables.transform(events, ITaskEvent::getStatus),
+        if (Iterables.any(Iterables.transform(events, TaskEvent::getStatus),
             Predicates.in(INTERRUPTED_TASK_STATES))) {
           return false;
         }
 
-        ITaskEvent terminalEvent = Iterables.get(events, 0);
+        TaskEvent terminalEvent = Iterables.get(events, 0);
         ScheduleStatus terminalState = terminalEvent.getStatus();
         Preconditions.checkState(Tasks.isTerminated(terminalState));
 
-        ITaskEvent activeEvent = Iterables.find(
+        TaskEvent activeEvent = Iterables.find(
             events,
-            Predicates.compose(IS_ACTIVE_STATUS, ITaskEvent::getStatus));
+            Predicates.compose(IS_ACTIVE_STATUS, TaskEvent::getStatus));
 
         long thresholdMs = settings.flappingTaskThreashold.as(Time.MILLISECONDS);
 

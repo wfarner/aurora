@@ -32,8 +32,8 @@ import com.google.inject.AbstractModule;
 import org.apache.aurora.GuavaUtils;
 import org.apache.aurora.common.base.MorePreconditions;
 import org.apache.aurora.common.quantity.Data;
+import org.apache.aurora.gen.Api_Constants;
 import org.apache.aurora.gen.Volume;
-import org.apache.aurora.gen.apiConstants;
 import org.apache.aurora.scheduler.config.types.DataAmount;
 import org.apache.aurora.scheduler.config.validators.ReadableFile;
 import org.apache.aurora.scheduler.resources.ResourceType;
@@ -157,7 +157,7 @@ public class ExecutorModule extends AbstractModule {
 
     return new ExecutorConfig(
         ExecutorInfo.newBuilder()
-            .setName(apiConstants.AURORA_EXECUTOR_NAME)
+            .setName(Api_Constants.AURORA_EXECUTOR_NAME)
             // Necessary as executorId is a required field.
             .setExecutorId(Executors.PLACEHOLDER_EXECUTOR_ID)
             .setCommand(
@@ -177,7 +177,7 @@ public class ExecutorModule extends AbstractModule {
     try {
       ImmutableMap.Builder<String, ExecutorConfig> configsBuilder = ImmutableMap.builder();
 
-      configsBuilder.put(apiConstants.AURORA_EXECUTOR_NAME, makeThermosExecutorConfig(opts));
+      configsBuilder.put(Api_Constants.AURORA_EXECUTOR_NAME, makeThermosExecutorConfig(opts));
 
       if (opts.customExecutorConfig != null) {
         configsBuilder.putAll(
