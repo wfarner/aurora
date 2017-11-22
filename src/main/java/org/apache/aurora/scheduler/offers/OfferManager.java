@@ -366,7 +366,7 @@ public interface OfferManager extends EventSubscriber {
         return removed != null;
       }
 
-      synchronized void updateHostAttributes(IHostAttributes attributes) {
+      synchronized void updateHostAttributes(HostAttributes attributes) {
         HostOffer offer = offersByHost.remove(attributes.getHost());
         if (offer != null) {
           // Remove and re-add a host's offer to re-sort based on its new hostStatus

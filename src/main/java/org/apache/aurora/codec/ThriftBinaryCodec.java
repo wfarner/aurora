@@ -16,6 +16,7 @@ package org.apache.aurora.codec;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
@@ -30,6 +31,7 @@ import net.morimekta.providence.serializer.binary.BinaryWriter;
 
 import org.apache.aurora.common.quantity.Amount;
 import org.apache.aurora.common.quantity.Data;
+import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.gen.storage.Snapshot;
 
 import static java.util.Objects.requireNonNull;
@@ -61,8 +63,12 @@ public final class ThriftBinaryCodec {
     if (buffer == null) {
       return null;
     }
-    return (T) SERIALIZER.deserialize(new ByteArrayInputStream(buffer), )
-    return decodeNonNull(readInto, buffer);
+
+    try {
+      return (T) SERIALIZER.deserialize(new ByteArrayInputStream(buffer), ScheduledTask.kDescriptor);
+    } catch (IOException e) {
+      throw new CodingException("Failed to decode", e);
+    }
   }
 
   /**
@@ -118,6 +124,7 @@ public final class ThriftBinaryCodec {
     requireNonNull(object);
 
     try {
+      object.writeBinary()
       return new TSerializer(PROTOCOL_FACTORY).serialize(tBase);
     } catch (TException e) {
       throw new CodingException("Failed to serialize: " + tBase, e);

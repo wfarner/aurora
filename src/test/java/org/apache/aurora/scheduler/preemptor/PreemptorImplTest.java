@@ -21,12 +21,12 @@ import com.google.common.collect.ImmutableSet;
 import org.apache.aurora.common.testing.easymock.EasyMockTest;
 import org.apache.aurora.gen.AssignedTask;
 import org.apache.aurora.gen.HostAttributes;
-import org.apache.aurora.gen.JobKey;
 import org.apache.aurora.gen.ScheduleStatus;
 import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.gen.TaskEvent;
 import org.apache.aurora.scheduler.HostOffer;
+import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.base.TaskGroupKey;
 import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.offers.OfferManager;
@@ -35,10 +35,6 @@ import org.apache.aurora.scheduler.state.StateChangeResult;
 import org.apache.aurora.scheduler.state.StateManager;
 import org.apache.aurora.scheduler.stats.CachedCounters;
 import org.apache.aurora.scheduler.storage.Storage;
-import org.apache.aurora.gen.AssignedTask;
-import org.apache.aurora.gen.HostAttributes;
-import org.apache.aurora.gen.ScheduledTask;
-import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.testing.FakeStatsProvider;
 import org.apache.mesos.v1.Protos;
 import org.junit.Before;
@@ -56,16 +52,16 @@ import static org.junit.Assert.assertEquals;
 public class PreemptorImplTest extends EasyMockTest {
   private static final String SLAVE_ID_1 = "slave_id_1";
   private static final String SLAVE_ID_2 = "slave_id_2";
-  private static final ScheduledTask TASK = ScheduledTask.build(makeTask());
+  private static final ScheduledTask TASK = makeTask().build();
   private static final PreemptionProposal PROPOSAL_1 = createPreemptionProposal(TASK, SLAVE_ID_1);
   private static final PreemptionProposal PROPOSAL_2 = createPreemptionProposal(TASK, SLAVE_ID_2);
   private static final TaskGroupKey GROUP_KEY =
-      TaskGroupKey.from(TaskConfig.build(makeTask().getAssignedTask().getTask()));
+      TaskGroupKey.from(makeTask().getAssignedTask().getTask());
 
   private static final Set<PreemptionProposal> NO_SLOTS = ImmutableSet.of();
   private static final Optional<String> EMPTY_RESULT = Optional.absent();
   private static final HostOffer OFFER =
-      new HostOffer(Protos.Offer.getDefaultInstance(), IHostAttributes.build(new HostAttributes()));
+      new HostOffer(Protos.Offer.getDefaultInstance(), HostAttributes.builder().build());
 
   private StateManager stateManager;
   private FakeStatsProvider statsProvider;
@@ -199,18 +195,18 @@ public class PreemptorImplTest extends EasyMockTest {
   }
 
   private static PreemptionProposal createPreemptionProposal(ScheduledTask task, String slaveId) {
-    IAssignedTask assigned = task.getAssignedTask();
+    AssignedTask assigned = task.getAssignedTask();
     return new PreemptionProposal(ImmutableSet.of(PreemptionVictim.fromTask(assigned)), slaveId);
   }
 
-  private static ScheduledTask makeTask() {
-    ScheduledTask task = new ScheduledTask()
-        .setAssignedTask(new AssignedTask()
-            .setTask(new TaskConfig()
+  private static ScheduledTask._Builder makeTask() {
+    ScheduledTask._Builder task = ScheduledTask.builder()
+        .setAssignedTask(AssignedTask.builder()
+            .setTask(TaskConfig.builder()
                 .setPriority(1)
                 .setProduction(true)
-                .setJob(new JobKey("role", "env", "name"))));
-    task.addToTaskEvents(new TaskEvent(0, PENDING));
+                .setJob(JobKeys.from("role", "env", "name"))));
+    task.addToTaskEvents(TaskEvent.builder().setTimestamp(0).setStatus(PENDING).build());
     return task;
   }
 }

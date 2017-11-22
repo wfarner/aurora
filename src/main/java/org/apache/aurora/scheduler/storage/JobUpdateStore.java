@@ -95,7 +95,7 @@ public interface JobUpdateStore {
    *
    * @return A read-only view of all job update details.
    */
-  Set<IJobUpdateDetails> fetchAllJobUpdateDetails();
+  Set<JobUpdateDetails> fetchAllJobUpdateDetails();
   /**
    * Fetches the events that have affected an instance within a job update.
    *

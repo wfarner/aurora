@@ -29,25 +29,21 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 
-import org.apache.aurora.gen.Container;
-import org.apache.aurora.gen.DockerParameter;
-import org.apache.aurora.gen.JobConfiguration;
-import org.apache.aurora.gen.TaskConfig;
-import org.apache.aurora.gen.TaskConstraint;
-import org.apache.aurora.scheduler.TierManager;
-import org.apache.aurora.scheduler.base.JobKeys;
-import org.apache.aurora.scheduler.base.UserProvidedStrings;
-import org.apache.aurora.scheduler.configuration.executor.ExecutorSettings;
-import org.apache.aurora.scheduler.resources.ResourceManager;
-import org.apache.aurora.scheduler.resources.ResourceType;
 import org.apache.aurora.gen.Constraint;
 import org.apache.aurora.gen.Container;
+import org.apache.aurora.gen.DockerParameter;
 import org.apache.aurora.gen.JobConfiguration;
 import org.apache.aurora.gen.MesosContainer;
 import org.apache.aurora.gen.Resource;
 import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.gen.TaskConstraint;
 import org.apache.aurora.gen.ValueConstraint;
+import org.apache.aurora.scheduler.TierManager;
+import org.apache.aurora.scheduler.base.JobKeys;
+import org.apache.aurora.scheduler.base.UserProvidedStrings;
+import org.apache.aurora.scheduler.configuration.executor.ExecutorSettings;
+import org.apache.aurora.scheduler.resources.ResourceManager;
+import org.apache.aurora.scheduler.resources.ResourceType;
 import org.apache.aurora.scheduler.storage.log.ThriftBackfill;
 
 import static java.util.Objects.requireNonNull;
@@ -91,7 +87,7 @@ public class ConfigurationManager {
   }
 
   public static class ConfigurationManagerSettings {
-    private final ImmutableSet<Container._Fields> allowedContainerTypes;
+    private final ImmutableSet<Container._Field> allowedContainerTypes;
     private final boolean allowDockerParameters;
     private final List<DockerParameter> defaultDockerParameters;
     private final boolean requireDockerUseExecutor;
@@ -101,7 +97,7 @@ public class ConfigurationManager {
     private final Pattern allowedJobEnvironments;
 
     public ConfigurationManagerSettings(
-        ImmutableSet<Container._Fields> allowedContainerTypes,
+        ImmutableSet<Container._Field> allowedContainerTypes,
         boolean allowDockerParameters,
         List<DockerParameter> defaultDockerParameters,
         boolean requireDockerUseExecutor,
@@ -144,7 +140,7 @@ public class ConfigurationManager {
   }
 
   private static boolean isValueConstraint(TaskConstraint taskConstraint) {
-    return taskConstraint.getSetField() == TaskConstraint._Fields.VALUE;
+    return taskConstraint.unionField() == TaskConstraint._Field.VALUE;
   }
 
   public static boolean isDedicated(Iterable<Constraint> taskConstraints) {
@@ -178,7 +174,7 @@ public class ConfigurationManager {
       throw new TaskDescriptionException("Instance count must be positive.");
     }
 
-    JobConfiguration builder = job.newBuilder();
+    JobConfiguration._Builder builder = job.mutate();
 
     if (!JobKeys.isValid(job.getKey())) {
       throw new TaskDescriptionException("Job key " + job.getKey() + " is invalid.");
@@ -195,8 +191,7 @@ public class ConfigurationManager {
           "Job user contains illegal characters: " + job.getOwner().getUser());
     }
 
-    builder.setTaskConfig(
-        validateAndPopulate(TaskConfig.build(builder.getTaskConfig())).newBuilder());
+    builder.setTaskConfig(validateAndPopulate(builder.getTaskConfig()));
 
     // Only one of [service=true, cron_schedule] may be set.
     if (!Strings.isNullOrEmpty(job.getCronSchedule()) && builder.getTaskConfig().isIsService()) {
@@ -204,7 +199,7 @@ public class ConfigurationManager {
           "A service task may not be run on a cron schedule: " + builder);
     }
 
-    return JobConfiguration.build(builder);
+    return builder.build();
   }
 
   @VisibleForTesting
@@ -240,7 +235,7 @@ public class ConfigurationManager {
    * @throws TaskDescriptionException If the task is invalid.
    */
   public TaskConfig validateAndPopulate(TaskConfig config) throws TaskDescriptionException {
-    TaskConfig builder = config.newBuilder();
+    TaskConfig._Builder builder = config.mutate();
 
     if (config.hasTier() && !UserProvidedStrings.isGoodIdentifier(config.getTier())) {
       throw new TaskDescriptionException("Tier contains illegal characters: " + config.getTier());
@@ -258,14 +253,14 @@ public class ConfigurationManager {
     }
 
     // A task must either have an executor configuration or specify a Docker container.
-    if (!builder.hasExecutorConfig()
-        && !(builder.hasContainer() && builder.getContainer().hasDocker())) {
+    if (builder.getExecutorConfig() == null
+        && !(builder.getContainer() != null && builder.getContainer().hasDocker())) {
 
       throw new TaskDescriptionException(NO_EXECUTOR_OR_CONTAINER);
     }
 
     // Docker containers don't require executors, validate the rest
-    if (builder.hasExecutorConfig()) {
+    if (builder.getExecutorConfig() != null) {
 
       if (!builder.getExecutorConfig().hasName())  {
         throw new TaskDescriptionException(INVALID_EXECUTOR_CONFIG);
@@ -273,7 +268,7 @@ public class ConfigurationManager {
 
       executorSettings.getExecutorConfig(builder.getExecutorConfig().getName()).orElseThrow(
           () -> new TaskDescriptionException("Configuration for executor '"
-              + builder.getExecutorConfig().getName()
+              + config.getExecutorConfig().getName()
               + "' doesn't exist."));
     }
 
@@ -299,13 +294,13 @@ public class ConfigurationManager {
     Optional<Container._Field> containerType;
     if (config.hasContainer()) {
       Container containerConfig = config.getContainer();
-      containerType = Optional.of(containerConfig.getSetField());
+      containerType = Optional.of(containerConfig.unionField());
       if (containerConfig.hasDocker()) {
         if (!containerConfig.getDocker().hasImage()) {
           throw new TaskDescriptionException("A container must specify an image.");
         }
         if (containerConfig.getDocker().getParameters().isEmpty()) {
-          builder.getContainer().getDocker()
+          builder.mutableContainer().mutableDocker()
               .setParameters(ImmutableList.copyOf(settings.defaultDockerParameters));
         } else {
           if (!settings.allowDockerParameters) {
@@ -319,7 +314,7 @@ public class ConfigurationManager {
       }
     } else {
       // Default to mesos container type if unset.
-      containerType = Optional.of(Container._Fields.MESOS);
+      containerType = Optional.of(Container._Field.MESOS);
     }
 
     if (!containerType.isPresent()) {
@@ -331,7 +326,7 @@ public class ConfigurationManager {
               + containerType.get().toString());
     }
 
-    thriftBackfill.backfillTask(builder);
+    builder = thriftBackfill.backfillTask(builder.build()).mutate();
 
     String types = config.getResources().stream()
         .collect(Collectors.groupingBy(e -> ResourceType.fromResource(e)))
@@ -376,7 +371,7 @@ public class ConfigurationManager {
 
     maybeFillLinks(builder);
 
-    return TaskConfig.build(builder);
+    return builder.build();
   }
 
   /**
@@ -389,10 +384,10 @@ public class ConfigurationManager {
     return constraint -> constraint.getName().equals(name);
   }
 
-  private static void maybeFillLinks(TaskConfig task) {
-    if (task.getTaskLinksSize() == 0) {
+  private static void maybeFillLinks(TaskConfig._Builder task) {
+    if (task.mutableTaskLinks().size() == 0) {
       ImmutableMap.Builder<String, String> links = ImmutableMap.builder();
-      for (Resource resource : ResourceManager.getTaskResources(TaskConfig.build(task), PORTS)) {
+      for (Resource resource : ResourceManager.getTaskResources(task.build(), PORTS)) {
         if (resource.getNamedPort().equals("health")) {
           links.put("health", "http://%host%:%port:health%");
         } else if (resource.getNamedPort().equals("http")) {

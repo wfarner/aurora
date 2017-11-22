@@ -295,7 +295,7 @@ public class StateManagerImpl implements StateManager {
               mutableTask.setTimesPartitioned(mutableTask.getTimesPartitioned() + 1);
               // If we're moving to partitioned state, remove any existing partition transitions
               // in order to prevent the event history growing unbounded.
-              mutableTask.setTaskEvents(compactPartitionEvents(mutableTask.getTaskEvents()));
+              mutableTask.setTaskEvents(compactPartitionEvents(mutableTask.mutableTaskEvents()));
             }
             mutableTask.addToTaskEvents(TaskEvent.builder()
                 .setTimestamp(clock.nowMillis())

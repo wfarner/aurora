@@ -27,6 +27,7 @@ import org.apache.aurora.common.testing.easymock.EasyMockTest;
 import org.apache.aurora.common.util.testing.FakeTicker;
 import org.apache.aurora.gen.HostAttributes;
 import org.apache.aurora.gen.MaintenanceMode;
+import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.HostOffer;
 import org.apache.aurora.scheduler.base.TaskGroupKey;
 import org.apache.aurora.scheduler.base.Tasks;
@@ -36,8 +37,6 @@ import org.apache.aurora.scheduler.mesos.Driver;
 import org.apache.aurora.scheduler.offers.Deferment.Noop;
 import org.apache.aurora.scheduler.offers.OfferManager.OfferManagerImpl;
 import org.apache.aurora.scheduler.resources.ResourceType;
-import org.apache.aurora.gen.HostAttributes;
-import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.testing.FakeScheduledExecutor;
 import org.apache.aurora.scheduler.testing.FakeStatsProvider;
 import org.apache.mesos.v1.Protos;
@@ -76,8 +75,8 @@ public class OfferManagerImplTest extends EasyMockTest {
   private static final Amount<Long, Time> RETURN_DELAY = Amount.of(1L, Time.DAYS);
   private static final Amount<Long, Time> ONE_HOUR = Amount.of(1L, Time.HOURS);
   private static final String HOST_A = "HOST_A";
-  private static final IHostAttributes HOST_ATTRIBUTES_A =
-      IHostAttributes.build(new HostAttributes().setMode(NONE).setHost(HOST_A));
+  private static final HostAttributes HOST_ATTRIBUTES_A =
+      HostAttributes.builder().setMode(NONE).setHost(HOST_A).build();
   private static final HostOffer OFFER_A = new HostOffer(
       Offers.makeOffer("OFFER_A", HOST_A),
       HOST_ATTRIBUTES_A);
@@ -85,11 +84,11 @@ public class OfferManagerImplTest extends EasyMockTest {
   private static final String HOST_B = "HOST_B";
   private static final HostOffer OFFER_B = new HostOffer(
       Offers.makeOffer("OFFER_B", HOST_B),
-      IHostAttributes.build(new HostAttributes().setMode(NONE)));
+      HostAttributes.builder().setMode(NONE).build());
   private static final String HOST_C = "HOST_C";
   private static final HostOffer OFFER_C = new HostOffer(
       Offers.makeOffer("OFFER_C", HOST_C),
-      IHostAttributes.build(new HostAttributes().setMode(NONE)));
+      HostAttributes.builder().setMode(NONE).build());
   private static final int PORT = 1000;
   private static final Protos.Offer MESOS_OFFER = offer(mesosRange(PORTS, PORT));
   private static final ScheduledTask TASK = makeTask("id", JOB);
@@ -352,7 +351,7 @@ public class OfferManagerImplTest extends EasyMockTest {
   private static HostOffer setMode(HostOffer offer, MaintenanceMode mode) {
     return new HostOffer(
         offer.getOffer(),
-        IHostAttributes.build(offer.getAttributes().newBuilder().setMode(mode)));
+        offer.getAttributes().mutate().setMode(mode).build());
   }
 
   private OfferManager createOrderedManager(List<OfferOrder> order) {

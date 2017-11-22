@@ -250,15 +250,15 @@ public interface SchedulingFilter {
    */
   class UnusedResource {
     private final ResourceBag offer;
-    private final IHostAttributes attributes;
+    private final HostAttributes attributes;
     private final Optional<Instant> unavailabilityStart;
 
     @VisibleForTesting
-    public UnusedResource(ResourceBag offer, IHostAttributes attributes) {
+    public UnusedResource(ResourceBag offer, HostAttributes attributes) {
       this(offer, attributes, Optional.absent());
     }
 
-    public UnusedResource(ResourceBag offer, IHostAttributes attributes, Optional<Instant> start) {
+    public UnusedResource(ResourceBag offer, HostAttributes attributes, Optional<Instant> start) {
       this.offer = offer;
       this.attributes = attributes;
       this.unavailabilityStart = start;
@@ -268,7 +268,7 @@ public interface SchedulingFilter {
       return offer;
     }
 
-    public IHostAttributes getAttributes() {
+    public HostAttributes getAttributes() {
       return attributes;
     }
 

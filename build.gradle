@@ -75,6 +75,7 @@ For more details, please see https://issues.apache.org/jira/browse/AURORA-1169
   ext.logbackRev = '1.2.3'
   ext.nettyRev = '4.0.52.Final'
   ext.protobufRev = '3.3.0'
+  ext.providenceRev = '0.7.2'
   ext.servletRev = '3.1.0'
   ext.slf4jRev = '1.7.25'
   ext.stringTemplateRev = '3.2.1'
@@ -194,18 +195,20 @@ project(':api') {
   }
 
   dependencies {
-    compile 'net.morimekta.providence:providence-core:0.7.2'
+    compile "net.morimekta.providence:providence-core:${providenceRev}"
   }
 
   providence {
     main {
       requireFieldId = true
       requireEnumValue = true
-      input = fileTree('api/src/main/thrift/org/apache/aurora/gen') {
+      input = fileTree('api/src/main/providence/org/apache/aurora/gen') {
         include('*.thrift')
       }
     }
   }
+
+  compileJava.dependsOn(generateProvidence)
 }
 
 compileJava {
@@ -276,6 +279,8 @@ dependencies {
   compile "com.sun.jersey.contribs:jersey-guice:${jerseyRev}"
   compile 'javax.inject:javax.inject:1'
   compile "javax.servlet:javax.servlet-api:${servletRev}"
+  compile "net.morimekta.providence:providence-core-server:${providenceRev}"
+  compile "net.morimekta.providence:providence-thrift:${providenceRev}"
   compile "org.antlr:stringtemplate:${stringTemplateRev}"
   compile "org.apache.curator:curator-client:${curatorRev}"
   compile "org.apache.curator:curator-framework:${curatorRev}"

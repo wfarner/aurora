@@ -167,13 +167,13 @@ public interface PubsubEvent {
    * Event sent when a host's attributes change.
    */
   class HostAttributesChanged implements PubsubEvent {
-    private final IHostAttributes attributes;
+    private final HostAttributes attributes;
 
-    public HostAttributesChanged(IHostAttributes attributes) {
+    public HostAttributesChanged(HostAttributes attributes) {
       this.attributes = requireNonNull(attributes);
     }
 
-    public IHostAttributes getAttributes() {
+    public HostAttributes getAttributes() {
       return attributes;
     }
 

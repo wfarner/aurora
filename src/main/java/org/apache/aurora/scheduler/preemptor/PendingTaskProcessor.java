@@ -254,7 +254,7 @@ public class PendingTaskProcessor implements Runnable {
         }));
   }
 
-  private static final Function<IAssignedTask, TaskGroupKey> ASSIGNED_TO_GROUP_KEY =
+  private static final Function<AssignedTask, TaskGroupKey> ASSIGNED_TO_GROUP_KEY =
       task -> TaskGroupKey.from(task.getTask());
 
   private final Predicate<ScheduledTask> hasCachedSlot = new Predicate<ScheduledTask>() {

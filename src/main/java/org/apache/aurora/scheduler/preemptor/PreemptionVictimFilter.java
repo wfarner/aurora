@@ -214,7 +214,7 @@ public interface PreemptionVictimFilter {
 
       Set<PreemptionVictim> toPreemptTasks = Sets.newHashSet();
 
-      Optional<IHostAttributes> attributes =
+      Optional<HostAttributes> attributes =
           storeProvider.getAttributeStore().getHostAttributes(Iterables.getOnlyElement(hosts));
 
       if (!attributes.isPresent()) {

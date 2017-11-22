@@ -28,6 +28,7 @@ import org.apache.aurora.common.quantity.Amount;
 import org.apache.aurora.common.quantity.Time;
 import org.apache.aurora.common.testing.easymock.EasyMockTest;
 import org.apache.aurora.common.util.testing.FakeClock;
+import org.apache.aurora.gen.JobKey;
 import org.apache.aurora.gen.ScheduleStatus;
 import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.SchedulerModule.TaskEventBatchWorker;
@@ -37,8 +38,6 @@ import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.events.PubsubEvent.TaskStateChange;
 import org.apache.aurora.scheduler.pruning.TaskHistoryPruner.HistoryPrunnerSettings;
 import org.apache.aurora.scheduler.state.StateManager;
-import org.apache.aurora.gen.JobKey;
-import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.storage.testing.StorageTestUtil;
 import org.apache.aurora.scheduler.testing.FakeStatsProvider;
 import org.easymock.Capture;
@@ -326,7 +325,7 @@ public class TaskHistoryPrunerTest extends EasyMockTest {
   }
 
   private ScheduledTask copy(ScheduledTask task, ScheduleStatus status) {
-    return ScheduledTask.build(task.newBuilder().setStatus(status));
+    return task.mutate().setStatus(status).build();
   }
 
   private ScheduledTask makeTask(
@@ -334,11 +333,11 @@ public class TaskHistoryPrunerTest extends EasyMockTest {
       String taskId,
       ScheduleStatus status) {
 
-    ScheduledTask builder = TaskTestUtil.addStateTransition(
+    ScheduledTask._Builder builder = TaskTestUtil.addStateTransition(
         TaskTestUtil.makeTask(taskId, job), status, clock.nowMillis())
-        .newBuilder();
-    builder.getAssignedTask().setSlaveHost(SLAVE_HOST);
-    return ScheduledTask.build(builder);
+        .mutate();
+    builder.mutableAssignedTask().setSlaveHost(SLAVE_HOST);
+    return builder.build();
   }
 
   private ScheduledTask makeTask(String taskId, ScheduleStatus status) {

@@ -32,11 +32,12 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.Range;
 
 import org.apache.aurora.common.collections.Pair;
-import org.apache.aurora.gen.ScheduleStatus;
-import org.apache.aurora.scheduler.base.Tasks;
+import org.apache.aurora.gen.Api_Constants;
 import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.ScheduleStatus;
 import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.gen.TaskEvent;
+import org.apache.aurora.scheduler.base.Tasks;
 
 import static java.util.Objects.requireNonNull;
 
@@ -121,12 +122,14 @@ interface SlaAlgorithm {
     public Number calculate(Iterable<ScheduledTask> tasks, Range<Long> timeFrame) {
       Iterable<ScheduledTask> activeTasks = FluentIterable.from(tasks)
           .filter(
-              Predicates.compose(Predicates.in(Tasks.ACTIVE_STATES), ScheduledTask::getStatus));
+              Predicates.compose(
+                  Predicates.in(Api_Constants.ACTIVE_STATES),
+                  ScheduledTask::getStatus));
 
       List<Long> waitTimes = Lists.newLinkedList();
       for (ScheduledTask task : activeTasks) {
         long pendingTs = 0;
-        for (ITaskEvent event : task.getTaskEvents()) {
+        for (TaskEvent event : task.getTaskEvents()) {
           if (event.getStatus() == PENDING) {
             pendingTs = event.getTimestamp();
           } else if (event.getStatus() == status && timeFrame.contains(event.getTimestamp())) {
@@ -161,7 +164,7 @@ interface SlaAlgorithm {
             Predicates.in(ImmutableSet.of(RUNNING)),
             ScheduledTask::getStatus);
 
-    private static final Function<ScheduledTask, ITaskEvent> TASK_TO_EVENT =
+    private static final Function<ScheduledTask, TaskEvent> TASK_TO_EVENT =
         Tasks::getLatestEvent;
 
     private JobUptime(float percentile) {
@@ -274,15 +277,15 @@ interface SlaAlgorithm {
             task.getAssignedTask().getTask().getJob(),
             task.getAssignedTask().getInstanceId());
 
-    private static final Function<ITaskEvent, Long> TASK_EVENT_TO_TIMESTAMP =
-        ITaskEvent::getTimestamp;
+    private static final Function<TaskEvent, Long> TASK_EVENT_TO_TIMESTAMP =
+        TaskEvent::getTimestamp;
 
     /**
      * Combine all task events per given instance into the unified sorted instance history view.
      */
-    private static final Function<Collection<ScheduledTask>, List<ITaskEvent>> TO_SORTED_EVENTS =
+    private static final Function<Collection<ScheduledTask>, List<TaskEvent>> TO_SORTED_EVENTS =
         tasks -> {
-          List<ITaskEvent> result = Lists.newLinkedList();
+          List<TaskEvent> result = Lists.newLinkedList();
           for (ScheduledTask task : tasks) {
             result.addAll(task.getTaskEvents());
           }
@@ -294,13 +297,13 @@ interface SlaAlgorithm {
     /**
      * Convert instance history into the {@link SlaState} based {@link Interval} list.
      */
-    private static final Function<List<ITaskEvent>, List<Interval>> TASK_EVENTS_TO_INTERVALS =
+    private static final Function<List<TaskEvent>, List<Interval>> TASK_EVENTS_TO_INTERVALS =
         events -> {
 
           ImmutableList.Builder<Interval> intervals = ImmutableList.builder();
           Pair<SlaState, Long> current = Pair.of(SlaState.REMOVED, 0L);
 
-          for (ITaskEvent event : events) {
+          for (TaskEvent event : events) {
             long timestamp = event.getTimestamp();
 
             // Event status in the instance timeline signifies either of the following:

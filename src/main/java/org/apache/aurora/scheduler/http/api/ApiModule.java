@@ -21,30 +21,19 @@ import com.beust.jcommander.Parameters;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Provides;
 import com.google.inject.servlet.ServletModule;
-import com.sun.jersey.guice.spi.container.servlet.GuiceContainer;
+import net.morimekta.providence.serializer.BaseSerializerProvider;
+import net.morimekta.providence.server.ProvidenceServlet;
+import net.morimekta.providence.thrift.TBinaryProtocolSerializer;
+import net.morimekta.providence.thrift.TJsonProtocolSerializer;
 
 import org.apache.aurora.gen.AuroraAdmin;
 import org.apache.aurora.scheduler.http.CorsFilter;
-import org.apache.aurora.scheduler.http.JettyServerModule;
-import org.apache.aurora.scheduler.http.LeaderRedirectFilter;
-import org.apache.aurora.scheduler.http.api.TContentAwareServlet.ContentFactoryPair;
-import org.apache.aurora.scheduler.http.api.TContentAwareServlet.InputConfig;
-import org.apache.aurora.scheduler.http.api.TContentAwareServlet.OutputConfig;
 import org.apache.aurora.scheduler.thrift.aop.AnnotatedAuroraAdmin;
-import org.apache.thrift.protocol.TBinaryProtocol;
-import org.apache.thrift.protocol.TJSONProtocol;
 import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.util.resource.Resource;
 
-import static javax.ws.rs.core.MediaType.APPLICATION_JSON_TYPE;
-
 public class ApiModule extends ServletModule {
   public static final String API_PATH = "/api";
-  private static final MediaType GENERIC_THRIFT = new MediaType("application", "x-thrift");
-  private static final MediaType THRIFT_JSON =
-      new MediaType("application", "vnd.apache.thrift.json");
-  private static final MediaType THRIFT_BINARY =
-      new MediaType("application", "vnd.apache.thrift.binary");
 
   @Parameters(separators = "=")
   public static class Options {
@@ -72,12 +61,7 @@ public class ApiModule extends ServletModule {
     if (options.enableCorsFor != null) {
       filter(API_PATH).through(new CorsFilter(options.enableCorsFor));
     }
-    serve(API_PATH).with(TContentAwareServlet.class);
-
-    filter(ApiBeta.PATH, ApiBeta.PATH + "/*").through(LeaderRedirectFilter.class);
-    filter(ApiBeta.PATH, ApiBeta.PATH + "/*")
-        .through(GuiceContainer.class, JettyServerModule.GUICE_CONTAINER_PARAMS);
-    bind(ApiBeta.class);
+    serve(API_PATH).with(ProvidenceServlet.class);
 
     serve("/apiclient", "/apiclient/*")
         .with(new DefaultServlet(), ImmutableMap.<String, String>builder()
@@ -89,7 +73,7 @@ public class ApiModule extends ServletModule {
 
   @Provides
   @Singleton
-  TContentAwareServlet provideApiThriftServlet(AnnotatedAuroraAdmin schedulerThriftInterface) {
+  ProvidenceServlet provideApiThriftServlet(AnnotatedAuroraAdmin schedulerThriftInterface) {
     /*
      * For backwards compatibility the servlet is configured to assume `application/x-thrift` and
      * `application/json` have TJSON bodies.
@@ -105,33 +89,20 @@ public class ApiModule extends ServletModule {
      * value except for the binary thrift header.
      */
 
-    ContentFactoryPair jsonFactory = new ContentFactoryPair(
-        new TJSONProtocol.Factory(),
-        THRIFT_JSON);
-    ContentFactoryPair binFactory = new ContentFactoryPair(
-        new TBinaryProtocol.Factory(),
-        THRIFT_BINARY);
+    return new ProvidenceServlet(
+        new AuroraAdmin.Processor(schedulerThriftInterface),
+        new SerializerProvider());
+  }
 
-    // Which factory to use based on the Content-Type header of the request for reading the request.
-    InputConfig inputConfig = new InputConfig(GENERIC_THRIFT, ImmutableMap.of(
-        GENERIC_THRIFT, jsonFactory,
-        THRIFT_JSON, jsonFactory,
-        APPLICATION_JSON_TYPE, jsonFactory,
-        THRIFT_BINARY, binFactory
-    ));
+  private static class SerializerProvider extends BaseSerializerProvider {
+    SerializerProvider() {
+      super(TBinaryProtocolSerializer.ALT_MEDIA_TYPE);
 
-    // Which factory to use based on the Accept header of the request for the response.
-    OutputConfig outputConfig = new OutputConfig(APPLICATION_JSON_TYPE, ImmutableMap.of(
-        APPLICATION_JSON_TYPE, jsonFactory,
-        GENERIC_THRIFT, jsonFactory,
-        THRIFT_JSON, jsonFactory,
-        THRIFT_BINARY, binFactory
-        ));
-
-    // A request without a Content-Type (like from curl) should be treated as GENERIC_THRIFT
-    return new TContentAwareServlet(
-        new AuroraAdmin.Processor<>(schedulerThriftInterface),
-        inputConfig,
-        outputConfig);
+      register(new TBinaryProtocolSerializer(true), TBinaryProtocolSerializer.MEDIA_TYPE);
+      register(new TJsonProtocolSerializer(),
+          TJsonProtocolSerializer.MEDIA_TYPE,
+          TBinaryProtocolSerializer.ALT_MEDIA_TYPE,
+          MediaType.APPLICATION_JSON);
+    }
   }
 }

@@ -18,7 +18,7 @@ import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.eventbus.Subscribe;
 
-import org.apache.aurora.scheduler.base.Tasks;
+import org.apache.aurora.gen.Api_Constants;
 import org.apache.aurora.scheduler.events.PubsubEvent;
 import org.apache.aurora.scheduler.events.PubsubEvent.TaskStateChange;
 
@@ -41,7 +41,7 @@ public class ClusterStateImpl implements ClusterState, PubsubEvent.EventSubscrib
     synchronized (victims) {
       String slaveId = stateChange.getTask().getAssignedTask().getSlaveId();
       PreemptionVictim victim = PreemptionVictim.fromTask(stateChange.getTask().getAssignedTask());
-      if (Tasks.SLAVE_ASSIGNED_STATES.contains(stateChange.getNewState())) {
+      if (Api_Constants.SLAVE_ASSIGNED_STATES.contains(stateChange.getNewState())) {
         victims.put(slaveId, victim);
       } else {
         victims.remove(slaveId, victim);

@@ -37,7 +37,7 @@ import static org.apache.mesos.v1.Protos.Offer;
  */
 public class HostOffer {
   private final Offer offer;
-  private final IHostAttributes hostAttributes;
+  private final HostAttributes hostAttributes;
   private final Supplier<ResourceBag> revocableResources;
   private final Supplier<ResourceBag> nonRevocableResources;
 
@@ -48,7 +48,7 @@ public class HostOffer {
   // of whether the resource is revocable.
   private final boolean nonZeroCpuAndMem;
 
-  public HostOffer(Offer offer, IHostAttributes hostAttributes) {
+  public HostOffer(Offer offer, HostAttributes hostAttributes) {
     this.offer = requireNonNull(offer);
     this.hostAttributes = requireNonNull(hostAttributes);
     this.nonZeroCpuAndMem = offerHasCpuAndMem(offer);
@@ -68,7 +68,7 @@ public class HostOffer {
     return offer;
   }
 
-  public IHostAttributes getAttributes() {
+  public HostAttributes getAttributes() {
     return hostAttributes;
   }
 

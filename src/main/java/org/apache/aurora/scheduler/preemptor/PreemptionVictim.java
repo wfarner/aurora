@@ -28,13 +28,13 @@ import static java.util.Objects.requireNonNull;
  * A victim to be considered as a candidate for preemption.
  */
 public final class PreemptionVictim {
-  private final IAssignedTask task;
+  private final AssignedTask task;
 
-  private PreemptionVictim(IAssignedTask task) {
+  private PreemptionVictim(AssignedTask task) {
     this.task = requireNonNull(task);
   }
 
-  public static PreemptionVictim fromTask(IAssignedTask task) {
+  public static PreemptionVictim fromTask(AssignedTask task) {
     return new PreemptionVictim(task);
   }
 

@@ -44,22 +44,19 @@ import org.apache.aurora.common.base.MorePreconditions;
 import org.apache.aurora.common.inject.TimedInterceptor.Timed;
 import org.apache.aurora.common.stats.StatsProvider;
 import org.apache.aurora.gen.JobInstanceUpdateEvent;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.JobUpdate;
 import org.apache.aurora.gen.JobUpdateAction;
 import org.apache.aurora.gen.JobUpdateDetails;
 import org.apache.aurora.gen.JobUpdateEvent;
+import org.apache.aurora.gen.JobUpdateInstructions;
+import org.apache.aurora.gen.JobUpdateKey;
+import org.apache.aurora.gen.JobUpdateQuery;
 import org.apache.aurora.gen.JobUpdateState;
 import org.apache.aurora.gen.JobUpdateStatus;
+import org.apache.aurora.gen.JobUpdateSummary;
 import org.apache.aurora.scheduler.storage.JobUpdateStore;
 import org.apache.aurora.scheduler.storage.Storage.StorageException;
-import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
-import org.apache.aurora.scheduler.storage.entities.IJobKey;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdate;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateDetails;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateEvent;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateInstructions;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateKey;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateQuery;
-import org.apache.aurora.scheduler.storage.entities.IJobUpdateSummary;
 
 import static java.util.Objects.requireNonNull;
 
@@ -68,11 +65,11 @@ import static org.apache.aurora.scheduler.storage.Util.jobUpdateStatusStatName;
 
 public class MemJobUpdateStore implements JobUpdateStore.Mutable {
 
-  private static final Ordering<IJobUpdateDetails> REVERSE_LAST_MODIFIED_ORDER = Ordering.natural()
+  private static final Ordering<JobUpdateDetails> REVERSE_LAST_MODIFIED_ORDER = Ordering.natural()
       .reverse()
       .onResultOf(u -> u.getUpdate().getSummary().getState().getLastModifiedTimestampMs());
 
-  private final Map<IJobUpdateKey, IJobUpdateDetails> updates = Maps.newConcurrentMap();
+  private final Map<JobUpdateKey, JobUpdateDetails> updates = Maps.newConcurrentMap();
   private final LoadingCache<JobUpdateStatus, AtomicLong> jobUpdateEventStats;
   private final LoadingCache<JobUpdateAction, AtomicLong> jobUpdateActionStats;
 
@@ -102,7 +99,7 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
 
   @Timed("job_update_store_fetch_summaries")
   @Override
-  public synchronized List<IJobUpdateSummary> fetchJobUpdateSummaries(IJobUpdateQuery query) {
+  public synchronized List<JobUpdateSummary> fetchJobUpdateSummaries(JobUpdateQuery query) {
     return performQuery(query)
         .map(u -> u.getUpdate().getSummary())
         .collect(Collectors.toList());
@@ -110,26 +107,26 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
 
   @Timed("job_update_store_fetch_details_list")
   @Override
-  public synchronized List<IJobUpdateDetails> fetchJobUpdateDetails(IJobUpdateQuery query) {
+  public synchronized List<JobUpdateDetails> fetchJobUpdateDetails(JobUpdateQuery query) {
     return performQuery(query).collect(Collectors.toList());
   }
 
   @Timed("job_update_store_fetch_details")
   @Override
-  public synchronized Optional<IJobUpdateDetails> fetchJobUpdateDetails(IJobUpdateKey key) {
+  public synchronized Optional<JobUpdateDetails> fetchJobUpdateDetails(JobUpdateKey key) {
     return Optional.fromNullable(updates.get(key));
   }
 
   @Timed("job_update_store_fetch_update")
   @Override
-  public synchronized Optional<IJobUpdate> fetchJobUpdate(IJobUpdateKey key) {
-    return Optional.fromNullable(updates.get(key)).transform(IJobUpdateDetails::getUpdate);
+  public synchronized Optional<JobUpdate> fetchJobUpdate(JobUpdateKey key) {
+    return Optional.fromNullable(updates.get(key)).transform(JobUpdateDetails::getUpdate);
   }
 
   @Timed("job_update_store_fetch_instructions")
   @Override
-  public synchronized Optional<IJobUpdateInstructions> fetchJobUpdateInstructions(
-      IJobUpdateKey key) {
+  public synchronized Optional<JobUpdateInstructions> fetchJobUpdateInstructions(
+      JobUpdateKey key) {
 
     return Optional.fromNullable(updates.get(key))
         .transform(u -> u.getUpdate().getInstructions());
@@ -137,25 +134,25 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
 
   @Timed("job_update_store_fetch_all_details")
   @Override
-  public synchronized Set<IJobUpdateDetails> fetchAllJobUpdateDetails() {
+  public synchronized Set<JobUpdateDetails> fetchAllJobUpdateDetails() {
     return ImmutableSet.copyOf(updates.values());
   }
 
   @Timed("job_update_store_fetch_instance_events")
   @Override
-  public synchronized List<IJobInstanceUpdateEvent> fetchInstanceEvents(
-      IJobUpdateKey key,
+  public synchronized List<JobInstanceUpdateEvent> fetchInstanceEvents(
+      JobUpdateKey key,
       int instanceId) {
 
     return java.util.Optional.ofNullable(updates.get(key))
-        .map(IJobUpdateDetails::getInstanceEvents)
+        .map(JobUpdateDetails::getInstanceEvents)
         .orElse(ImmutableList.of())
         .stream()
         .filter(e -> e.getInstanceId() == instanceId)
         .collect(Collectors.toList());
   }
 
-  private static void validateInstructions(IJobUpdateInstructions instructions) {
+  private static void validateInstructions(JobUpdateInstructions instructions) {
     if (!instructions.isSetDesiredState() && instructions.getInitialState().isEmpty()) {
       throw new IllegalArgumentException(
           "Missing both initial and desired states. At least one is required.");
@@ -178,7 +175,7 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
 
   @Timed("job_update_store_save_update")
   @Override
-  public synchronized void saveJobUpdate(IJobUpdate update) {
+  public synchronized void saveJobUpdate(JobUpdate update) {
     requireNonNull(update);
     validateInstructions(update.getInstructions());
 
@@ -192,7 +189,7 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
         .setInstanceEvents(ImmutableList.of());
     mutable.getUpdate().getSummary().setState(synthesizeUpdateState(mutable));
 
-    updates.put(update.getSummary().getKey(), IJobUpdateDetails.build(mutable));
+    updates.put(update.getSummary().getKey(), JobUpdateDetails.build(mutable));
   }
 
   private static final Ordering<JobUpdateEvent> EVENT_ORDERING = Ordering.natural()
@@ -200,7 +197,7 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
 
   @Timed("job_update_store_save_event")
   @Override
-  public synchronized void saveJobUpdateEvent(IJobUpdateKey key, IJobUpdateEvent event) {
+  public synchronized void saveJobUpdateEvent(JobUpdateKey key, JobUpdateEvent event) {
     IJobUpdateDetails update = updates.get(key);
     if (update == null) {
       throw new StorageException("Update not found: " + key);
@@ -220,10 +217,10 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
   @Timed("job_update_store_save_instance_event")
   @Override
   public synchronized void saveJobInstanceUpdateEvent(
-      IJobUpdateKey key,
-      IJobInstanceUpdateEvent event) {
+      JobUpdateKey key,
+      JobInstanceUpdateEvent event) {
 
-    IJobUpdateDetails update = updates.get(key);
+    JobUpdateDetails update = updates.get(key);
     if (update == null) {
       throw new StorageException("Update not found: " + key);
     }
@@ -244,45 +241,45 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
 
   @Timed("job_update_store_prune_history")
   @Override
-  public synchronized Set<IJobUpdateKey> pruneHistory(
+  public synchronized Set<JobUpdateKey> pruneHistory(
       int perJobRetainCount,
       long historyPruneThresholdMs) {
 
-    Supplier<Stream<IJobUpdateSummary>> completedUpdates = () -> updates.values().stream()
+    Supplier<Stream<JobUpdateSummary>> completedUpdates = () -> updates.values().stream()
         .map(u -> u.getUpdate().getSummary())
         .filter(s -> TERMINAL_STATES.contains(s.getState().getStatus()));
 
-    Predicate<IJobUpdateSummary> expiredFilter =
+    Predicate<JobUpdateSummary> expiredFilter =
         s -> s.getState().getCreatedTimestampMs() < historyPruneThresholdMs;
 
-    ImmutableSet.Builder<IJobUpdateKey> pruneBuilder = ImmutableSet.builder();
+    ImmutableSet.Builder<JobUpdateKey> pruneBuilder = ImmutableSet.builder();
 
     // Gather updates based on time threshold.
     pruneBuilder.addAll(completedUpdates.get()
         .filter(expiredFilter)
-        .map(IJobUpdateSummary::getKey)
+        .map(JobUpdateSummary::getKey)
         .collect(Collectors.toList()));
 
-    Multimap<IJobKey, IJobUpdateSummary> updatesByJob = Multimaps.index(
+    Multimap<JobKey, JobUpdateSummary> updatesByJob = Multimaps.index(
         // Avoid counting to-be-removed expired updates.
         completedUpdates.get().filter(expiredFilter.negate()).iterator(),
         s -> s.getKey().getJob());
 
-    for (Map.Entry<IJobKey, Collection<IJobUpdateSummary>> entry
+    for (Map.Entry<JobKey, Collection<JobUpdateSummary>> entry
         : updatesByJob.asMap().entrySet()) {
 
       if (entry.getValue().size() > perJobRetainCount) {
-        Ordering<IJobUpdateSummary> creationOrder = Ordering.natural()
+        Ordering<JobUpdateSummary> creationOrder = Ordering.natural()
             .onResultOf(s -> s.getState().getCreatedTimestampMs());
         pruneBuilder.addAll(creationOrder
             .leastOf(entry.getValue(), entry.getValue().size() - perJobRetainCount)
             .stream()
-            .map(IJobUpdateSummary::getKey)
+            .map(JobUpdateSummary::getKey)
             .iterator());
       }
     }
 
-    Set<IJobUpdateKey> pruned = pruneBuilder.build();
+    Set<JobUpdateKey> pruned = pruneBuilder.build();
     updates.keySet().removeAll(pruned);
 
     return pruned;
@@ -314,8 +311,8 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
     return state;
   }
 
-  private Stream<IJobUpdateDetails> performQuery(IJobUpdateQuery query) {
-    Predicate<IJobUpdateDetails> filter = u -> true;
+  private Stream<JobUpdateDetails> performQuery(JobUpdateQuery query) {
+    Predicate<JobUpdateDetails> filter = u -> true;
     if (query.getRole() != null) {
       filter = filter.and(
           u -> u.getUpdate().getSummary().getKey().getJob().getRole().equals(query.getRole()));
@@ -337,7 +334,7 @@ public class MemJobUpdateStore implements JobUpdateStore.Mutable {
 
     // TODO(wfarner): Modification time is not a stable ordering for pagination, but we use it as
     // such here.  The behavior is carried over from DbJobupdateStore; determine if it is desired.
-    Stream<IJobUpdateDetails> matches = updates.values().stream()
+    Stream<JobUpdateDetails> matches = updates.values().stream()
         .filter(filter)
         .sorted(REVERSE_LAST_MODIFIED_ORDER)
         .skip(query.getOffset());

@@ -52,12 +52,7 @@ import org.apache.aurora.scheduler.scheduling.RescheduleCalculator;
 import org.apache.aurora.scheduler.storage.AttributeStore;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
-import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
-import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
-import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
 import org.apache.aurora.scheduler.storage.mem.MemStorageModule;
-import org.apache.aurora.scheduler.storage.db.DbUtil;
 import org.apache.mesos.v1.Protos.AgentID;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
@@ -376,7 +371,7 @@ public class StateManagerImplTest extends EasyMockTest {
     assignTask(taskId, HOST_A);
     changeState(taskId, RUNNING);
     changeState(taskId, PARTITIONED);
-    IScheduledTask updatedTask = Storage.Util.fetchTask(storage, taskId).get();
+    ScheduledTask updatedTask = Storage.Util.fetchTask(storage, taskId).get();
     assertEquals(1, updatedTask.getTimesPartitioned());
   }
 
@@ -400,7 +395,7 @@ public class StateManagerImplTest extends EasyMockTest {
     changeState(taskId, ASSIGNED);
     changeState(taskId, RESTARTING);
     changeState(taskId, PARTITIONED);
-    IScheduledTask updatedTask = Storage.Util.fetchTask(storage, taskId).get();
+    ScheduledTask updatedTask = Storage.Util.fetchTask(storage, taskId).get();
     assertEquals(LOST, updatedTask.getStatus());
   }
 
@@ -434,7 +429,7 @@ public class StateManagerImplTest extends EasyMockTest {
     changeState(taskId, PARTITIONED);
     changeState(taskId, RUNNING);
     changeState(taskId, PARTITIONED);
-    IScheduledTask updatedTask = Storage.Util.fetchTask(storage, taskId).get();
+    ScheduledTask updatedTask = Storage.Util.fetchTask(storage, taskId).get();
     assertEquals(
         ImmutableList.of(PENDING, ASSIGNED, STARTING, PARTITIONED, RUNNING, PARTITIONED),
         updatedTask.getTaskEvents().stream()

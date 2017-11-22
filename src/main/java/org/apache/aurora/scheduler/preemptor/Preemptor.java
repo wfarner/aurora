@@ -46,7 +46,7 @@ public interface Preemptor {
    * @return ID of the slave where preemption occurred.
    */
   Optional<String> attemptPreemptionFor(
-      IAssignedTask task,
+      AssignedTask task,
       AttributeAggregate jobState,
       MutableStoreProvider storeProvider);
 
@@ -74,7 +74,7 @@ public interface Preemptor {
 
     @Override
     public Optional<String> attemptPreemptionFor(
-        IAssignedTask pendingTask,
+        AssignedTask pendingTask,
         AttributeAggregate jobState,
         MutableStoreProvider store) {
 

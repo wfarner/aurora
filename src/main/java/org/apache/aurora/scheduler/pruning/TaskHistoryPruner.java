@@ -32,7 +32,9 @@ import org.apache.aurora.common.quantity.Amount;
 import org.apache.aurora.common.quantity.Time;
 import org.apache.aurora.common.stats.StatsProvider;
 import org.apache.aurora.common.util.Clock;
-import org.apache.aurora.gen.apiConstants;
+import org.apache.aurora.gen.Api_Constants;
+import org.apache.aurora.gen.JobKey;
+import org.apache.aurora.gen.ScheduledTask;
 import org.apache.aurora.scheduler.BatchWorker;
 import org.apache.aurora.scheduler.SchedulerModule.TaskEventBatchWorker;
 import org.apache.aurora.scheduler.async.AsyncModule.AsyncExecutor;
@@ -40,8 +42,6 @@ import org.apache.aurora.scheduler.base.Query;
 import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.state.StateManager;
 import org.apache.aurora.scheduler.storage.Storage;
-import org.apache.aurora.gen.JobKey;
-import org.apache.aurora.gen.ScheduledTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -152,7 +152,7 @@ public class TaskHistoryPruner implements EventSubscriber {
 
   @VisibleForTesting
   static Query.Builder jobHistoryQuery(JobKey jobKey) {
-    return Query.jobScoped(jobKey).byStatus(apiConstants.TERMINAL_STATES);
+    return Query.jobScoped(jobKey).byStatus(Api_Constants.TERMINAL_STATES);
   }
 
   private void registerInactiveTask(
