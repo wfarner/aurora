@@ -153,7 +153,9 @@ class LogOpStore implements AppendOnlyStore<Op, Op> {
 
       case SAVE_JOB_UPDATE:
         return ImmutableMap.of(
-            key(Namespace.UPDATE, op.getSaveJobUpdate().getJobUpdate().getSummary().getKey().getId()),
+            key(
+                Namespace.UPDATE,
+                op.getSaveJobUpdate().getJobUpdate().getSummary().getKey().getId()),
             value(op));
 
       case SAVE_JOB_UPDATE_EVENT:

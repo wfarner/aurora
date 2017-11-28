@@ -302,7 +302,7 @@ public class MesosLog implements org.apache.aurora.scheduler.log.Log {
     }
 
     @Override
-    public LogPosition append(byte[] contents) throws StreamAccessException {
+    public LogPosition append(final byte[] contents) throws StreamAccessException {
       requireNonNull(contents);
 
       Log.Position position = mutate(
