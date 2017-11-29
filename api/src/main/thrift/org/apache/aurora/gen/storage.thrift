@@ -56,10 +56,9 @@ struct SaveHostAttributes {
 struct SaveJobUpdate {
   1: api.JobUpdate jobUpdate
   // 2: deleted
-  3: api.JobUpdateDetails details
 }
 
-struct RemoveJobUpdate {
+struct RemoveJobUpdates {
   1: set<api.JobUpdateKey> keys
 }
 
@@ -99,7 +98,7 @@ union Op {
   15: SaveJobUpdateEvent saveJobUpdateEvent
   16: SaveJobInstanceUpdateEvent saveJobInstanceUpdateEvent
   17: PruneJobUpdateHistory pruneJobUpdateHistory
-  18: RemoveJobUpdate removeJobUpdate
+  18: RemoveJobUpdates removeJobUpdate
 }
 
 // The current schema version ID.  This should be incremented each time the
