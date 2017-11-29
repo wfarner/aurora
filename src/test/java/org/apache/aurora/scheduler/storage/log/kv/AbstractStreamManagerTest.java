@@ -384,7 +384,7 @@ public abstract class AbstractStreamManagerTest {
   public void testResistsHighNamespaceFanout() {
     // The store is exposed as a flat namespace, but is internally bucketed to limit fanout.
 
-    int totalValues = 30000;
+    int totalValues = 3000;
     Set<Op> manyQuotas = IntStream.range(0, totalValues)
         .boxed()
         .map(i -> Op.saveQuota(new SaveQuota().setRole("role" + i)))
