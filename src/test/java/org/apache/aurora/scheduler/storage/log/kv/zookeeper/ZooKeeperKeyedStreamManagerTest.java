@@ -13,14 +13,12 @@
  */
 package org.apache.aurora.scheduler.storage.log.kv.zookeeper;
 
-
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.apache.aurora.common.zookeeper.testing.ZooKeeperTestServer;
 import org.apache.aurora.scheduler.storage.log.kv.AbstractStreamManagerTest;
-import org.apache.aurora.scheduler.storage.log.kv.KeyValueStore;
 import org.apache.aurora.scheduler.storage.log.kv.KeyValueStore.ListableWithDelete;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
@@ -31,8 +29,7 @@ import org.junit.rules.TemporaryFolder;
 public class ZooKeeperKeyedStreamManagerTest extends AbstractStreamManagerTest {
 
   // Hide known container paths ('/' and hash prefix dirs).
-  private static final Predicate<String> VISIBLE_KEY =
-      key -> (!"/".equals(key)) && key.length() != 3;
+  private static final Predicate<String> VISIBLE_KEY = key -> !"/".equals(key) && key.length() != 3;
 
   private ZooKeeperTestServer zkTestServer;
   private CuratorFramework curator;
@@ -57,7 +54,7 @@ public class ZooKeeperKeyedStreamManagerTest extends AbstractStreamManagerTest {
   }
 
   @Override
-  protected Map<String, byte[]> storeContents(KeyValueStore<String, byte[]> store) {
+  protected Map<String, byte[]> storeContents() {
     if (store instanceof ZooKeeperKeyValueStore) {
       ZooKeeperKeyValueStore zkStore = (ZooKeeperKeyValueStore) store;
       return zkStore.walk("/", 2)

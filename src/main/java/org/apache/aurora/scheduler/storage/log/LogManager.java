@@ -50,7 +50,10 @@ public class LogManager {
   private final StreamManagerFactory streamManagerFactory;
 
   @Inject
-  LogManager(Log log, StreamManagerFactory streamManagerFactory) {
+  LogManager(
+      Log log,
+      StreamManagerFactory streamManagerFactory) {
+
     this.log = requireNonNull(log);
     this.streamManagerFactory = requireNonNull(streamManagerFactory);
   }
@@ -64,4 +67,5 @@ public class LogManager {
   public StreamManager open() throws IOException {
     return streamManagerFactory.create(log.open());
   }
+
 }

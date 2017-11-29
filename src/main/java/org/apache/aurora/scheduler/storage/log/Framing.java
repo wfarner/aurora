@@ -37,14 +37,8 @@ public final class Framing {
 
   private static final Logger LOG = LoggerFactory.getLogger(Framing.class);
 
-  private static final int SERIALIZE_CHUNK_OVERHEAD = computeSerializedChunkOverhead();
-
   private Framing() {
     // Utility class.
-  }
-
-  private static int computeSerializedChunkOverhead() {
-    return encode(Frame.chunk(new FrameChunk(ByteBuffer.wrap(new byte[] {})))).length;
   }
 
   /**
@@ -67,10 +61,7 @@ public final class Framing {
       return Iterators.forArray(entry);
     }
 
-    // Subtract overhead of the frame chunk structure itself.
-    int maxDataArraySize = maxEntrySizeBytes - SERIALIZE_CHUNK_OVERHEAD;
-
-    int chunks = (int) Math.ceil(entry.length / (double) maxDataArraySize);
+    int chunks = (int) Math.ceil(entry.length / (double) maxEntrySizeBytes);
 
     byte[] header = Entries.thriftBinaryEncode(LogEntry.frame(
         Frame.header(new FrameHeader(chunks, ByteBuffer.wrap(hasher.hashBytes(entry).asBytes())))));
@@ -83,9 +74,9 @@ public final class Framing {
         if (i == -1) {
           result = header;
         } else if (i < chunks) {
-          int offset = i * maxDataArraySize;
+          int offset = i * maxEntrySizeBytes;
           ByteBuffer chunk =
-              ByteBuffer.wrap(entry, offset, Math.min(maxDataArraySize, entry.length - offset));
+              ByteBuffer.wrap(entry, offset, Math.min(maxEntrySizeBytes, entry.length - offset));
           try {
             result = encode(Frame.chunk(new FrameChunk(chunk)));
           } catch (CodingException e) {

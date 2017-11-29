@@ -94,7 +94,7 @@ class ZooKeeperKeyValueStore implements ListableWithDelete<String, byte[]> {
       nodes = Stream.of(path);
     } else {
       nodes = children.stream()
-          .map(child -> (path.endsWith("/") ? path : (path + "/")) + child);
+          .map(child -> (path.endsWith("/") ? path : path + "/") + child);
     }
 
     if (depth == maxDepth) {

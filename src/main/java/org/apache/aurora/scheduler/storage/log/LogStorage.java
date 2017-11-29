@@ -367,7 +367,8 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
         })
         .put(Op._Fields.PRUNE_JOB_UPDATE_HISTORY, op -> writeBehindJobUpdateStore.pruneHistory(
             op.getPruneJobUpdateHistory().getPerJobRetainCount(),
-            op.getPruneJobUpdateHistory().getHistoryPruneThresholdMs())).build();
+            op.getPruneJobUpdateHistory().getHistoryPruneThresholdMs()))
+        .build();
   }
 
   @Override

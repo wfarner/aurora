@@ -23,6 +23,8 @@ import com.google.common.collect.Sets;
 
 import org.apache.aurora.scheduler.storage.log.kv.KeyValueStore.ListableWithDelete;
 
+import static org.apache.aurora.scheduler.storage.log.kv.TransactionalKeyValueStore.LAST_TXN_KEY;
+
 public class MapKeyValueStore implements ListableWithDelete<String, byte[]> {
 
   private final Map<String, byte[]> contents = Maps.newHashMap();
@@ -45,7 +47,7 @@ public class MapKeyValueStore implements ListableWithDelete<String, byte[]> {
   @Override
   public void save(Map<String, Record<byte[]>> records) {
     records.forEach((key, record) -> {
-      if (contents.put(key, record.getValue()) != null && !key.equals("/last_transaction")) {
+      if (contents.put(key, record.getValue()) != null && !key.equals(LAST_TXN_KEY)) {
         throw new IllegalArgumentException("Entities may not be overwritten");
       }
     });

@@ -68,6 +68,7 @@ import org.apache.aurora.scheduler.storage.log.kv.KeyValueStore.Record;
 import org.junit.Before;
 import org.junit.Test;
 
+import static org.apache.aurora.scheduler.storage.log.kv.TransactionalKeyValueStore.LAST_TXN_KEY;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -76,7 +77,7 @@ public abstract class AbstractStreamManagerTest {
 
   private static final DataAmount SIZE_LIMIT = new DataAmount(1, Data.KB);
 
-  private ListableWithDelete<String, byte[]> store;
+  protected ListableWithDelete<String, byte[]> store;
   private FailureInjectingStore faultInjection;
   private StreamManager stream;
 
@@ -88,7 +89,7 @@ public abstract class AbstractStreamManagerTest {
 
   protected abstract ListableWithDelete<String, byte[]> createStorage() throws Exception;
 
-  protected abstract Map<String, byte[]> storeContents(KeyValueStore<String, byte[]> store);
+  protected abstract Map<String, byte[]> storeContents();
 
   @Test
   public void testTransactionOrdering() {
@@ -217,8 +218,8 @@ public abstract class AbstractStreamManagerTest {
   private static ResourceAggregate resource(int multiplier) {
     return new ResourceAggregate()
         .setNumCpus(multiplier)
-        .setRamMb(1024 * multiplier)
-        .setDiskMb(1024 * multiplier);
+        .setRamMb(1024L * multiplier)
+        .setDiskMb(1024L * multiplier);
   }
 
   @Test
@@ -303,7 +304,7 @@ public abstract class AbstractStreamManagerTest {
     transaction(original);
 
     Op replacement = Op.saveQuota(new SaveQuota().setRole("role").setQuota(resource(1)));
-    injectSaveFailure("/last_transaction"::equals, replacement);
+    injectSaveFailure(LAST_TXN_KEY::equals, replacement);
 
     assertStreamContents(original);
     assertStorageEntries(1);
@@ -331,7 +332,7 @@ public abstract class AbstractStreamManagerTest {
     Op save = Op.saveQuota(new SaveQuota().setRole("role"));
     transaction(save);
     injectSaveFailure(
-        Predicate.isEqual("/last_transaction"),
+        Predicate.isEqual(LAST_TXN_KEY),
         Op.removeQuota(new RemoveQuota().setRole("role")));
 
     assertStreamContents(save);
@@ -381,8 +382,7 @@ public abstract class AbstractStreamManagerTest {
 
   @Test
   public void testResistsHighNamespaceFanout() {
-    // Each store is exposed as a flat namespace, but internally the namespaces are bucketed to
-    // limit fanout.
+    // The store is exposed as a flat namespace, but is internally bucketed to limit fanout.
 
     int totalValues = 30000;
     Set<Op> manyQuotas = IntStream.range(0, totalValues)
@@ -395,7 +395,7 @@ public abstract class AbstractStreamManagerTest {
 
     assertStorageEntries(totalValues);
     Multimap<String, String> tree = HashMultimap.create();
-    storeContents(store).keySet().forEach(key -> {
+    storeContents().keySet().forEach(key -> {
       List<String> parts = ImmutableList.copyOf(Splitter.on('/').split(key));
       for (int i = 1; i < parts.size(); i++) {
         tree.put(Joiner.on('/').join(parts.subList(0, i)), parts.get(i));
@@ -474,18 +474,23 @@ public abstract class AbstractStreamManagerTest {
   }
 
   private void assertEmptyStorage() {
-    assertEquals(ImmutableSet.of("/last_transaction"), storeContents(store).keySet());
+    assertEquals(ImmutableSet.of(LAST_TXN_KEY), storeContents().keySet());
   }
 
   private void assertStorageEntries(int count) {
     assertEquals(
         count,
-        storeContents(store).keySet().stream()
-            .filter(k -> !"/last_transaction".equals(k))
+        storeContents().keySet().stream()
+            .filter(k -> !LAST_TXN_KEY.equals(k))
             .count());
   }
 
   private static class FailureInjectingStore implements ListableWithDelete<String, byte[]> {
+    // Allow slightly larger recoreds than configured, as the framing code does not currently
+    // account for the overhead of the frame record itself, and only limits the data array
+    // _within_ the record.
+    private static final int MAX_ALLOWED_SIZE = SIZE_LIMIT.as(Data.BYTES) + 100;
+
     private final ListableWithDelete<String, byte[]> wrapped;
 
     private final AtomicReference<Predicate<String>> failOnKey = Atomics.newReference(s -> false);
@@ -507,10 +512,10 @@ public abstract class AbstractStreamManagerTest {
     @Override
     public void save(Map<String, Record<byte[]>> records) throws StoreException {
       Preconditions.checkArgument(records.values().stream()
-          .allMatch(v -> v.isTombstone() || v.getValue().length <= SIZE_LIMIT.as(Data.BYTES)));
+          .allMatch(v -> v.isTombstone() || v.getValue().length <= MAX_ALLOWED_SIZE));
 
       // For any save, last_transaction should always be last in the iteration order.
-      assertEquals("/last_transaction", Iterables.getLast(records.keySet()));
+      assertEquals(LAST_TXN_KEY, Iterables.getLast(records.keySet()));
 
       // Collect values and retain iteration order.
       ImmutableMap.Builder<String, Record<byte[]>> save = ImmutableMap.builder();

@@ -15,7 +15,6 @@ package org.apache.aurora.scheduler.storage.log.kv;
 
 import java.util.AbstractMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -91,16 +90,6 @@ class LogOpStore implements AppendOnlyStore<Op, Op> {
 
   private static String key(Namespace namespace, JobKey job) {
     return key(namespace, Joiner.on(".").join(job.getRole(), job.getEnvironment(), job.getName()));
-  }
-
-  private static final Set<Op._Fields> TOMBSTONE_OPS = ImmutableSet.of(
-      Op._Fields.REMOVE_JOB,
-      Op._Fields.REMOVE_JOB_UPDATE,
-      Op._Fields.REMOVE_TASKS,
-      Op._Fields.REMOVE_QUOTA);
-
-  private static boolean isTombstone(Op op) {
-    return TOMBSTONE_OPS.contains(op.getSetField());
   }
 
   /**

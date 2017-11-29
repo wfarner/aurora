@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -44,7 +45,8 @@ import static java.util.Objects.requireNonNull;
 class TransactionalKeyValueStore implements KeyValueStore.Streamable<String, byte[]> {
   private static final Logger LOG = LoggerFactory.getLogger(TransactionalKeyValueStore.class);
 
-  private static final String LAST_TXN_KEY = "/last_transaction";
+  @VisibleForTesting
+  static final String LAST_TXN_KEY = "/last_transaction";
   private static final String TOMBSTONE_MARKER = ".tombstone";
 
   private final KeyValueStore.ListableWithDelete<String, byte[]> wrapped;

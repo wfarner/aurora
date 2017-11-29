@@ -23,7 +23,7 @@ public class InMemoryStreamManagerTest extends AbstractStreamManagerTest {
     return new MapKeyValueStore();
   }
 
-  protected Map<String, byte[]> storeContents(KeyValueStore<String, byte[]> store) {
+  protected Map<String, byte[]> storeContents() {
     if (store instanceof MapKeyValueStore) {
       return ((MapKeyValueStore) store).asMap();
     }
