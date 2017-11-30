@@ -15,11 +15,19 @@ package org.apache.aurora.scheduler.storage;
 
 import org.apache.aurora.codec.ThriftBinaryCodec.CodingException;
 import org.apache.aurora.gen.storage.Snapshot;
+import org.apache.aurora.scheduler.storage.Storage.StorageException;
 
 /**
  * A distributed snapshot store that supports persisting globally-visible snapshots.
  */
 public interface DistributedSnapshotStore {
+
+  /**
+   * Clean up the underlying storage by optimizing internal data structures. Does not change
+   * externally-visible state but might not run concurrently with write operations.
+   */
+  void snapshot() throws StorageException;
+
   /**
    * Writes a snapshot to the distributed storage system.
    * TODO(William Farner): Currently we're hiding some exceptions (which happen to be

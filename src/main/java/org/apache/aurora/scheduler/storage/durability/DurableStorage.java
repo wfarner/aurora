@@ -11,13 +11,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.aurora.scheduler.storage.log;
+package org.apache.aurora.scheduler.storage.durability;
 
-import java.io.IOException;
-import java.util.Date;
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
@@ -25,38 +22,27 @@ import javax.inject.Inject;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.MoreExecutors;
 
-import org.apache.aurora.codec.ThriftBinaryCodec.CodingException;
-import org.apache.aurora.common.application.ShutdownRegistry;
 import org.apache.aurora.common.inject.TimedInterceptor.Timed;
-import org.apache.aurora.common.quantity.Amount;
-import org.apache.aurora.common.quantity.Time;
 import org.apache.aurora.common.stats.SlidingStats;
 import org.apache.aurora.gen.HostAttributes;
-import org.apache.aurora.gen.storage.LogEntry;
 import org.apache.aurora.gen.storage.Op;
 import org.apache.aurora.gen.storage.SaveCronJob;
 import org.apache.aurora.gen.storage.SaveJobInstanceUpdateEvent;
 import org.apache.aurora.gen.storage.SaveJobUpdateEvent;
 import org.apache.aurora.gen.storage.SaveQuota;
-import org.apache.aurora.gen.storage.Snapshot;
-import org.apache.aurora.scheduler.base.AsyncUtil;
 import org.apache.aurora.scheduler.base.SchedulerException;
 import org.apache.aurora.scheduler.events.EventSink;
-import org.apache.aurora.scheduler.log.Log.Stream.InvalidPositionException;
-import org.apache.aurora.scheduler.log.Log.Stream.StreamAccessException;
 import org.apache.aurora.scheduler.storage.AttributeStore;
 import org.apache.aurora.scheduler.storage.CronJobStore;
-import org.apache.aurora.scheduler.storage.DistributedSnapshotStore;
 import org.apache.aurora.scheduler.storage.JobUpdateStore;
 import org.apache.aurora.scheduler.storage.QuotaStore;
 import org.apache.aurora.scheduler.storage.SchedulerStore;
-import org.apache.aurora.scheduler.storage.SnapshotStore;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
 import org.apache.aurora.scheduler.storage.Storage.NonVolatileStorage;
 import org.apache.aurora.scheduler.storage.TaskStore;
+import org.apache.aurora.scheduler.storage.durability.Persistence.PersistenceException;
 import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
 import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
 import org.apache.aurora.scheduler.storage.entities.IJobKey;
@@ -68,7 +54,7 @@ import org.slf4j.LoggerFactory;
 import static java.util.Objects.requireNonNull;
 
 /**
- * A storage implementation that ensures committed transactions are written to a log.
+ * A storage implementation that ensures storage mutations are written to a persistence layer.
  *
  * <p>In the classic write-ahead log usage we'd perform mutations as follows:
  * <ol>
@@ -77,48 +63,22 @@ import static java.util.Objects.requireNonNull;
  *   <li>*checkpoint</li>
  * </ol>
  *
- * <p>Writing the operation to the log provides us with a fast persistence mechanism to ensure we
- * have a record of our mutation in case we should need to recover state later after a crash or on
- * a new host (assuming the log is distributed).  We then apply the mutation to a local (in-memory)
- * data structure for serving fast read requests and then optionally write down the position of the
- * log entry we wrote in the first step to stable storage to allow for quicker recovery after a
- * crash. Instead of reading the whole log, we can read all entries past the checkpoint.  This
- * design implies that all mutations must be idempotent and free from constraint and thus
- * replayable over newer operations when recovering from an old checkpoint.
- *
- * <p>The important detail in our case is the possibility of writing an op to the log, and then
- * failing to commit locally since we use a local database instead of an in-memory data structure.
- * If we die after such a failure, then another instance can read and apply the logged op
- * erroneously.
+ * <p>Writing the operation to persistences ensures we have a record of our mutation in case we
+ * should need to recover state later after a crash or on a new host (assuming the scheduler is
+ * distributed).  We then apply the mutation to a local (in-memory) data structure for serving fast
+ * read requests.
  *
  * <p>This implementation leverages a local transaction to handle this:
  * <ol>
  *   <li>start local transaction</li>
  *   <li>perform op locally (uncommitted!)</li>
- *   <li>write op to log</li>
- *   <li>commit local transaction</li>
- *   <li>*checkpoint</li>
+ *   <li>write op to persistence</li>
  * </ol>
  *
- * <p>If the op fails to apply to local storage we will never write the op to the log and if the op
- * fails to apply to the log, it'll throw and abort the local storage transaction as well.
+ * <p>If the op fails to apply to local storage we will never persist the op, and if the op
+ * fails to persist, it'll throw and abort the local storage operation as well.
  */
-public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore {
-
-  /**
-   * A service that can schedule an action to be executed periodically.
-   */
-  @VisibleForTesting
-  interface SchedulingService {
-
-    /**
-     * Schedules an action to execute periodically.
-     *
-     * @param interval The time period to wait until running the {@code action} again.
-     * @param action The action to execute periodically.
-     */
-    void doEvery(Amount<Long, Time> interval, Runnable action);
-  }
+public class DurableStorage implements NonVolatileStorage {
 
   /**
    * A maintainer for context about open transactions. Assumes that an external entity is
@@ -141,35 +101,9 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
     void log(Op op);
   }
 
-  private static class ScheduledExecutorSchedulingService implements SchedulingService {
-    private final ScheduledExecutorService scheduledExecutor;
+  private static final Logger LOG = LoggerFactory.getLogger(DurableStorage.class);
 
-    ScheduledExecutorSchedulingService(ShutdownRegistry shutdownRegistry,
-        Amount<Long, Time> shutdownGracePeriod) {
-      scheduledExecutor = AsyncUtil.singleThreadLoggingScheduledExecutor("LogStorage-%d", LOG);
-      shutdownRegistry.addAction(() -> MoreExecutors.shutdownAndAwaitTermination(
-          scheduledExecutor,
-          shutdownGracePeriod.getValue(),
-          shutdownGracePeriod.getUnit().getTimeUnit()));
-    }
-
-    @Override
-    public void doEvery(Amount<Long, Time> interval, Runnable action) {
-      requireNonNull(interval);
-      requireNonNull(action);
-
-      long delay = interval.getValue();
-      TimeUnit timeUnit = interval.getUnit().getTimeUnit();
-      scheduledExecutor.scheduleWithFixedDelay(action, delay, delay, timeUnit);
-    }
-  }
-
-  private static final Logger LOG = LoggerFactory.getLogger(LogStorage.class);
-
-  private final LogManager logManager;
-  private final SchedulingService schedulingService;
-  private final SnapshotStore<Snapshot> snapshotStore;
-  private final Amount<Long, Time> snapshotInterval;
+  private final Persistence persistence;
   private final Storage writeBehindStorage;
   private final SchedulerStore.Mutable writeBehindSchedulerStore;
   private final CronJobStore.Mutable writeBehindJobStore;
@@ -180,7 +114,6 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
   private final ReentrantLock writeLock;
   private final ThriftBackfill thriftBackfill;
 
-  private StreamManager streamManager;
   private final WriteAheadStorage writeAheadStorage;
 
   // TODO(wfarner): It should be possible to remove this flag now, since all call stacks when
@@ -188,21 +121,17 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
   // The more involved change is changing SnapshotStore to accept a Mutable store provider to
   // avoid a call to Storage.write() when we replay a Snapshot.
   private boolean recovered = false;
-  private StreamTransaction transaction = null;
+  private TransactionRecorder transaction = null;
 
   private final SlidingStats writerWaitStats =
       new SlidingStats("log_storage_write_lock_wait", "ns");
 
-  private final Map<LogEntry._Fields, Consumer<LogEntry>> logEntryReplayActions;
   private final Map<Op._Fields, Consumer<Op>> transactionReplayActions;
 
   @Inject
-  LogStorage(
-      LogManager logManager,
-      ShutdownRegistry shutdownRegistry,
-      Settings settings,
-      SnapshotStore<Snapshot> snapshotStore,
-      @Volatile Storage storage,
+  DurableStorage(
+      Persistence persistence,
+      @Volatile Storage delegateStorage,
       @Volatile SchedulerStore.Mutable schedulerStore,
       @Volatile CronJobStore.Mutable jobStore,
       @Volatile TaskStore.Mutable taskStore,
@@ -213,43 +142,7 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
       ReentrantLock writeLock,
       ThriftBackfill thriftBackfill) {
 
-    this(logManager,
-        new ScheduledExecutorSchedulingService(shutdownRegistry, settings.getShutdownGracePeriod()),
-        snapshotStore,
-        settings.getSnapshotInterval(),
-        storage,
-        schedulerStore,
-        jobStore,
-        taskStore,
-        quotaStore,
-        attributeStore,
-        jobUpdateStore,
-        eventSink,
-        writeLock,
-        thriftBackfill);
-  }
-
-  @VisibleForTesting
-  LogStorage(
-      LogManager logManager,
-      SchedulingService schedulingService,
-      SnapshotStore<Snapshot> snapshotStore,
-      Amount<Long, Time> snapshotInterval,
-      Storage delegateStorage,
-      SchedulerStore.Mutable schedulerStore,
-      CronJobStore.Mutable jobStore,
-      TaskStore.Mutable taskStore,
-      QuotaStore.Mutable quotaStore,
-      AttributeStore.Mutable attributeStore,
-      JobUpdateStore.Mutable jobUpdateStore,
-      EventSink eventSink,
-      ReentrantLock writeLock,
-      ThriftBackfill thriftBackfill) {
-
-    this.logManager = requireNonNull(logManager);
-    this.schedulingService = requireNonNull(schedulingService);
-    this.snapshotStore = requireNonNull(snapshotStore);
-    this.snapshotInterval = requireNonNull(snapshotInterval);
+    this.persistence = requireNonNull(persistence);
 
     // Log storage has two distinct operating modes: pre- and post-recovery.  When recovering,
     // we write directly to the writeBehind stores since we are replaying what's already persisted.
@@ -286,27 +179,7 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
         LoggerFactory.getLogger(WriteAheadStorage.class),
         eventSink);
 
-    this.logEntryReplayActions = buildLogEntryReplayActions();
     this.transactionReplayActions = buildTransactionReplayActions();
-  }
-
-  @VisibleForTesting
-  final Map<LogEntry._Fields, Consumer<LogEntry>> buildLogEntryReplayActions() {
-    return ImmutableMap.<LogEntry._Fields, Consumer<LogEntry>>builder()
-        .put(LogEntry._Fields.SNAPSHOT, logEntry -> {
-          Snapshot snapshot = logEntry.getSnapshot();
-          LOG.info("Applying snapshot taken on " + new Date(snapshot.getTimestamp()));
-          snapshotStore.applySnapshot(snapshot);
-        })
-        .put(LogEntry._Fields.TRANSACTION, logEntry -> write((NoResult.Quiet) unused -> {
-          for (Op op : logEntry.getTransaction().getOps()) {
-            replayOp(op);
-          }
-        }))
-        .put(LogEntry._Fields.NOOP, item -> {
-          // Nothing to do here
-        })
-        .build();
   }
 
   @VisibleForTesting
@@ -378,12 +251,7 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
   @Timed("scheduler_storage_prepare")
   public synchronized void prepare() {
     writeBehindStorage.prepare();
-    // Open the log to make a log replica available to the scheduler group.
-    try {
-      streamManager = logManager.open();
-    } catch (IOException e) {
-      throw new IllegalStateException("Failed to open the log, cannot continue", e);
-    }
+    persistence.prepare();
   }
 
   @Override
@@ -400,8 +268,6 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
       // to the log, so run it in one of our transactions.
       write(initializationLogic);
     });
-
-    scheduleSnapshots();
   }
 
   @Override
@@ -412,8 +278,8 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
   @Timed("scheduler_log_recover")
   void recover() throws RecoveryFailedException {
     try {
-      streamManager.readFromBeginning(LogStorage.this::replay);
-    } catch (CodingException | InvalidPositionException | StreamAccessException e) {
+      persistence.recover().forEach(DurableStorage.this::replayOp);
+    } catch (PersistenceException e) {
       throw new RecoveryFailedException(e);
     }
   }
@@ -422,15 +288,6 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
     RecoveryFailedException(Throwable cause) {
       super(cause);
     }
-  }
-
-  private void replay(final LogEntry logEntry) {
-    LogEntry._Fields entryField = logEntry.getSetField();
-    if (!logEntryReplayActions.containsKey(entryField)) {
-      throw new IllegalStateException("Unknown log entry type: " + entryField);
-    }
-
-    logEntryReplayActions.get(entryField).accept(logEntry);
   }
 
   private void replayOp(Op op) {
@@ -442,52 +299,6 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
     transactionReplayActions.get(opField).accept(op);
   }
 
-  private void scheduleSnapshots() {
-    if (snapshotInterval.getValue() > 0) {
-      schedulingService.doEvery(snapshotInterval, () -> {
-        try {
-          snapshot();
-        } catch (StorageException e) {
-          if (e.getCause() == null) {
-            LOG.warn("StorageException when attempting to snapshot.", e);
-          } else {
-            LOG.warn(e.getMessage(), e.getCause());
-          }
-        }
-      });
-    }
-  }
-
-  /**
-   * Forces a snapshot of the storage state.
-   *
-   * @throws CodingException If there is a problem encoding the snapshot.
-   * @throws InvalidPositionException If the log stream cursor is invalid.
-   * @throws StreamAccessException If there is a problem writing the snapshot to the log stream.
-   */
-  @Timed("scheduler_log_snapshot")
-  void doSnapshot() throws CodingException, InvalidPositionException, StreamAccessException {
-    write((NoResult<CodingException>) (MutableStoreProvider unused) -> {
-      LOG.info("Creating snapshot.");
-      Snapshot snapshot = snapshotStore.createSnapshot();
-      persist(snapshot);
-      LOG.info("Snapshot complete."
-          + " host attrs: " + snapshot.getHostAttributesSize()
-          + ", cron jobs: " + snapshot.getCronJobsSize()
-          + ", quota confs: " + snapshot.getQuotaConfigurationsSize()
-          + ", tasks: " + snapshot.getTasksSize()
-          + ", updates: " + snapshot.getJobUpdateDetailsSize());
-    });
-  }
-
-  @Timed("scheduler_log_snapshot_persist")
-  @Override
-  public void persist(Snapshot snapshot)
-      throws CodingException, InvalidPositionException, StreamAccessException {
-
-    streamManager.snapshot(snapshot);
-  }
-
   private <T, E extends Exception> T doInTransaction(final MutateWork<T, E> work)
       throws StorageException, E {
 
@@ -497,18 +308,17 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
       return work.apply(writeAheadStorage);
     }
 
-    transaction = streamManager.startTransaction();
+    transaction = new TransactionRecorder();
     try {
       return writeBehindStorage.write(unused -> {
         T result = work.apply(writeAheadStorage);
-        try {
-          transaction.commit();
-        } catch (CodingException e) {
-          throw new IllegalStateException(
-              "Problem encoding transaction operations to the log stream", e);
-        } catch (StreamAccessException e) {
-          throw new StorageException(
-              "There was a problem committing the transaction to the log.", e);
+        List<Op> ops = transaction.getOps();
+        if (!ops.isEmpty()) {
+          try {
+            persistence.persist(ops.stream());
+          } catch (PersistenceException e) {
+            throw new StorageException("Failed to persist storage changes", e);
+          }
         }
         return result;
       });
@@ -538,39 +348,5 @@ public class LogStorage implements NonVolatileStorage, DistributedSnapshotStore 
   @Override
   public <T, E extends Exception> T read(Work<T, E> work) throws StorageException, E {
     return writeBehindStorage.read(work);
-  }
-
-  @Override
-  public void snapshot() throws StorageException {
-    try {
-      doSnapshot();
-    } catch (CodingException e) {
-      throw new StorageException("Failed to encode a snapshot", e);
-    } catch (InvalidPositionException e) {
-      throw new StorageException("Saved snapshot but failed to truncate entries preceding it", e);
-    } catch (StreamAccessException e) {
-      throw new StorageException("Failed to create a snapshot", e);
-    }
-  }
-
-  /**
-   * Configuration settings for log storage.
-   */
-  public static class Settings {
-    private final Amount<Long, Time> shutdownGracePeriod;
-    private final Amount<Long, Time> snapshotInterval;
-
-    public Settings(Amount<Long, Time> shutdownGracePeriod, Amount<Long, Time> snapshotInterval) {
-      this.shutdownGracePeriod = requireNonNull(shutdownGracePeriod);
-      this.snapshotInterval = requireNonNull(snapshotInterval);
-    }
-
-    public Amount<Long, Time> getShutdownGracePeriod() {
-      return shutdownGracePeriod;
-    }
-
-    public Amount<Long, Time> getSnapshotInterval() {
-      return snapshotInterval;
-    }
   }
 }

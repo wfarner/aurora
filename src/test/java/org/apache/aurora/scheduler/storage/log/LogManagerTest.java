@@ -21,7 +21,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.function.Consumer;
 
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
@@ -112,11 +111,11 @@ public class LogManagerTest extends EasyMockTest {
   public void testStreamManagerReadFromUnknownNone() throws CodingException {
     expect(stream.readAll()).andReturn(Collections.emptyIterator());
 
-    Consumer<LogEntry> reader = createMock(new Clazz<Consumer<LogEntry>>() { });
-
     control.replay();
 
-    createNoMessagesStreamManager().readFromBeginning(reader);
+    assertEquals(
+        ImmutableList.of(),
+        ImmutableList.copyOf(createNoMessagesStreamManager().readFromBeginning()));
   }
 
   @Test
@@ -127,12 +126,11 @@ public class LogManagerTest extends EasyMockTest {
     expect(entry1.contents()).andReturn(encode(transaction1));
     expect(stream.readAll()).andReturn(Iterators.singletonIterator(entry1));
 
-    Consumer<LogEntry> reader = createMock(new Clazz<Consumer<LogEntry>>() { });
-    reader.accept(transaction1);
-
     control.replay();
 
-    createNoMessagesStreamManager().readFromBeginning(reader);
+    assertEquals(
+        ImmutableList.of(transaction1),
+        ImmutableList.copyOf(createNoMessagesStreamManager().readFromBeginning()));
   }
 
   @Test
@@ -469,14 +467,12 @@ public class LogManagerTest extends EasyMockTest {
 
     expect(stream.readAll()).andReturn(entries.iterator());
 
-    Consumer<LogEntry> reader = createMock(new Clazz<Consumer<LogEntry>>() { });
-    reader.accept(transaction1);
-    reader.accept(transaction2);
-
     StreamManager streamManager = createStreamManager(message.chunkSize);
     control.replay();
 
-    streamManager.readFromBeginning(reader);
+    assertEquals(
+        ImmutableList.of(transaction1, transaction2),
+        ImmutableList.copyOf(streamManager.readFromBeginning()));
   }
 
   @Test
@@ -494,9 +490,6 @@ public class LogManagerTest extends EasyMockTest {
 
     expect(stream.readAll()).andReturn(ImmutableList.of(snapshotEntry).iterator());
 
-    Consumer<LogEntry> reader = createMock(new Clazz<Consumer<LogEntry>>() { });
-    reader.accept(snapshotLogEntry);
-
     control.replay();
 
     HashFunction md5 = Hashing.md5();
@@ -506,7 +499,9 @@ public class LogManagerTest extends EasyMockTest {
         md5,
         new SnapshotDeduplicatorImpl());
     streamManager.snapshot(snapshot);
-    streamManager.readFromBeginning(reader);
+    assertEquals(
+        ImmutableList.of(snapshotLogEntry),
+        ImmutableList.copyOf(streamManager.readFromBeginning()));
   }
 
   private Snapshot createSnapshot() {
