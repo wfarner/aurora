@@ -29,7 +29,13 @@ public interface Persistence {
   void prepare();
 
   /**
-   * Recovers previously-persisted records.
+   * Closes the persistence layer.
+   */
+  void close();
+
+  /**
+   * Recovers previously-persisted records.  The caller is responsible for
+   * {@link Stream#close() closing} the stream to allow resource cleanup.
    *
    * @return All persisted records.
    * @throws PersistenceException If recovery failed.
@@ -48,7 +54,7 @@ public interface Persistence {
   /**
    * Thrown when a persistence operation fails.
    */
-  class PersistenceException extends Exception {
+  class PersistenceException extends RuntimeException {
     public PersistenceException(String msg) {
       super(msg);
     }

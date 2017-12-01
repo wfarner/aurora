@@ -99,6 +99,11 @@ class LogPersistence implements Persistence, DistributedSnapshotStore {
   }
 
   @Override
+  public void close() {
+    // no-op
+  }
+
+  @Override
   public void persist(Stream<Op> mutations) throws PersistenceException {
     try {
       streamManager.commit(mutations.collect(Collectors.toList()));

@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS records(
+  id VARCHAR PRIMARY KEY,
+  parent VARCHAR DEFAULT NULL,
+  value BLOB,
+  INDEX (parent),
+  FOREIGN KEY (parent) REFERENCES records(id) ON DELETE CASCADE
+)

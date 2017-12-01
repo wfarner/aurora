@@ -378,6 +378,7 @@ dependencies {
   compile "com.sun.jersey:jersey-server:${jerseyRev}"
   compile "com.sun.jersey:jersey-servlet:${jerseyRev}"
   compile "com.sun.jersey.contribs:jersey-guice:${jerseyRev}"
+  compile 'com.zaxxer:HikariCP:2.7.4'
   compile 'javax.inject:javax.inject:1'
   compile "javax.servlet:javax.servlet-api:${servletRev}"
   compile "org.antlr:stringtemplate:${stringTemplateRev}"
@@ -395,6 +396,7 @@ dependencies {
   compile "org.eclipse.jetty:jetty-servlets:${jettyDep}"
   compile 'org.quartz-scheduler:quartz:2.2.2'
 
+  testCompile 'com.h2database:h2:1.4.196'
   testCompile "com.sun.jersey:jersey-client:${jerseyRev}"
   testCompile "junit:junit:${junitRev}"
   testCompile "org.powermock:powermock-module-junit4:1.6.4"
