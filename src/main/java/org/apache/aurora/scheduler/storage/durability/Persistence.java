@@ -48,7 +48,7 @@ public interface Persistence {
   /**
    * Thrown when a persistence operation fails.
    */
-  class PersistenceException extends Exception {
+  class PersistenceException extends RuntimeException {
     public PersistenceException(String msg) {
       super(msg);
     }
