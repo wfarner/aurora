@@ -62,10 +62,12 @@ import org.apache.aurora.scheduler.mesos.LibMesosLoadingModule;
 import org.apache.aurora.scheduler.stats.StatsModule;
 import org.apache.aurora.scheduler.storage.Storage.Volatile;
 import org.apache.aurora.scheduler.storage.backup.BackupModule;
+import org.apache.aurora.scheduler.storage.durability.DurableStorageModule;
 import org.apache.aurora.scheduler.storage.entities.IServerInfo;
-import org.apache.aurora.scheduler.storage.log.LogStorageModule;
+import org.apache.aurora.scheduler.storage.log.LogPersistenceModule;
 import org.apache.aurora.scheduler.storage.log.SnapshotStoreImpl;
 import org.apache.aurora.scheduler.storage.mem.MemStorageModule;
+import org.apache.aurora.scheduler.storage.sql.SqlPersistenceModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -270,12 +272,26 @@ public class SchedulerMain {
   public static void main(String... args) {
     CliOptions options = CommandLine.parseOptions(args);
 
+    Module persistenceModule;
+    if (options.mesosLog.isEnabled() && options.sqlPersistence.isEnabled()) {
+      throw new IllegalArgumentException(
+          "The mesos log and SQL persistence layers may not both be enabled.");
+    } else if (options.mesosLog.isEnabled()) {
+      persistenceModule = Modules.combine(
+          new MesosLogStreamModule(options.mesosLog, FlaggedZooKeeperConfig.create(options.zk)),
+          new LogPersistenceModule(options.logPersistence));
+    } else if (options.sqlPersistence.isEnabled()) {
+      persistenceModule = SqlPersistenceModule.fromOptions(options.sqlPersistence);
+    } else {
+      throw new IllegalArgumentException("A persistence layer must be configured.");
+    }
+
     List<Module> modules = ImmutableList.<Module>builder()
         .add(
             new CommandLineDriverSettingsModule(options.driver, options.main.allowGpuResource),
             new LibMesosLoadingModule(options.main.driverImpl),
-            new MesosLogStreamModule(options.mesosLog, FlaggedZooKeeperConfig.create(options.zk)),
-            new LogStorageModule(options.logStorage),
+            new DurableStorageModule(),
+            persistenceModule,
             new TierModule(options.tiers),
             new WebhookModule(options.webhook)
         )

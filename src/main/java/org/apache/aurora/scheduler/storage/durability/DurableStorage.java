@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import javax.inject.Inject;
 
@@ -276,7 +277,9 @@ public class DurableStorage implements NonVolatileStorage {
   @Timed("scheduler_storage_recover")
   void recover() throws RecoveryFailedException {
     try {
-      persistence.recover().forEach(DurableStorage.this::replayOp);
+      try (Stream<Op> recovered = persistence.recover()) {
+        recovered.forEach(DurableStorage.this::replayOp);
+      }
     } catch (PersistenceException e) {
       throw new RecoveryFailedException(e);
     }
