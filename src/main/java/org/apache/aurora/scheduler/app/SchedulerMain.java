@@ -64,7 +64,7 @@ import org.apache.aurora.scheduler.storage.Storage.Volatile;
 import org.apache.aurora.scheduler.storage.backup.BackupModule;
 import org.apache.aurora.scheduler.storage.entities.IServerInfo;
 import org.apache.aurora.scheduler.storage.log.LogStorageModule;
-import org.apache.aurora.scheduler.storage.log.SnapshotStoreImpl;
+import org.apache.aurora.scheduler.storage.log.SnapshotterImpl;
 import org.apache.aurora.scheduler.storage.mem.MemStorageModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -235,7 +235,7 @@ public class SchedulerMain {
         new ServiceDiscoveryModule(
             FlaggedZooKeeperConfig.create(options.zk),
             options.main.serversetPath),
-        new BackupModule(options.backup, SnapshotStoreImpl.class),
+        new BackupModule(options.backup, SnapshotterImpl.class),
         new ExecutorModule(options.executor),
         new AbstractModule() {
           @Override

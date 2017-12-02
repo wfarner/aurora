@@ -31,7 +31,7 @@ import org.apache.aurora.codec.ThriftBinaryCodec.CodingException;
 import org.apache.aurora.common.base.Command;
 import org.apache.aurora.gen.storage.Snapshot;
 import org.apache.aurora.scheduler.base.Query;
-import org.apache.aurora.scheduler.storage.DistributedSnapshotStore;
+import org.apache.aurora.scheduler.storage.SnapshotStore;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
 import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
@@ -110,7 +110,7 @@ public interface Recovery {
     private final Function<Snapshot, TemporaryStorage> tempStorageFactory;
     private final AtomicReference<PendingRecovery> recovery;
     private final Storage primaryStorage;
-    private final DistributedSnapshotStore distributedStore;
+    private final SnapshotStore distributedStore;
     private final Command shutDownNow;
 
     @Inject
@@ -118,7 +118,7 @@ public interface Recovery {
         File backupDir,
         Function<Snapshot, TemporaryStorage> tempStorageFactory,
         Storage primaryStorage,
-        DistributedSnapshotStore distributedStore,
+        SnapshotStore distributedStore,
         Command shutDownNow) {
 
       this.backupDir = requireNonNull(backupDir);

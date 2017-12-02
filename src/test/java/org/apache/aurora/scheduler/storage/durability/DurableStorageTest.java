@@ -13,7 +13,6 @@
  */
 package org.apache.aurora.scheduler.storage.durability;
 
-import java.util.EnumSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
@@ -165,16 +164,13 @@ public class DurableStorageTest extends EasyMockTest {
     // Populate all Op types.
     buildReplayOps();
 
+    storageUtil.expectStoreAccesses();
+
     control.replay();
 
     durableStorage.prepare();
     durableStorage.start(initializationLogic);
     assertTrue(initialized.get());
-
-    // Assert all Transaction types have handlers defined.
-    assertEquals(
-        EnumSet.allOf(Op._Fields.class),
-        EnumSet.copyOf(durableStorage.buildTransactionReplayActions().keySet()));
   }
 
   private void buildReplayOps() throws Exception {
