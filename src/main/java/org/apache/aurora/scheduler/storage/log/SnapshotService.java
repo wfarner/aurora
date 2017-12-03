@@ -68,7 +68,7 @@ class SnapshotService extends AbstractScheduledService implements SnapshotStore 
       // It's important to perform snapshot creation in a write lock to ensure all upstream callers
       // are correctly synchronized (e.g. during backup creation).
       storage.write((NoResult.Quiet) stores -> {
-        Snapshot snapshot = snapshotter.snapshotFrom(stores);
+        Snapshot snapshot = snapshotter.from(stores);
         LOG.info("Saving snapshot");
         snapshotWith(snapshot);
 

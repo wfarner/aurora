@@ -290,8 +290,8 @@ public class SnapshotterImpl implements Snapshotter {
 
   @Timed("snapshot_create")
   @Override
-  public Snapshot snapshotFrom(StoreProvider storeProvider) {
-    return createSnapshot(storeProvider);
+  public Snapshot from(StoreProvider stores) {
+    return createSnapshot(stores);
   }
 
   @Timed("snapshot_apply")

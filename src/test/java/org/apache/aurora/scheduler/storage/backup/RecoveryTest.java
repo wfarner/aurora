@@ -96,7 +96,7 @@ public class RecoveryTest extends EasyMockTest {
 
   @Test
   public void testRecover() throws Exception {
-    expect(snapshotter.snapshotFrom(anyObject())).andReturn(SNAPSHOT1);
+    expect(snapshotter.from(anyObject())).andReturn(SNAPSHOT1);
     Capture<MutateWork<Object, Exception>> transaction = createCapture();
     expect(primaryStorage.write(capture(transaction))).andReturn(null);
     Capture<Snapshot> snapshot = createCapture();
@@ -108,7 +108,7 @@ public class RecoveryTest extends EasyMockTest {
     assertEquals(ImmutableSet.of(), recovery.listBackups());
 
     clock.advance(INTERVAL);
-    storageBackup.snapshotFrom(storeProvider);
+    storageBackup.from(storeProvider);
     String backup1 = storageBackup.createBackupName();
     assertEquals(ImmutableSet.of(backup1), recovery.listBackups());
 
@@ -124,7 +124,7 @@ public class RecoveryTest extends EasyMockTest {
 
   @Test
   public void testModifySnapshotBeforeCommit() throws Exception {
-    expect(snapshotter.snapshotFrom(anyObject())).andReturn(SNAPSHOT1);
+    expect(snapshotter.from(anyObject())).andReturn(SNAPSHOT1);
     Snapshot modified = SNAPSHOT1.deepCopy().setTasks(ImmutableSet.of(TASK1.newBuilder()));
     Capture<MutateWork<Object, Exception>> transaction = createCapture();
     expect(primaryStorage.write(capture(transaction))).andReturn(null);
@@ -135,7 +135,7 @@ public class RecoveryTest extends EasyMockTest {
     control.replay();
 
     clock.advance(INTERVAL);
-    storageBackup.snapshotFrom(storeProvider);
+    storageBackup.from(storeProvider);
     String backup1 = storageBackup.createBackupName();
     recovery.stage(backup1);
     assertEquals(

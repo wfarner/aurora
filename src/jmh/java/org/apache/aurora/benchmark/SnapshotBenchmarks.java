@@ -103,7 +103,7 @@ public class SnapshotBenchmarks {
           .setNumInstanceEvents(instanceEvents)
           .build(updates));
 
-      return storage.write(snapshotStore::snapshotFrom);
+      return storage.write(snapshotStore::from);
     }
   }
 }

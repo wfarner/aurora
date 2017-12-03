@@ -95,7 +95,7 @@ public class SnapshotterImplIT {
     storage.write((NoResult.Quiet) stores ->
         Loader.load(stores, THRIFT_BACKFILL, snapshotter.asStream(makeNonBackfilled())));
 
-    assertEquals(expected(), storage.write(snapshotter::snapshotFrom));
+    assertEquals(expected(), storage.write(snapshotter::from));
     assertSnapshotRestoreStats(1L);
     assertSnapshotSaveStats(1L);
   }

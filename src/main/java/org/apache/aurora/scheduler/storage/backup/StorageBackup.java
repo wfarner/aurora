@@ -142,8 +142,8 @@ public interface StorageBackup {
     }
 
     @Override
-    public Snapshot snapshotFrom(StoreProvider stores) {
-      Snapshot snapshot = delegate.snapshotFrom(stores);
+    public Snapshot from(StoreProvider stores) {
+      Snapshot snapshot = delegate.from(stores);
       if (clock.nowMillis() >= (lastBackupMs + backupIntervalMs)) {
         executor.execute(() -> save(snapshot));
       }
@@ -152,7 +152,7 @@ public interface StorageBackup {
 
     @Override
     public void backupNow() {
-      save(storage.write(delegate::snapshotFrom));
+      save(storage.write(delegate::from));
     }
 
     @VisibleForTesting

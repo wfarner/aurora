@@ -84,13 +84,13 @@ public class StorageBackupTest extends EasyMockTest {
 
   private void triggerSnapshot(Snapshot expectedResult) {
     storage.write((NoResult.Quiet) stores ->
-        assertEquals(expectedResult, storageBackup.snapshotFrom(stores)));
+        assertEquals(expectedResult, storageBackup.from(stores)));
   }
 
   @Test
   public void testBackup() throws Exception {
     Snapshot snapshot = makeSnapshot();
-    expect(delegate.snapshotFrom(anyObject())).andReturn(snapshot).times(3);
+    expect(delegate.from(anyObject())).andReturn(snapshot).times(3);
 
     control.replay();
 
@@ -115,7 +115,7 @@ public class StorageBackupTest extends EasyMockTest {
   @Test
   public void testDirectoryMissing() {
     Snapshot snapshot = makeSnapshot();
-    expect(delegate.snapshotFrom(anyObject())).andReturn(snapshot).times(1);
+    expect(delegate.from(anyObject())).andReturn(snapshot).times(1);
 
     control.replay();
 
@@ -128,7 +128,7 @@ public class StorageBackupTest extends EasyMockTest {
   @Test
   public void testOldBackupsDeleted() {
     Snapshot snapshot = makeSnapshot();
-    expect(delegate.snapshotFrom(anyObject())).andReturn(snapshot).times(MAX_BACKUPS + 1);
+    expect(delegate.from(anyObject())).andReturn(snapshot).times(MAX_BACKUPS + 1);
 
     control.replay();
 
@@ -161,7 +161,7 @@ public class StorageBackupTest extends EasyMockTest {
   public void testInterval() {
     // Ensures that a long initial interval does not result in shortened subsequent intervals.
     Snapshot snapshot = makeSnapshot();
-    expect(delegate.snapshotFrom(anyObject())).andReturn(snapshot).times(3);
+    expect(delegate.from(anyObject())).andReturn(snapshot).times(3);
 
     control.replay();
 

@@ -38,6 +38,17 @@ public final class Loader {
     // Utility class.
   }
 
+  /**
+   * Loads a sequence of storage operations into the provided stores, applying backfills.
+   *
+   * @param stores Stores to populate.
+   * @param backfill Backfill mechanism to use.
+   * @param ops Operations to apply.
+   */
+  public static void load(MutableStoreProvider stores, ThriftBackfill backfill, Stream<Op> ops) {
+    ops.forEach(op -> load(stores, backfill, op));
+  }
+
   private static void load(MutableStoreProvider stores, ThriftBackfill backfill, Op op) {
     switch (op.getSetField()) {
       case SAVE_FRAMEWORK_ID:
@@ -115,9 +126,5 @@ public final class Loader {
       default:
         throw new IllegalArgumentException("Unrecognized op type " + op.getSetField());
     }
-  }
-
-  public static void load(MutableStoreProvider stores, ThriftBackfill backfill, Stream<Op> ops) {
-    ops.forEach(op -> load(stores, backfill, op));
   }
 }

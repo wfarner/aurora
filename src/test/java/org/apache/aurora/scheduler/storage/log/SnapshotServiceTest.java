@@ -126,7 +126,7 @@ public class SnapshotServiceTest extends EasyMockTest {
 
     expectStorageInitialized();
 
-    expect(mockSnapshotter.snapshotFrom(anyObject())).andReturn(SNAPSHOT).atLeastOnce();
+    expect(mockSnapshotter.from(anyObject())).andReturn(SNAPSHOT).atLeastOnce();
 
     CountDownLatch snapshotCalled = new CountDownLatch(2);
     expectSnapshotPersist(snapshotCalled);
@@ -148,7 +148,7 @@ public class SnapshotServiceTest extends EasyMockTest {
 
     expectStorageInitialized();
 
-    expect(mockSnapshotter.snapshotFrom(anyObject())).andReturn(SNAPSHOT);
+    expect(mockSnapshotter.from(anyObject())).andReturn(SNAPSHOT);
     expectSnapshotPersist(new CountDownLatch(1));
 
     control.replay();

@@ -26,16 +26,18 @@ import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
 public interface Snapshotter {
 
   /**
-   * Creates a consistent snapshot of a storage system.
+   * Creates a snapshot from the contents of storage.
    *
+   * @param stores stores to create a snapshot from.
    * @return A snapshot that can be used to recover storage.
    */
-  Snapshot snapshotFrom(StoreProvider storeProvider);
+  Snapshot from(StoreProvider stores);
 
   /**
    * Converts a snapshot into an equivalent linear stream of storage operations.
    *
-   * @param snapshot A snapshot created by {@link #snapshotFrom(StoreProvider)}.
+   * @param snapshot A snapshot created by {@link #from(StoreProvider)}.
+   * @return a stream of operations representing the contents of the snapshot.
    */
   Stream<Op> asStream(Snapshot snapshot);
 }

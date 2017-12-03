@@ -107,7 +107,7 @@ interface TemporaryStorage {
 
         @Override
         public Snapshot toSnapshot() {
-          return storage.write(snapshotter::snapshotFrom);
+          return storage.write(snapshotter::from);
         }
       };
     }
