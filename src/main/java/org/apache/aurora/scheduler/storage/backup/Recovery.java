@@ -110,7 +110,7 @@ public interface Recovery {
     private final Function<Snapshot, TemporaryStorage> tempStorageFactory;
     private final AtomicReference<PendingRecovery> recovery;
     private final Storage primaryStorage;
-    private final SnapshotStore distributedStore;
+    private final SnapshotStore snapshotStore;
     private final Command shutDownNow;
 
     @Inject
@@ -118,14 +118,14 @@ public interface Recovery {
         File backupDir,
         Function<Snapshot, TemporaryStorage> tempStorageFactory,
         Storage primaryStorage,
-        SnapshotStore distributedStore,
+        SnapshotStore snapshotStore,
         Command shutDownNow) {
 
       this.backupDir = requireNonNull(backupDir);
       this.tempStorageFactory = requireNonNull(tempStorageFactory);
       this.recovery = Atomics.newReference();
       this.primaryStorage = requireNonNull(primaryStorage);
-      this.distributedStore = requireNonNull(distributedStore);
+      this.snapshotStore = requireNonNull(snapshotStore);
       this.shutDownNow = requireNonNull(shutDownNow);
     }
 
@@ -197,7 +197,7 @@ public interface Recovery {
       void commit() {
         primaryStorage.write((NoResult.Quiet) storeProvider -> {
           try {
-            distributedStore.snapshotWith(tempStorage.toSnapshot());
+            snapshotStore.snapshotWith(tempStorage.toSnapshot());
             shutDownNow.execute();
           } catch (CodingException e) {
             throw new IllegalStateException("Failed to encode snapshot.", e);
