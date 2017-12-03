@@ -26,7 +26,6 @@ import org.apache.aurora.scheduler.events.EventSink;
 import org.apache.aurora.scheduler.storage.AttributeStore;
 import org.apache.aurora.scheduler.storage.CronJobStore;
 import org.apache.aurora.scheduler.storage.JobUpdateStore;
-import org.apache.aurora.scheduler.storage.Loader;
 import org.apache.aurora.scheduler.storage.QuotaStore;
 import org.apache.aurora.scheduler.storage.SchedulerStore;
 import org.apache.aurora.scheduler.storage.Storage;
@@ -93,11 +92,6 @@ public class DurableStorage implements NonVolatileStorage {
 
   private final WriteRecorder writeRecorder;
 
-  // TODO(wfarner): It should be possible to remove this flag now, since all call stacks when
-  // recovering are controlled at this layer (they're all calls to Mutable store implementations).
-  // The more involved change is changing SnapshotStore to accept a Mutable store provider to
-  // avoid a call to Storage.write() when we replay a Snapshot.
-  private boolean recovered = false;
   private TransactionRecorder transaction = null;
 
   private final SlidingStats writerWaitStats = new SlidingStats("storage_write_lock_wait", "ns");
@@ -157,17 +151,17 @@ public class DurableStorage implements NonVolatileStorage {
   @Override
   @Timed("scheduler_storage_start")
   public synchronized void start(final MutateWork.NoResult.Quiet initializationLogic) {
-    write((NoResult.Quiet) stores -> {
-      // Must have the underlying storage started so we can query it.
-      // We replay these entries in the forwarded storage system's transactions but not ours - we
-      // do not want to re-record these ops.
-      recover(stores);
-      recovered = true;
+    writeLock.lock();
+    try {
+      // We recover directly into the forwarded system to avoid persisting replayed operations.
+      writeBehindStorage.write((NoResult.Quiet) this::recover);
 
       // Now that we're recovered we should persist any mutations done in initializationLogic, so
       // run it in one of our transactions.
       write(initializationLogic);
-    });
+    } finally {
+      writeLock.unlock();
+    }
   }
 
   @Override
@@ -178,7 +172,6 @@ public class DurableStorage implements NonVolatileStorage {
   @Timed("scheduler_storage_recover")
   void recover(MutableStoreProvider stores) throws RecoveryFailedException {
     try {
-      // TODO(wfarner): BEFORE COMMITTING need to reset storage prior to applying a snapshot.
       Loader.load(stores, thriftBackfill, persistence.recover());
     } catch (PersistenceException e) {
       throw new RecoveryFailedException(e);
@@ -225,12 +218,6 @@ public class DurableStorage implements NonVolatileStorage {
     writeLock.lock();
     try {
       writerWaitStats.accumulate(System.nanoTime() - waitStart);
-      // We don't want to persist when recovering, we just want to update the underlying
-      // store - so pass mutations straight through to the underlying storage.
-      if (!recovered) {
-        return writeBehindStorage.write(work);
-      }
-
       return doInTransaction(work);
     } finally {
       writeLock.unlock();

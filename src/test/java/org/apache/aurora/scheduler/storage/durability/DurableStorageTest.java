@@ -197,6 +197,14 @@ public class DurableStorageTest extends EasyMockTest {
     builder.add(Op.saveTasks(saveTasks));
     storageUtil.taskStore.saveTasks(ImmutableSet.of(expectedTask));
 
+    // Side-effects from a storage reset, caused by a snapshot.
+    builder.add(Op.resetStorage(true));
+    storageUtil.jobStore.deleteJobs();
+    storageUtil.taskStore.deleteAllTasks();
+    storageUtil.quotaStore.deleteQuotas();
+    storageUtil.attributeStore.deleteHostAttributes();
+    storageUtil.jobUpdateStore.deleteAllUpdates();
+
     RemoveTasks removeTasks = new RemoveTasks(ImmutableSet.of("taskId1"));
     builder.add(Op.removeTasks(removeTasks));
     storageUtil.taskStore.deleteTasks(removeTasks.getTaskIds());

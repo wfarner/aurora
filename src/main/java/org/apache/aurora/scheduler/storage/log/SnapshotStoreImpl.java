@@ -299,9 +299,6 @@ public class SnapshotStoreImpl implements Snapshotter {
   public Stream<Op> asStream(Snapshot snapshot) {
     requireNonNull(snapshot);
 
-    // TODO(wfarner): The caller needs to ensure that all storage is reset when a snapshot is
-    // encountered.
-
     LOG.info("Restoring snapshot.");
     return snapshotFields.stream()
         .flatMap(field -> field.streamFrom(snapshot));

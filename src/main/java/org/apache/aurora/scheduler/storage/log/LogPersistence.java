@@ -94,10 +94,13 @@ class LogPersistence implements Persistence {
               case SNAPSHOT:
                 Snapshot snapshot = entry.getSnapshot();
                 LOG.info("Applying snapshot taken on " + new Date(snapshot.getTimestamp()));
-                return snapshotter.asStream(snapshot);
+                return Stream.concat(
+                    Stream.of(Op.resetStorage(true)),
+                    snapshotter.asStream(snapshot));
 
               case TRANSACTION:
                 return entry.getTransaction().getOps().stream();
+
               default:
                 throw new IllegalStateException("Unknown log entry type: " + entry.getSetField());
             }

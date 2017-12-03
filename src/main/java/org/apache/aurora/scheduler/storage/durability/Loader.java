@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.aurora.scheduler.storage;
+package org.apache.aurora.scheduler.storage.durability;
 
 import java.util.stream.Stream;
 
@@ -21,7 +21,6 @@ import org.apache.aurora.gen.storage.SaveJobInstanceUpdateEvent;
 import org.apache.aurora.gen.storage.SaveJobUpdateEvent;
 import org.apache.aurora.gen.storage.SaveQuota;
 import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
-import org.apache.aurora.scheduler.storage.durability.ThriftBackfill;
 import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
 import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
 import org.apache.aurora.scheduler.storage.entities.IJobKey;
@@ -121,6 +120,15 @@ public final class Loader {
       case REMOVE_JOB_UPDATE:
         stores.getJobUpdateStore().removeJobUpdates(
             IJobUpdateKey.setFromBuilders(op.getRemoveJobUpdate().getKeys()));
+        break;
+
+      case RESET_STORAGE:
+        LOG.info("Resetting storage");
+        stores.getCronJobStore().deleteJobs();
+        stores.getUnsafeTaskStore().deleteAllTasks();
+        stores.getQuotaStore().deleteQuotas();
+        stores.getAttributeStore().deleteHostAttributes();
+        stores.getJobUpdateStore().deleteAllUpdates();
         break;
 
       default:
