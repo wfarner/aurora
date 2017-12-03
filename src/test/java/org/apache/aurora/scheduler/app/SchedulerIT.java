@@ -81,7 +81,7 @@ import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
 import org.apache.aurora.scheduler.storage.entities.IServerInfo;
 import org.apache.aurora.scheduler.storage.log.EntrySerializer;
 import org.apache.aurora.scheduler.storage.log.LogStorageModule;
-import org.apache.aurora.scheduler.storage.log.SnapshotterImpl;
+import org.apache.aurora.scheduler.storage.log.SnapshotStoreImpl;
 import org.apache.aurora.scheduler.storage.log.testing.LogOpMatcher;
 import org.apache.aurora.scheduler.storage.log.testing.LogOpMatcher.StreamMatcher;
 import org.apache.mesos.Protos;
@@ -198,7 +198,7 @@ public class SchedulerIT extends BaseZooKeeperTest {
         BackupModule.Options backupOptions = new BackupModule.Options();
         backupOptions.backupDir = backupDir;
 
-        install(new BackupModule(backupOptions, SnapshotterImpl.class));
+        install(new BackupModule(backupOptions, SnapshotStoreImpl.class));
 
         bind(IServerInfo.class).toInstance(
             IServerInfo.build(

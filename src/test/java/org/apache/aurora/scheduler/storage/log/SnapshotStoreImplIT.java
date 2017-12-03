@@ -68,24 +68,24 @@ import org.junit.Test;
 import static org.apache.aurora.common.util.testing.FakeBuildInfo.generateBuildInfo;
 import static org.apache.aurora.scheduler.base.TaskTestUtil.THRIFT_BACKFILL;
 import static org.apache.aurora.scheduler.resources.ResourceManager.aggregateFromBag;
-import static org.apache.aurora.scheduler.storage.log.SnapshotterImpl.SNAPSHOT_RESTORE;
-import static org.apache.aurora.scheduler.storage.log.SnapshotterImpl.SNAPSHOT_SAVE;
+import static org.apache.aurora.scheduler.storage.log.SnapshotStoreImpl.SNAPSHOT_RESTORE;
+import static org.apache.aurora.scheduler.storage.log.SnapshotStoreImpl.SNAPSHOT_SAVE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-public class SnapshotterImplIT {
+public class SnapshotStoreImplIT {
 
   private static final long NOW = 10335463456L;
   private static final IJobKey JOB_KEY = JobKeys.from("role", "env", "job");
 
   private Storage storage;
-  private SnapshotterImpl snapshotter;
+  private SnapshotStoreImpl snapshotter;
 
   private void setUpStore() {
     storage = MemStorageModule.newEmptyStorage();
     FakeClock clock = new FakeClock();
     clock.setNowMillis(NOW);
-    snapshotter = new SnapshotterImpl(generateBuildInfo(), clock);
+    snapshotter = new SnapshotStoreImpl(generateBuildInfo(), clock);
     Stats.flush();
   }
 

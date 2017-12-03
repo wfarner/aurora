@@ -90,7 +90,7 @@ public class NonVolatileStorageTest extends TearDownTestCase {
             bind(ShutdownRegistry.class).toInstance(shutdownRegistry);
             bind(StatsProvider.class).toInstance(new FakeStatsProvider());
             bind(Log.class).toInstance(log);
-            bind(Snapshotter.class).to(SnapshotterImpl.class);
+            bind(Snapshotter.class).to(SnapshotStoreImpl.class);
           }
         }
     );
