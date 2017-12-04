@@ -13,7 +13,6 @@
  */
 package org.apache.aurora.scheduler.storage.sql;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -121,7 +120,6 @@ class SqlPersistence implements Persistence {
         throw new PersistenceException("Failed to create schema", e);
       }
       statement.execute(schema);
-      connection.commit();
     }
   }
 
@@ -158,7 +156,7 @@ class SqlPersistence implements Persistence {
       connection.setReadOnly(true);
       // Nulls first to ensure child records are replayed last.
       PreparedStatement statement = connection.prepareStatement(
-          "SELECT parent,value FROM records ORDER BY parent NULLS FIRST",
+          "SELECT parent,value FROM records ORDER BY parent IS NULL DESC",
           ResultSet.TYPE_FORWARD_ONLY,
           ResultSet.CONCUR_READ_ONLY);
 
@@ -252,7 +250,7 @@ class SqlPersistence implements Persistence {
     public void applyTo(PreparedStatement statement) throws SQLException {
       statement.setString(1, key.value);
       statement.setString(2, parent == null ? null : parent.value);
-      statement.setBlob(3, new ByteArrayInputStream(ThriftBinaryCodec.encodeNonNull(op)));
+      statement.setBytes(3, ThriftBinaryCodec.encodeNonNull(op));
       statement.addBatch();
     }
   }
@@ -342,6 +340,8 @@ class SqlPersistence implements Persistence {
 
   private void doPersist(Stream<Op> records) throws SQLException {
     try (Connection connection = dataSource.getConnection()) {
+      connection.setAutoCommit(false);
+
       // This looks and acts like a statement cache, but the goal is to handle batches in an attempt
       // to minimize database round-trips.
       Map<Class<?>, PreparedStatement> activeStatements = Maps.newHashMap();
