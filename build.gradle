@@ -395,6 +395,7 @@ dependencies {
   compile "org.eclipse.jetty:jetty-servlet:${jettyDep}"
   compile "org.eclipse.jetty:jetty-servlets:${jettyDep}"
   compile 'org.quartz-scheduler:quartz:2.2.2'
+  compile 'mysql:mysql-connector-java:5.1.45'
 
   testCompile 'com.h2database:h2:1.4.196'
   testCompile "com.sun.jersey:jersey-client:${jerseyRev}"
