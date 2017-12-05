@@ -275,6 +275,10 @@ public class SchedulerMain {
             new CommandLineDriverSettingsModule(options.driver, options.main.allowGpuResource),
             new LibMesosLoadingModule(options.main.driverImpl),
             new MesosLogStreamModule(options.mesosLog, FlaggedZooKeeperConfig.create(options.zk)),
+
+            // TODO(wfarner): Toggle between LogStorageModule (rename to LogPersistenceModule) and SqlPersistenceModule.  Requires
+            // extracting a DurableStorageModule.  To decide which module to use, add a hasSettings() method
+            // to LogStorageModule and SqlPersistenceModule, failing if both are set.
             new LogStorageModule(options.logStorage),
             new TierModule(options.tiers),
             new WebhookModule(options.webhook)
