@@ -28,11 +28,7 @@ import org.apache.aurora.common.quantity.Data;
 import org.apache.aurora.common.quantity.Time;
 import org.apache.aurora.scheduler.config.types.DataAmount;
 import org.apache.aurora.scheduler.config.types.TimeAmount;
-import org.apache.aurora.scheduler.storage.CallOrderEnforcingStorage;
 import org.apache.aurora.scheduler.storage.DistributedSnapshotStore;
-import org.apache.aurora.scheduler.storage.Storage;
-import org.apache.aurora.scheduler.storage.Storage.NonVolatileStorage;
-import org.apache.aurora.scheduler.storage.durability.DurableStorage;
 import org.apache.aurora.scheduler.storage.durability.Persistence;
 import org.apache.aurora.scheduler.storage.log.LogManager.MaxEntrySize;
 import org.apache.aurora.scheduler.storage.log.LogPersistence.Settings;
@@ -42,9 +38,9 @@ import static org.apache.aurora.scheduler.storage.log.LogManager.LogEntryHashFun
 import static org.apache.aurora.scheduler.storage.log.SnapshotDeduplicator.SnapshotDeduplicatorImpl;
 
 /**
- * Bindings for scheduler distributed log based storage.
+ * Bindings for scheduler distributed log based persistence.
  */
-public class LogStorageModule extends PrivateModule {
+public class LogPersistenceModule extends PrivateModule {
 
   @Parameters(separators = "=")
   public static class Options {
@@ -67,7 +63,7 @@ public class LogStorageModule extends PrivateModule {
 
   private final Options options;
 
-  public LogStorageModule(Options options) {
+  public LogPersistenceModule(Options options) {
     this.options = options;
   }
 
@@ -79,15 +75,10 @@ public class LogStorageModule extends PrivateModule {
     bind(new TypeLiteral<Amount<Integer, Data>>() { }).annotatedWith(MaxEntrySize.class)
         .toInstance(options.maxLogEntrySize);
     bind(LogManager.class).in(Singleton.class);
-    bind(DurableStorage.class).in(Singleton.class);
-
-    install(CallOrderEnforcingStorage.wrappingModule(DurableStorage.class));
     bind(LogPersistence.class).in(Singleton.class);
     bind(Persistence.class).to(LogPersistence.class);
     bind(DistributedSnapshotStore.class).to(LogPersistence.class);
     expose(Persistence.class);
-    expose(Storage.class);
-    expose(NonVolatileStorage.class);
     expose(DistributedSnapshotStore.class);
 
     bind(EntrySerializer.class).to(EntrySerializerImpl.class);

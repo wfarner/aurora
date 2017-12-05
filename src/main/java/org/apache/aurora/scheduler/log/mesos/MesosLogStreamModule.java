@@ -95,6 +95,15 @@ public class MesosLogStreamModule extends PrivateModule {
     @Parameter(names = "-native_log_write_timeout",
         description = "The timeout for doing log appends and truncations.")
     public TimeAmount writeTimeout = new TimeAmount(3, Time.SECONDS);
+
+    /**
+     * Whether the options represent that the component is enabled.
+     *
+     * @return True iff this module should be enabled.
+     */
+    public boolean isEnabled() {
+      return logPath != null;
+    }
   }
 
   private static void requireArg(Object arg, String name) {
