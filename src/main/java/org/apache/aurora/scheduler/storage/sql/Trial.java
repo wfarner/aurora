@@ -32,6 +32,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.math.Stats;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
@@ -190,6 +191,10 @@ public class Trial {
     System.out.print("Persisted " + persists.size() + " times in " + durationMs + " ms");
     System.out.println(" (" + ((persists.size() * 1000) / durationMs) + " persists/sec)");
     Arrays.sort(latencies);
+    System.out.println("  min " + formatNanosAsMillis(latencies[0]));
+    System.out.println("  max " + formatNanosAsMillis(latencies[latencies.length - 1]));
+    System.out.println("  stddev "
+        + formatNanosAsMillis((long) Stats.of(latencies).populationStandardDeviation()));
     System.out.println("  avg " + formatNanosAsMillis((end - start) / persists.size()));
     System.out.println("  p50 " + formatNanosAsMillis(latencies[latencies.length / 2]));
     System.out.println("  p90 " + formatNanosAsMillis(latencies[(latencies.length * 90) / 100]));
@@ -283,55 +288,74 @@ Latest results, with innodb_buffer_pool_size=2G on the server
 
 -- Mixed records
 Loading 200000 persists
-Persisted 200000 times in 638946 ms (313 persists/sec)
-  avg 3.19 ms
-  p50 1.51 ms
-  p90 7.10 ms
-  p99 28.33 ms
-Recovered 398000 records in 18881 ms (21,079 records/sec)
+Persisted 200000 times in 759119 ms (263 persists/sec)
+  min 1.34 ms
+  max 153.77 ms
+  stddev 3.67 ms
+  avg 3.80 ms
+  p50 2.92 ms
+  p90 4.99 ms
+  p99 25.39 ms
+Recovered 398000 records in 18860 ms (21,102 records/sec)
+
 -- Simple records (minimal SaveQuota records)
 Loading 50000 persists
-Persisted 50000 times in 88938 ms (562 persists/sec)
-  avg 1.78 ms
-  p50 1.26 ms
-  p90 2.23 ms
-  p99 11.13 ms
-Recovered 50000 records in 527 ms (94,876 records/sec)
+Persisted 50000 times in 143059 ms (349 persists/sec)
+  min 1.37 ms
+  max 26.96 ms
+  stddev 0.71 ms
+  avg 2.86 ms
+  p50 2.78 ms
+  p90 3.41 ms
+  p99 5.50 ms
+Recovered 50000 records in 518 ms (96,525 records/sec)
 
 -- Repeated updates to the same record (ScheduledTask with 10 KB blob)
 Loading 10000 persists
-Persisted 10000 times in 52583 ms (190 persists/sec)
-  avg 5.26 ms
-  p50 2.76 ms
-  p90 12.71 ms
-  p99 27.00 ms
+Persisted 10000 times in 13571 ms (736 persists/sec)
+  min 0.93 ms
+  max 8.34 ms
+  stddev 0.39 ms
+  avg 1.36 ms
+  p50 1.25 ms
+  p90 1.64 ms
+  p99 3.05 ms
 Recovered 1 records in 2 ms (500 records/sec)
 
 -- Medium records (ScheduledTasks with 10 KB blobs)
 Loading 10000 persists
-Persisted 10000 times in 65408 ms (152 persists/sec)
-  avg 6.54 ms
-  p50 3.16 ms
-  p90 14.98 ms
-  p99 36.42 ms
-Recovered 10000 records in 618 ms (16,181 records/sec)
+Persisted 10000 times in 39517 ms (253 persists/sec)
+  min 1.90 ms
+  max 81.01 ms
+  stddev 3.07 ms
+  avg 3.95 ms
+  p50 3.31 ms
+  p90 5.03 ms
+  p99 22.43 ms
+Recovered 10000 records in 606 ms (16,501 records/sec)
 
 -- Large records (ScheduledTasks with 100 KB blobs)
 Loading 10000 persists
-Persisted 10000 times in 102436 ms (97 persists/sec)
-  avg 10.24 ms
-  p50 6.19 ms
-  p90 22.41 ms
-  p99 37.97 ms
-Recovered 10000 records in 6175 ms (1,619 records/sec)
+Persisted 10000 times in 91802 ms (108 persists/sec)
+  min 4.53 ms
+  max 135.20 ms
+  stddev 8.21 ms
+  avg 9.18 ms
+  p50 6.24 ms
+  p90 17.79 ms
+  p99 40.28 ms
+Recovered 10000 records in 6153 ms (1,625 records/sec)
 
 -- Record batches (each persist is 100 simple records)
 Loading 5000 persists
-Persisted 5000 times in 70084 ms (71 persists/sec)
-  avg 14.02 ms
-  p50 9.60 ms
-  p90 27.90 ms
-  p99 42.84 ms
-Recovered 500000 records in 14097 ms (35,468 records/sec)
+Persisted 5000 times in 58231 ms (85 persists/sec)
+  min 5.73 ms
+  max 192.89 ms
+  stddev 9.61 ms
+  avg 11.65 ms
+  p50 7.90 ms
+  p90 28.08 ms
+  p99 41.38 ms
+Recovered 500000 records in 14055 ms (35,574 records/sec)
    */
 }
