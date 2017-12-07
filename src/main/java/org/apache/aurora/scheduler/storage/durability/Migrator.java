@@ -16,7 +16,10 @@ package org.apache.aurora.scheduler.storage.durability;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.IStringConverterFactory;
@@ -32,8 +35,12 @@ import com.google.inject.Injector;
 
 import org.apache.aurora.common.quantity.Amount;
 import org.apache.aurora.common.quantity.Time;
+import org.apache.aurora.common.util.BuildInfo;
+import org.apache.aurora.common.util.Clock;
 import org.apache.aurora.gen.storage.Op;
+import org.apache.aurora.scheduler.TierModule;
 import org.apache.aurora.scheduler.app.LifecycleModule;
+import org.apache.aurora.scheduler.base.TaskTestUtil;
 import org.apache.aurora.scheduler.config.converters.DataAmountConverter;
 import org.apache.aurora.scheduler.config.converters.InetSocketAddressConverter;
 import org.apache.aurora.scheduler.config.converters.TimeAmountConverter;
@@ -42,10 +49,10 @@ import org.apache.aurora.scheduler.config.types.TimeAmount;
 import org.apache.aurora.scheduler.discovery.FlaggedZooKeeperConfig;
 import org.apache.aurora.scheduler.discovery.ServiceDiscoveryBindings;
 import org.apache.aurora.scheduler.log.mesos.MesosLogStreamModule;
-import org.apache.aurora.scheduler.storage.SnapshotStore;
+import org.apache.aurora.scheduler.storage.Snapshotter;
 import org.apache.aurora.scheduler.storage.durability.Persistence.PersistenceException;
 import org.apache.aurora.scheduler.storage.log.LogPersistenceModule;
-import org.apache.aurora.scheduler.storage.sql.DisabledDistributedSnapshotStore;
+import org.apache.aurora.scheduler.storage.log.SnapshotStoreImpl;
 import org.apache.aurora.scheduler.storage.sql.SqlPersistenceModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,10 +64,17 @@ public class Migrator {
 
   private static final Logger LOG = LoggerFactory.getLogger(Migrator.class);
 
-  private static void migrate(Persistence from, Persistence to, int batchSize) {
+  private static void requireEmpty(Persistence persistence) {
+    try (Stream<Op> ops = persistence.recover()) {
+      Optional<Op> first = ops.findFirst();
+      if (first.isPresent()) {
+        throw new IllegalStateException("Refusing to recover into non-empty persistence");
+      }
+    }
+  }
 
-    // TODO(wfarner): Introduce this once available.
-    // to.persist(Op.resetStorage(true));
+  private static void migrate(Persistence from, Persistence to, int batchSize) {
+    requireEmpty(to);
 
     long start = System.nanoTime();
     AtomicLong count = new AtomicLong();
@@ -75,8 +89,22 @@ public class Migrator {
       batch.clear();
     };
 
+    AtomicBoolean dataBegin = new AtomicBoolean(false);
     try {
-      from.recover().forEach(op -> {
+      from.recover()
+          .filter(op -> {
+            if (op.isSetResetStorage()) {
+              if (dataBegin.get()) {
+                throw new IllegalStateException(
+                    "A storage reset instruction arrived after the beginning of data");
+              }
+              return false;
+            } else {
+              dataBegin.set(true);
+            }
+            return true;
+          })
+          .forEach(op -> {
         count.incrementAndGet();
         batch.add(op);
         if (batch.size() == batchSize) {
@@ -93,7 +121,7 @@ public class Migrator {
     long end = System.nanoTime();
     LOG.info("Migration finished");
     LOG.info("Copied " + count.get() + " ops in "
-        + Amount.of(end - start, Time.NANOSECONDS).as(Time.MILLISECONDS));
+        + Amount.of(end - start, Time.NANOSECONDS).as(Time.MILLISECONDS) + " ms");
   }
 
   interface MigrationEndpoint {
@@ -130,6 +158,7 @@ public class Migrator {
     @Override
     public Persistence create() {
       Injector injector = Guice.createInjector(
+          new TierModule(TaskTestUtil.TIER_CONFIG),
           new MesosLogStreamModule(logOptions, FlaggedZooKeeperConfig.create(zkOptions)),
           new LogPersistenceModule(options),
           new LifecycleModule(),
@@ -138,7 +167,9 @@ public class Migrator {
             protected void configure() {
               bind(ServiceDiscoveryBindings.ZOO_KEEPER_CLUSTER_KEY)
                   .toInstance(zkOptions.zkEndpoints);
-              bind(SnapshotStore.class).to(DisabledDistributedSnapshotStore.class);
+              bind(Snapshotter.class).to(SnapshotStoreImpl.class);
+              bind(Clock.class).toInstance(Clock.SYSTEM_CLOCK);
+              bind(BuildInfo.class).toInstance(new BuildInfo());
             }
           });
       return injector.getInstance(Persistence.class);

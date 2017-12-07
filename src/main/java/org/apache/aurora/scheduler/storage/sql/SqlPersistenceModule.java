@@ -27,7 +27,6 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
 import org.apache.aurora.scheduler.config.validators.ReadableFile;
-import org.apache.aurora.scheduler.storage.SnapshotStore;
 import org.apache.aurora.scheduler.storage.durability.Persistence;
 
 import static java.util.Objects.requireNonNull;
@@ -70,8 +69,6 @@ public final class SqlPersistenceModule extends AbstractModule {
     bind(Mode.class).toInstance(mode);
     bind(Persistence.class).to(SqlPersistence.class);
     bind(SqlPersistence.class).in(Singleton.class);
-
-    bind(SnapshotStore.class).to(DisabledDistributedSnapshotStore.class);
   }
 
   /**
