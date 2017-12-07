@@ -74,11 +74,6 @@ class SqlPersistence implements Persistence {
     this.mode = requireNonNull(mode);
   }
 
-  public enum Mode {
-    H2,
-    MYSQL,
-  }
-
   @Override
   public void prepare() {
     // no-op.

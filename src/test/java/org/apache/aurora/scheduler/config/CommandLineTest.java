@@ -232,6 +232,8 @@ public class CommandLineTest {
     expected.mesosLog.coordinatorElectionRetries = 42;
     expected.mesosLog.readTimeout = TEST_TIME;
     expected.mesosLog.writeTimeout = TEST_TIME;
+    expected.sqlPersistence.sqlMode = org.apache.aurora.scheduler.storage.sql.Mode.H2;
+    expected.sqlPersistence.sqlPersistenceProperties = tempFile;
     expected.sla.slaRefreshInterval = TEST_TIME;
     expected.sla.slaProdMetrics = ImmutableList.of(MetricCategory.JOB_UPTIMES);
     expected.sla.slaNonProdMetrics = ImmutableList.of(MetricCategory.JOB_UPTIMES);
@@ -321,6 +323,8 @@ public class CommandLineTest {
         "-dlog_shutdown_grace_period=42days",
         "-dlog_snapshot_interval=42days",
         "-dlog_max_entry_size=42GB",
+        "-sql_mode=H2",
+        "-sql_persistence_properties=" + tempFile.getAbsolutePath(),
         "-backup_interval=42days",
         "-max_saved_backups=42",
         "-backup_dir=testing",

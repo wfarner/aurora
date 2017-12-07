@@ -48,6 +48,7 @@ import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult.Quiet;
 import org.apache.aurora.scheduler.storage.Storage.NonVolatileStorage;
 import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
 import org.apache.aurora.scheduler.storage.Storage.Volatile;
+import org.apache.aurora.scheduler.storage.durability.DurableStorageModule;
 import org.apache.aurora.scheduler.storage.entities.IResourceAggregate;
 import org.apache.aurora.scheduler.storage.log.LogPersistenceModule.Options;
 import org.apache.aurora.scheduler.storage.mem.MemStorageModule;
@@ -81,6 +82,7 @@ public class NonVolatileStorageTest extends TearDownTestCase {
     ShutdownRegistryImpl shutdownRegistry = new ShutdownRegistryImpl();
     Injector injector = Guice.createInjector(
         new MemStorageModule(Bindings.annotatedKeyFactory(Volatile.class)),
+        new DurableStorageModule(),
         new LogPersistenceModule(options),
         new TierModule(new TierModule.Options()),
         new AbstractModule() {

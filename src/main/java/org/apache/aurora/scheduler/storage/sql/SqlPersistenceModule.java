@@ -16,6 +16,7 @@ package org.apache.aurora.scheduler.storage.sql;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Properties;
 
 import com.beust.jcommander.Parameter;
@@ -28,7 +29,6 @@ import com.zaxxer.hikari.HikariDataSource;
 import org.apache.aurora.scheduler.config.validators.ReadableFile;
 import org.apache.aurora.scheduler.storage.DistributedSnapshotStore;
 import org.apache.aurora.scheduler.storage.durability.Persistence;
-import org.apache.aurora.scheduler.storage.sql.SqlPersistence.Mode;
 
 import static java.util.Objects.requireNonNull;
 
@@ -93,8 +93,8 @@ public final class SqlPersistenceModule extends AbstractModule {
    */
   public static SqlPersistenceModule fromOptions(Options options) {
     Properties properties = new Properties();
-    try {
-      properties.load(new FileInputStream(options.sqlPersistenceProperties));
+    try (InputStream input = new FileInputStream(options.sqlPersistenceProperties)) {
+      properties.load(input);
       return withConfig(new HikariConfig(properties), options.sqlMode);
     } catch (IOException e) {
       throw new RuntimeException(
