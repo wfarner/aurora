@@ -1,0 +1,230 @@
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.aurora.scheduler.storage.durability;
+
+import java.net.InetSocketAddress;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
+
+import com.beust.jcommander.IStringConverter;
+import com.beust.jcommander.IStringConverterFactory;
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.Parameters;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.inject.AbstractModule;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.TypeLiteral;
+
+import org.apache.aurora.common.quantity.Amount;
+import org.apache.aurora.common.quantity.Time;
+import org.apache.aurora.gen.storage.Op;
+import org.apache.aurora.gen.storage.Snapshot;
+import org.apache.aurora.scheduler.app.LifecycleModule;
+import org.apache.aurora.scheduler.config.converters.DataAmountConverter;
+import org.apache.aurora.scheduler.config.converters.InetSocketAddressConverter;
+import org.apache.aurora.scheduler.config.converters.TimeAmountConverter;
+import org.apache.aurora.scheduler.config.types.DataAmount;
+import org.apache.aurora.scheduler.config.types.TimeAmount;
+import org.apache.aurora.scheduler.discovery.FlaggedZooKeeperConfig;
+import org.apache.aurora.scheduler.discovery.ServiceDiscoveryBindings;
+import org.apache.aurora.scheduler.log.mesos.MesosLogStreamModule;
+import org.apache.aurora.scheduler.storage.SnapshotStore;
+import org.apache.aurora.scheduler.storage.durability.Persistence.PersistenceException;
+import org.apache.aurora.scheduler.storage.log.LogPersistenceModule;
+import org.apache.aurora.scheduler.storage.sql.SqlPersistenceModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * A utility to migrate the contents of one persistence implementation into another.
+ */
+public class Migrator {
+
+  private static final Logger LOG = LoggerFactory.getLogger(Migrator.class);
+
+  private static void migrate(Persistence from, Persistence to, int batchSize) {
+
+    // TODO(wfarner): Introduce this once available.
+    // to.persist(Op.resetStorage(true));
+
+    long start = System.nanoTime();
+    AtomicLong count = new AtomicLong();
+    List<Op> batch = Lists.newArrayListWithExpectedSize(batchSize);
+    Runnable saveBatch = () -> {
+      LOG.info("Saving batch");
+      try {
+        to.persist(batch.stream());
+      } catch (PersistenceException e) {
+        throw new RuntimeException(e);
+      }
+      batch.clear();
+    };
+
+    try {
+      from.recover().forEach(op -> {
+        count.incrementAndGet();
+        batch.add(op);
+        if (batch.size() == batchSize) {
+          saveBatch.run();
+        }
+      });
+    } catch (PersistenceException e) {
+      throw new RuntimeException(e);
+    }
+
+    if (!batch.isEmpty()) {
+      saveBatch.run();
+    }
+    long end = System.nanoTime();
+    LOG.info("Migration finished");
+    LOG.info("Copied " + count.get() + " ops in "
+        + Amount.of(end - start, Time.NANOSECONDS).as(Time.MILLISECONDS));
+  }
+
+  interface MigrationEndpoint {
+    Iterable<Object> getOptions();
+
+    Persistence create();
+  }
+
+  private static class SqlMigrationInput implements MigrationEndpoint {
+    private final SqlPersistenceModule.Options options = new SqlPersistenceModule.Options();
+
+    @Override
+    public Iterable<Object> getOptions() {
+      return ImmutableList.of(options);
+    }
+
+    @Override
+    public Persistence create() {
+      Injector injector = Guice.createInjector(SqlPersistenceModule.fromOptions(options));
+      return injector.getInstance(Persistence.class);
+    }
+  }
+
+  private static class LogMigrationInput implements MigrationEndpoint {
+    private final FlaggedZooKeeperConfig.Options zkOptions = new FlaggedZooKeeperConfig.Options();
+    private final MesosLogStreamModule.Options logOptions = new MesosLogStreamModule.Options();
+    private final LogPersistenceModule.Options options = new LogPersistenceModule.Options();
+
+    @Override
+    public Iterable<Object> getOptions() {
+      return ImmutableList.of(logOptions, options, zkOptions);
+    }
+
+    @Override
+    public Persistence create() {
+      Injector injector = Guice.createInjector(
+          new MesosLogStreamModule(logOptions, FlaggedZooKeeperConfig.create(zkOptions)),
+          new LogPersistenceModule(options),
+          new LifecycleModule(),
+          new AbstractModule() {
+            @Override
+            protected void configure() {
+              bind(ServiceDiscoveryBindings.ZOO_KEEPER_CLUSTER_KEY)
+                  .toInstance(zkOptions.zkEndpoints);
+              bind(new TypeLiteral<SnapshotStore<Snapshot>>() { })
+                  .toInstance(new SnapshotStore<Snapshot>() {
+                    @Override
+                    public Snapshot createSnapshot() {
+                      throw new UnsupportedOperationException();
+                    }
+
+                    @Override
+                    public void applySnapshot(Snapshot snapshot) {
+                      throw new UnsupportedOperationException();
+                    }
+                  });
+            }
+          });
+      return injector.getInstance(Persistence.class);
+    }
+  }
+
+  enum Endpoint {
+    SQL(new SqlMigrationInput()),
+    LOG(new LogMigrationInput());
+
+    private final MigrationEndpoint impl;
+
+    Endpoint(MigrationEndpoint impl) {
+      this.impl = impl;
+    }
+  }
+
+  @Parameters(separators = "=")
+  private static class Options {
+    @Parameter(names = "-from",
+        required = true,
+        description = "Persistence to read state from")
+    public Endpoint from;
+
+    @Parameter(names = "-to",
+        required = true,
+        description = "Persistence to write recovered state into")
+    public Endpoint to;
+
+    @Parameter(names = "-batch-size",
+        description = "Write in batches of this may ops.")
+    public int batchSize = 50;
+  }
+
+  private static void configure(Options options, String... args) {
+    JCommander.Builder builder = JCommander.newBuilder().programName(Migrator.class.getName());
+    builder.addConverterFactory(new IStringConverterFactory() {
+      private Map<Class<?>, Class<? extends IStringConverter<?>>> classConverters =
+          ImmutableMap.<Class<?>, Class<? extends IStringConverter<?>>>builder()
+              .put(DataAmount.class, DataAmountConverter.class)
+              .put(InetSocketAddress.class, InetSocketAddressConverter.class)
+              .put(TimeAmount.class, TimeAmountConverter.class)
+              .build();
+
+      @SuppressWarnings("unchecked")
+      @Override
+      public <T> Class<? extends IStringConverter<T>> getConverter(Class<T> forType) {
+        return (Class<IStringConverter<T>>) classConverters.get(forType);
+      }
+    });
+
+    builder.addObject(options);
+    for (Endpoint endpoint : Endpoint.values()) {
+      endpoint.impl.getOptions().forEach(builder::addObject);
+    }
+
+    JCommander parser = builder.build();
+    parser.parse(args);
+  }
+
+  public static void main(String[] args) {
+    Options options = new Options();
+    configure(options, args);
+
+    LOG.info("Migrating from " + options.from + " to " + options.to);
+    Persistence from = options.from.impl.create();
+    Persistence to = options.to.impl.create();
+
+    from.prepare();
+    to.prepare();
+
+    migrate(from, to, options.batchSize);
+
+    from.close();
+    to.close();
+  }
+}
