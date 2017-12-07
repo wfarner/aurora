@@ -24,9 +24,10 @@ import org.apache.aurora.common.util.testing.FakeClock;
 import org.apache.aurora.gen.storage.Snapshot;
 import org.apache.aurora.scheduler.base.Query;
 import org.apache.aurora.scheduler.base.Tasks;
-import org.apache.aurora.scheduler.storage.SnapshotStore;
+import org.apache.aurora.scheduler.storage.Snapshotter;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
+import org.apache.aurora.scheduler.storage.durability.Loader;
 import org.apache.aurora.scheduler.storage.durability.ThriftBackfill;
 import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
 import org.apache.aurora.scheduler.storage.log.SnapshotStoreImpl;
@@ -78,16 +79,15 @@ interface TemporaryStorage {
 
     @Override
     public TemporaryStorage apply(Snapshot snapshot) {
-      final Storage storage = MemStorageModule.newEmptyStorage();
-      final BuildInfo buildInfo = generateBuildInfo();
+      Storage storage = MemStorageModule.newEmptyStorage();
+      BuildInfo buildInfo = generateBuildInfo();
       FakeClock clock = new FakeClock();
       clock.setNowMillis(snapshot.getTimestamp());
-      final SnapshotStore<Snapshot> snapshotStore = new SnapshotStoreImpl(
-          buildInfo,
-          clock,
-          storage,
-          thriftBackfill);
-      snapshotStore.applySnapshot(snapshot);
+      Snapshotter snapshotter = new SnapshotStoreImpl(buildInfo, clock);
+
+      storage.write((NoResult.Quiet) stores -> {
+        Loader.load(stores, thriftBackfill, snapshotter.asStream(snapshot));
+      });
 
       return new TemporaryStorage() {
         @Override
@@ -107,7 +107,7 @@ interface TemporaryStorage {
 
         @Override
         public Snapshot toSnapshot() {
-          return snapshotStore.createSnapshot();
+          return storage.write(snapshotter::from);
         }
       };
     }
