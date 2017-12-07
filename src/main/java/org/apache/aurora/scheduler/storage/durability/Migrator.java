@@ -29,12 +29,10 @@ import com.google.common.collect.Lists;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.google.inject.TypeLiteral;
 
 import org.apache.aurora.common.quantity.Amount;
 import org.apache.aurora.common.quantity.Time;
 import org.apache.aurora.gen.storage.Op;
-import org.apache.aurora.gen.storage.Snapshot;
 import org.apache.aurora.scheduler.app.LifecycleModule;
 import org.apache.aurora.scheduler.config.converters.DataAmountConverter;
 import org.apache.aurora.scheduler.config.converters.InetSocketAddressConverter;
@@ -47,6 +45,7 @@ import org.apache.aurora.scheduler.log.mesos.MesosLogStreamModule;
 import org.apache.aurora.scheduler.storage.SnapshotStore;
 import org.apache.aurora.scheduler.storage.durability.Persistence.PersistenceException;
 import org.apache.aurora.scheduler.storage.log.LogPersistenceModule;
+import org.apache.aurora.scheduler.storage.sql.DisabledDistributedSnapshotStore;
 import org.apache.aurora.scheduler.storage.sql.SqlPersistenceModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -139,18 +138,7 @@ public class Migrator {
             protected void configure() {
               bind(ServiceDiscoveryBindings.ZOO_KEEPER_CLUSTER_KEY)
                   .toInstance(zkOptions.zkEndpoints);
-              bind(new TypeLiteral<SnapshotStore<Snapshot>>() { })
-                  .toInstance(new SnapshotStore<Snapshot>() {
-                    @Override
-                    public Snapshot createSnapshot() {
-                      throw new UnsupportedOperationException();
-                    }
-
-                    @Override
-                    public void applySnapshot(Snapshot snapshot) {
-                      throw new UnsupportedOperationException();
-                    }
-                  });
+              bind(SnapshotStore.class).to(DisabledDistributedSnapshotStore.class);
             }
           });
       return injector.getInstance(Persistence.class);

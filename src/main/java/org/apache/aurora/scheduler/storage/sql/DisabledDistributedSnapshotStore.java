@@ -15,13 +15,13 @@ package org.apache.aurora.scheduler.storage.sql;
 
 import org.apache.aurora.codec.ThriftBinaryCodec;
 import org.apache.aurora.gen.storage.Snapshot;
-import org.apache.aurora.scheduler.storage.DistributedSnapshotStore;
+import org.apache.aurora.scheduler.storage.SnapshotStore;
 import org.apache.aurora.scheduler.storage.Storage;
 
 /**
  * A snapshot store that throws for any snapshot attempt.
  */
-class DisabledDistributedSnapshotStore implements DistributedSnapshotStore {
+public class DisabledDistributedSnapshotStore implements SnapshotStore {
   @Override
   public void snapshot() throws Storage.StorageException {
     throw new UnsupportedOperationException("This storage system does not support snapshotting");

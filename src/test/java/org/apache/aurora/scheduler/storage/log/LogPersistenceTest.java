@@ -43,8 +43,9 @@ import org.apache.aurora.scheduler.log.Log.Entry;
 import org.apache.aurora.scheduler.log.Log.Stream;
 import org.apache.aurora.scheduler.storage.Snapshotter;
 import org.apache.aurora.scheduler.storage.Storage.Volatile;
+import org.apache.aurora.scheduler.storage.durability.DurableStorageModule;
 import org.apache.aurora.scheduler.storage.durability.Persistence;
-import org.apache.aurora.scheduler.storage.log.LogStorageModule.Options;
+import org.apache.aurora.scheduler.storage.log.LogPersistenceModule.Options;
 import org.apache.aurora.scheduler.storage.mem.MemStorageModule;
 import org.apache.aurora.scheduler.testing.FakeStatsProvider;
 import org.junit.Before;
@@ -66,8 +67,9 @@ public class LogPersistenceTest extends EasyMockTest {
     mockStream = createMock(Stream.class);
 
     Injector injector = Guice.createInjector(
-        new LogStorageModule(new Options()),
+        new LogPersistenceModule(new Options()),
         new MemStorageModule(Bindings.annotatedKeyFactory(Volatile.class)),
+        new DurableStorageModule(),
         new TierModule(TaskTestUtil.TIER_CONFIG),
         new AbstractModule() {
           @Override
