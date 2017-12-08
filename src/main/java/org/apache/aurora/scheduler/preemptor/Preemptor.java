@@ -13,8 +13,6 @@
  */
 package org.apache.aurora.scheduler.preemptor;
 
-import java.util.Iterator;
-
 import javax.inject.Inject;
 
 import com.google.common.base.Optional;
@@ -79,12 +77,10 @@ public interface Preemptor {
         MutableStoreProvider store) {
 
       TaskGroupKey groupKey = TaskGroupKey.from(pendingTask.getTask());
-      Iterator<PreemptionProposal> proposalIterator = slotCache.getByValue(groupKey).iterator();
 
       // A preemption slot is available -> attempt to preempt tasks.
-      while (proposalIterator.hasNext()) {
+      for (PreemptionProposal slot : slotCache.getByValue(groupKey)) {
         // Get the next available preemption slot.
-        PreemptionProposal slot = proposalIterator.next();
         slotCache.remove(slot, groupKey);
 
         // Validate PreemptionProposal is still valid for the given task.

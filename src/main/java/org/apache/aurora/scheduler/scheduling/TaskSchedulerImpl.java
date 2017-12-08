@@ -16,10 +16,12 @@ package org.apache.aurora.scheduler.scheduling;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Qualifier;
 
@@ -30,6 +32,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.eventbus.Subscribe;
 
@@ -49,7 +52,7 @@ import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
 import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
 import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
 import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
-import org.apache.mesos.Protos.OfferID;
+import org.apache.mesos.v1.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,7 +105,7 @@ public class TaskSchedulerImpl implements TaskScheduler {
     this.reservations = requireNonNull(reservations);
   }
 
-  @Timed("task_schedule_attempt")
+  @Timed("task_schedule_find_matches")
   @Override
   public Map<String, MatchResult> findMatches(StoreProvider store, Set<String> taskIds) {
     try {
@@ -120,26 +123,65 @@ public class TaskSchedulerImpl implements TaskScheduler {
     }
   }
 
-  private Map<String, MatchResult> doFindMatches(StoreProvider store, Set<String> tasks) {
+  @Timed("task_schedule_attempt")
+  @Override
+  public Set<String> schedule(MutableStoreProvider store, Map<String, MatchResult> matches) {
 
+    Set<String> validIds = matches.entrySet().stream()
+        .filter(e -> e.getValue().isValid())
+        .map(Entry::getKey)
+        .collect(Collectors.toSet());
+
+    Map<String, IAssignedTask> validTasks =
+        Maps.uniqueIndex(
+            Iterables.transform(
+                store.getTaskStore().fetchTasks(Query.taskScoped(validIds).byStatus(PENDING)),
+                IScheduledTask::getAssignedTask),
+            IAssignedTask::getTaskId);
+
+    Map<String, IAssignedTask> tasksWithMatches = validTasks.entrySet().stream()
+        .filter(entry -> matches.get(entry.getKey()).hasOffer())
+        .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+
+    ImmutableSet.Builder<String> scheduled = ImmutableSet.builder();
+
+    Map<String, IAssignedTask> tasksWithoutMatches = validTasks.entrySet().stream()
+        .filter(entry -> !matches.get(entry.getKey()).hasOffer())
+        .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+    tasksWithoutMatches.values().forEach(task -> {
+      // Task could not be scheduled.
+      // TODO(maxim): Now that preemption slots are searched asynchronously, consider
+      // retrying a launch attempt within the current scheduling round IFF a reservation is
+      // available.
+      maybePreemptFor(task, aggregate, store);
+      attemptsNoMatch.incrementAndGet();
+    });
+
+    return scheduled.build();
+  }
+
+  private Map<String, MatchResult> doFindMatches(StoreProvider store, Set<String> tasks) {
     ImmutableSet<String> taskIds = ImmutableSet.copyOf(tasks);
     String taskIdValues = Joiner.on(",").join(taskIds);
     LOG.debug("Attempting to schedule tasks {}", taskIdValues);
+
+    // Tasks progress through steps in this function:
+    // invalid -> valid, no match -> valid, with a match.  This simplifies the code and avoids
+    // set-difference computation to only put() once for each task.
+    Map<String, MatchResult> result = Maps.newHashMap();
+    tasks.forEach(id -> result.put(id, MatchResult.invalidTask()));
+
     Set<IAssignedTask> assignedTasks =
         ImmutableSet.copyOf(Iterables.transform(
             store.getTaskStore().fetchTasks(Query.taskScoped(taskIds).byStatus(PENDING)),
             IScheduledTask::getAssignedTask));
-    Map<String, IAssignedTask> assignableTasks = assignedTasks.stream()
-        .collect(Collectors.toMap(IAssignedTask::getTaskId, t -> t));
 
-    ImmutableMap.Builder<String, MatchResult> result = ImmutableMap.builder();
-    Sets.difference(tasks, assignableTasks.keySet())
-        .forEach(invalidTask -> result.put(invalidTask, MatchResult.invalidTask()));
+    assignedTasks.forEach(task -> result.put(task.getTaskId(), MatchResult.noMatch()));
 
     // Ensure these tasks are identical with respect to schedulability.
     Preconditions.checkState(
         assignedTasks.stream()
-            .collect(Collectors.groupingBy(t -> t.getTask()))
+            .collect(Collectors.groupingBy(IAssignedTask::getTask))
             .entrySet()
             .size() == 1,
         "Found multiple task groups for %s",
@@ -156,28 +198,18 @@ public class TaskSchedulerImpl implements TaskScheduler {
               () -> new IllegalArgumentException("Cannot find executor configuration"));
     }
 
-    Set<String> launched = assigner.maybeAssign(
-        store,
+    Map<String, Protos.OfferID> matches = assigner.findMatches(
         new SchedulingFilter.ResourceRequest(
             task,
             bagFromResources(task.getResources()).add(overhead), aggregate),
         TaskGroupKey.from(task),
         assignedTasks,
         reservations.asMap());
+    matches.forEach((taskId, offerId) -> result.put(taskId, MatchResult.matched(offerId)));
 
-    attemptsFired.addAndGet(assignableTasks.size());
-    Set<String> failedToLaunch = Sets.difference(assignableTasks.keySet(), launched);
+    attemptsFired.addAndGet(assignedTasks.size());
 
-    failedToLaunch.forEach(taskId -> {
-      // Task could not be scheduled.
-      // TODO(maxim): Now that preemption slots are searched asynchronously, consider
-      // retrying a launch attempt within the current scheduling round IFF a reservation is
-      // available.
-      maybePreemptFor(assignableTasks.get(taskId), aggregate, store);
-    });
-    attemptsNoMatch.addAndGet(failedToLaunch.size());
-
-    return result.build();
+    return result;
   }
 
   private void maybePreemptFor(

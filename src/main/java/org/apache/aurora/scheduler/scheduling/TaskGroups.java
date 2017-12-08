@@ -16,6 +16,7 @@ package org.apache.aurora.scheduler.scheduling;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
@@ -23,6 +24,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 import javax.inject.Qualifier;
@@ -184,6 +186,16 @@ public class TaskGroups implements EventSubscriber {
 
           Map<String, MatchResult> matches = storage.read(
               store -> taskScheduler.findMatches(store, taskIds));
+          Preconditions.checkState(matches.size() == taskIds.size());
+
+          Set<String> invalid = matches.entrySet().stream()
+              .filter(e -> !e.getValue().isValid())
+              .map(Entry::getKey)
+              .collect(Collectors.toSet());
+          if (!invalid.isEmpty()) {
+            LOG.warn("Failed to look up tasks " + invalid);
+            group.remove(invalid);
+          }
 
           // Now check check the conclusion while holding the write lock, and perform the real
           // assignment.
@@ -191,7 +203,7 @@ public class TaskGroups implements EventSubscriber {
           // reduced write lock contention and non-parallel scheduling, which would not change
           // much code.
           CompletableFuture<Set<String>> result = batchWorker.execute(storeProvider ->
-              taskScheduler.schedule(storeProvider, taskIds));
+              taskScheduler.schedule(storeProvider, matches));
 
           Set<String> scheduled;
           try {
@@ -202,13 +214,11 @@ public class TaskGroups implements EventSubscriber {
           }
 
           scheduledTaskPenalties.accumulate(group.getPenaltyMs());
+          group.remove(scheduled);
           if (scheduled.isEmpty()) {
             penaltyMs = settings.taskGroupBackoff.calculateBackoffMs(group.getPenaltyMs());
           } else {
-            group.remove(scheduled);
-            if (group.hasMore()) {
-              penaltyMs = settings.firstScheduleDelay.as(Time.MILLISECONDS);
-            }
+            penaltyMs = settings.firstScheduleDelay.as(Time.MILLISECONDS);
           }
         }
 

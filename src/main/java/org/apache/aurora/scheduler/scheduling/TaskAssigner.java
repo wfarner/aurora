@@ -19,6 +19,7 @@ import org.apache.aurora.scheduler.base.TaskGroupKey;
 import org.apache.aurora.scheduler.filter.SchedulingFilter.ResourceRequest;
 import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
 import org.apache.mesos.v1.Protos;
+import org.apache.mesos.v1.Protos.OfferID;
 
 /**
  * Responsible for matching a task against an offer and launching it.
@@ -40,4 +41,14 @@ public interface TaskAssigner {
       TaskGroupKey groupKey,
       Iterable<IAssignedTask> tasks,
       Map<String, TaskGroupKey> preemptionReservations);
+
+  class ProposedAssignment {
+    private final IAssignedTask task;
+    private final Protos.OfferID offer;
+
+    public ProposedAssignment(IAssignedTask task, OfferID offer) {
+      this.task = task;
+      this.offer = offer;
+    }
+  }
 }

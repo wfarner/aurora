@@ -13,6 +13,7 @@
  */
 package org.apache.aurora.scheduler.scheduling;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
@@ -37,7 +38,7 @@ import org.apache.aurora.scheduler.offers.OfferManager;
 import org.apache.aurora.scheduler.resources.ResourceManager;
 import org.apache.aurora.scheduler.resources.ResourceType;
 import org.apache.aurora.scheduler.state.StateManager;
-import org.apache.aurora.scheduler.storage.Storage;
+import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
 import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
 import org.apache.aurora.scheduler.storage.entities.IInstanceKey;
 import org.apache.aurora.scheduler.updater.UpdateAgentReserver;
@@ -100,7 +101,7 @@ public class TaskAssignerImpl implements TaskAssigner {
   }
 
   private Protos.TaskInfo assign(
-      Storage.MutableStoreProvider storeProvider,
+      MutableStoreProvider storeProvider,
       Protos.Offer offer,
       String taskId,
       boolean revocable) {
@@ -119,7 +120,7 @@ public class TaskAssignerImpl implements TaskAssigner {
   }
 
   private void launchUsingOffer(
-      Storage.MutableStoreProvider storeProvider,
+      MutableStoreProvider storeProvider,
       boolean revocable,
       ResourceRequest resourceRequest,
       IAssignedTask task,
@@ -150,7 +151,7 @@ public class TaskAssignerImpl implements TaskAssigner {
     }
   }
 
-  private Iterable<IAssignedTask> maybeAssignReserved(
+  private Iterable<IAssignedTask> maybeMatchReserved(
       Iterable<IAssignedTask> tasks,
       boolean revocable,
       ResourceRequest resourceRequest,
@@ -177,8 +178,6 @@ public class TaskAssignerImpl implements TaskAssigner {
             revocable);
         if (offer.isPresent()) {
           matches.put(task.getTaskId(), offer.get().getOffer().getId());
-          LOG.info("Used update reservation for {} on {}", key, maybeAgentId.get());
-          updateAgentReserver.release(maybeAgentId.get(), key);
         } else {
           LOG.info(
               "Tried to reuse offer on {} for {}, but was not ready yet.",
@@ -215,6 +214,26 @@ public class TaskAssignerImpl implements TaskAssigner {
 
   @Timed("assigner_maybe_assign")
   @Override
+  public Set<String> maybeAssign(
+      MutableStoreProvider storeProvider,
+      List<ProposedAssignment> proposals,
+      ResourceRequest resourceRequest,
+      TaskGroupKey groupKey,
+      Iterable<IAssignedTask> tasks,
+      Map<String, TaskGroupKey> preemptionReservations) {
+
+    // Attempt to launch the task using the chosen offer
+    HostOffer offer = optionalOffer.get();
+    launchUsingOffer(storeProvider,
+        revocable,
+        resourceRequest,
+        task,
+        offer,
+        assignmentResult);
+  }
+
+  @Timed("assigner_find_matches")
+  @Override
   public Map<String, Protos.OfferID> findMatches(
       ResourceRequest resourceRequest,
       TaskGroupKey groupKey,
@@ -229,7 +248,7 @@ public class TaskAssignerImpl implements TaskAssigner {
     ImmutableMap.Builder<String, Protos.OfferID> matches = ImmutableMap.builder();
 
     // Assign tasks reserved for a specific agent (e.g. for update affinity)
-    Iterable<IAssignedTask> nonReservedTasks = maybeAssignReserved(
+    Iterable<IAssignedTask> nonReservedTasks = maybeMatchReserved(
         tasks,
         revocable,
         resourceRequest,

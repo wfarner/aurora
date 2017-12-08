@@ -19,8 +19,9 @@ import java.util.Set;
 import javax.annotation.Nullable;
 
 import org.apache.aurora.scheduler.events.PubsubEvent.EventSubscriber;
+import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
 import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
-import org.apache.mesos.Protos.OfferID;
+import org.apache.mesos.v1.Protos.OfferID;
 
 /**
  * Enables scheduling and preemption of tasks.
@@ -36,6 +37,8 @@ public interface TaskScheduler extends EventSubscriber {
    *         task ID was not present in the result.
    */
   Map<String, MatchResult> findMatches(StoreProvider storeProvider, Set<String> taskIds);
+
+  Set<String> schedule(MutableStoreProvider storeProvider, Map<String, MatchResult> matches);
 
   // TODO(wfarner): Capture a return value with the several states that a task may be in:
   //   - exists, and match found
@@ -61,6 +64,14 @@ public interface TaskScheduler extends EventSubscriber {
 
     public static MatchResult noMatch() {
       return new MatchResult(true, null);
+    }
+
+    public boolean isValid() {
+      return valid;
+    }
+
+    public boolean hasOffer() {
+      return offer != null;
     }
   }
 }
