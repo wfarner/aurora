@@ -26,6 +26,7 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 
 import org.apache.aurora.common.stats.StatsProvider;
 import org.apache.aurora.scheduler.TierManager;
@@ -122,16 +123,13 @@ public class TaskAssignerImpl implements TaskAssigner {
   private void launchUsingOffer(
       MutableStoreProvider storeProvider,
       boolean revocable,
-      ResourceRequest resourceRequest,
-      IAssignedTask task,
-      HostOffer offer,
+      String taskId,
+      Protos.Offer offer,
       ImmutableSet.Builder<String> assignmentResult) throws OfferManager.LaunchException {
 
-    String taskId = task.getTaskId();
-    Protos.TaskInfo taskInfo = assign(storeProvider, offer.getOffer(), taskId, revocable);
-    resourceRequest.getJobState().updateAttributeAggregate(offer.getAttributes());
+    Protos.TaskInfo taskInfo = assign(storeProvider, offer, taskId, revocable);
     try {
-      offerManager.launchTask(offer.getOffer().getId(), taskInfo);
+      offerManager.launchTask(offer.getId(), taskInfo);
       assignmentResult.add(taskId);
     } catch (OfferManager.LaunchException e) {
       LOG.warn("Failed to launch task.", e);
@@ -178,6 +176,10 @@ public class TaskAssignerImpl implements TaskAssigner {
             revocable);
         if (offer.isPresent()) {
           matches.put(task.getTaskId(), offer.get().getOffer().getId());
+
+          // Adjust the cached job state based on the scheduling proposal.  This ensures limit
+          // constraints are respected.
+          resourceRequest.getJobState().updateAttributeAggregate(offer.get().getAttributes());
         } else {
           LOG.info(
               "Tried to reuse offer on {} for {}, but was not ready yet.",
@@ -217,16 +219,20 @@ public class TaskAssignerImpl implements TaskAssigner {
   public Set<String> maybeAssign(
       MutableStoreProvider storeProvider,
       List<ProposedAssignment> proposals,
-      ResourceRequest resourceRequest,
       TaskGroupKey groupKey,
       Iterable<IAssignedTask> tasks,
       Map<String, TaskGroupKey> preemptionReservations) {
+
+    // TODO(wfarner): Do we need to re-run the scheduling filter here?  The offer and task resources
+    // are immutable, so the only potential drift is dynamic constraints (to date, only the limit
+    // constraint) or changed attributes.  The performance impact of re-computing job state is
+    // probably not worth the extreme unlikelihood (and limited impact) of violating these
+    // constraints.
 
     // Attempt to launch the task using the chosen offer
     HostOffer offer = optionalOffer.get();
     launchUsingOffer(storeProvider,
         revocable,
-        resourceRequest,
         task,
         offer,
         assignmentResult);
@@ -269,6 +275,10 @@ public class TaskAssignerImpl implements TaskAssigner {
 
       if (selectedOffer.isPresent()) {
         matches.put(task.getTaskId(), selectedOffer.get().getOffer().getId());
+
+        // Adjust the cached job state based on the scheduling proposal.  This ensures limit
+        // constraints are respected.
+        resourceRequest.getJobState().updateAttributeAggregate(selectedOffer.get().getAttributes());
       }
     });
 
