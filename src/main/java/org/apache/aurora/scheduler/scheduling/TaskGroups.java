@@ -15,6 +15,7 @@ package org.apache.aurora.scheduler.scheduling;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
@@ -46,9 +47,12 @@ import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.events.PubsubEvent.EventSubscriber;
 import org.apache.aurora.scheduler.events.PubsubEvent.TaskStateChange;
 import org.apache.aurora.scheduler.events.PubsubEvent.TasksDeleted;
+import org.apache.aurora.scheduler.scheduling.TaskScheduler.MatchResult;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
 import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
@@ -70,12 +74,15 @@ import static org.apache.aurora.gen.ScheduleStatus.PENDING;
  */
 public class TaskGroups implements EventSubscriber {
 
+  private static final Logger LOG = LoggerFactory.getLogger(TaskGroups.class);
+
   @VisibleForTesting
   static final String SCHEDULE_ATTEMPTS_BLOCKS = "schedule_attempts_blocks";
 
   private final ConcurrentMap<TaskGroupKey, TaskGroup> groups = Maps.newConcurrentMap();
   private final ScheduledExecutorService executor;
   private final TaskGroupsSettings settings;
+  private final Storage storage;
   private final TaskScheduler taskScheduler;
   private final RescheduleCalculator rescheduleCalculator;
   private final BatchWorker<Set<String>> batchWorker;
@@ -137,6 +144,7 @@ public class TaskGroups implements EventSubscriber {
   public TaskGroups(
       @AsyncExecutor ScheduledExecutorService executor,
       TaskGroupsSettings settings,
+      Storage storage,
       TaskScheduler taskScheduler,
       RescheduleCalculator rescheduleCalculator,
       TaskGroupBatchWorker batchWorker,
@@ -144,6 +152,7 @@ public class TaskGroups implements EventSubscriber {
 
     this.executor = requireNonNull(executor);
     this.settings = requireNonNull(settings);
+    this.storage = requireNonNull(storage);
     this.taskScheduler = requireNonNull(taskScheduler);
     this.rescheduleCalculator = requireNonNull(rescheduleCalculator);
     this.batchWorker = requireNonNull(batchWorker);
@@ -164,16 +173,27 @@ public class TaskGroups implements EventSubscriber {
     Runnable monitor = new Runnable() {
       @Override
       public void run() {
-        final Set<String> taskIds = group.peek(settings.maxTasksPerSchedule);
+        Set<String> taskIds = group.peek(settings.maxTasksPerSchedule);
         long penaltyMs = 0;
         if (!taskIds.isEmpty()) {
+          // TODO(wfarner): This was added to avoid saturating the write lock.
+          // Consider removing now that the write lock is not held for resource intensive work.
           if (settings.rateLimiter.acquire() > 0) {
             scheduleAttemptsBlocks.incrementAndGet();
           }
+
+          Map<String, MatchResult> matches = storage.read(
+              store -> taskScheduler.findMatches(store, taskIds));
+
+          // Now check check the conclusion while holding the write lock, and perform the real
+          // assignment.
+          // TODO(wfarner): Determine how far to take this.  We could start by simply aiming for
+          // reduced write lock contention and non-parallel scheduling, which would not change
+          // much code.
           CompletableFuture<Set<String>> result = batchWorker.execute(storeProvider ->
               taskScheduler.schedule(storeProvider, taskIds));
 
-          Set<String> scheduled = null;
+          Set<String> scheduled;
           try {
             scheduled = result.get();
           } catch (ExecutionException | InterruptedException e) {

@@ -14,31 +14,28 @@
 package org.apache.aurora.scheduler.scheduling;
 
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.aurora.scheduler.base.TaskGroupKey;
 import org.apache.aurora.scheduler.filter.SchedulingFilter.ResourceRequest;
 import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
-
-import static org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
+import org.apache.mesos.v1.Protos;
 
 /**
  * Responsible for matching a task against an offer and launching it.
  */
 public interface TaskAssigner {
+
   /**
-   * Tries to match a task against an offer.  If a match is found, the assigner makes the
+   * Tries match a task against available offers.  If a match is found, the assigner makes the
    * appropriate changes to the task and requests task launch.
    *
-   * @param storeProvider Storage provider.
    * @param resourceRequest The request for resources being scheduled.
    * @param groupKey Task group key.
    * @param tasks Tasks to assign.
    * @param preemptionReservations Slave reservations.
    * @return Successfully assigned task IDs.
    */
-  Set<String> maybeAssign(
-      MutableStoreProvider storeProvider,
+  Map<String, Protos.OfferID> findMatches(
       ResourceRequest resourceRequest,
       TaskGroupKey groupKey,
       Iterable<IAssignedTask> tasks,

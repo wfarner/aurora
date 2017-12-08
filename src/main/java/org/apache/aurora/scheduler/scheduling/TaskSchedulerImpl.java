@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+
 import javax.inject.Inject;
 import javax.inject.Qualifier;
 
@@ -26,6 +27,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
@@ -42,10 +44,12 @@ import org.apache.aurora.scheduler.filter.SchedulingFilter;
 import org.apache.aurora.scheduler.preemptor.BiCache;
 import org.apache.aurora.scheduler.preemptor.Preemptor;
 import org.apache.aurora.scheduler.resources.ResourceBag;
-import org.apache.aurora.scheduler.storage.Storage;
+import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
+import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
 import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
 import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
 import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
+import org.apache.mesos.Protos.OfferID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,7 +58,6 @@ import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.toMap;
 
 import static org.apache.aurora.gen.ScheduleStatus.PENDING;
 import static org.apache.aurora.scheduler.resources.ResourceManager.bagFromResources;
@@ -100,34 +103,40 @@ public class TaskSchedulerImpl implements TaskScheduler {
   }
 
   @Timed("task_schedule_attempt")
-  public Set<String> schedule(Storage.MutableStoreProvider store, Iterable<String> taskIds) {
+  @Override
+  public Map<String, MatchResult> findMatches(StoreProvider store, Set<String> taskIds) {
     try {
-      return scheduleTasks(store, taskIds);
+      // TODO(wfarner): Consider removing the RTE catch from this method, and instead move to the
+      // assignment function.
+      return doFindMatches(store, taskIds);
     } catch (RuntimeException e) {
       // We catch the generic unchecked exception here to ensure tasks are not abandoned
       // if there is a transient issue resulting in an unchecked exception.
       LOG.warn("Task scheduling unexpectedly failed, will be retried", e);
       attemptsFailed.incrementAndGet();
-      // Return empty set for all task IDs to be retried later.
+      // Return empty map for all task IDs to be retried later.
       // It's ok if some tasks were already assigned, those will be ignored in the next round.
-      return ImmutableSet.of();
+      return ImmutableMap.of();
     }
   }
 
-  private Set<String> scheduleTasks(Storage.MutableStoreProvider store, Iterable<String> tasks) {
+  private Map<String, MatchResult> doFindMatches(StoreProvider store, Set<String> tasks) {
+
     ImmutableSet<String> taskIds = ImmutableSet.copyOf(tasks);
     String taskIdValues = Joiner.on(",").join(taskIds);
     LOG.debug("Attempting to schedule tasks {}", taskIdValues);
-    ImmutableSet<IAssignedTask> assignedTasks =
+    Set<IAssignedTask> assignedTasks =
         ImmutableSet.copyOf(Iterables.transform(
             store.getTaskStore().fetchTasks(Query.taskScoped(taskIds).byStatus(PENDING)),
             IScheduledTask::getAssignedTask));
+    Map<String, IAssignedTask> assignableTasks = assignedTasks.stream()
+        .collect(Collectors.toMap(IAssignedTask::getTaskId, t -> t));
 
-    if (Iterables.isEmpty(assignedTasks)) {
-      LOG.warn("Failed to look up all tasks in a scheduling round: {}", taskIdValues);
-      return taskIds;
-    }
+    ImmutableMap.Builder<String, MatchResult> result = ImmutableMap.builder();
+    Sets.difference(tasks, assignableTasks.keySet())
+        .forEach(invalidTask -> result.put(invalidTask, MatchResult.invalidTask()));
 
+    // Ensure these tasks are identical with respect to schedulability.
     Preconditions.checkState(
         assignedTasks.stream()
             .collect(Collectors.groupingBy(t -> t.getTask()))
@@ -135,17 +144,8 @@ public class TaskSchedulerImpl implements TaskScheduler {
             .size() == 1,
         "Found multiple task groups for %s",
         taskIdValues);
-
-    Map<String, IAssignedTask> assignableTaskMap =
-        assignedTasks.stream().collect(toMap(t -> t.getTaskId(), t -> t));
-
-    if (taskIds.size() != assignedTasks.size()) {
-      LOG.warn("Failed to look up tasks "
-          + Joiner.on(", ").join(Sets.difference(taskIds, assignableTaskMap.keySet())));
-    }
-
-    // This is safe after all checks above.
     ITaskConfig task = assignedTasks.stream().findFirst().get().getTask();
+
     AttributeAggregate aggregate = AttributeAggregate.getJobActiveState(store, task.getJob());
 
     // Valid Docker tasks can have a container but no executor config
@@ -165,26 +165,25 @@ public class TaskSchedulerImpl implements TaskScheduler {
         assignedTasks,
         reservations.asMap());
 
-    attemptsFired.addAndGet(assignableTaskMap.size());
-    Set<String> failedToLaunch = Sets.difference(assignableTaskMap.keySet(), launched);
+    attemptsFired.addAndGet(assignableTasks.size());
+    Set<String> failedToLaunch = Sets.difference(assignableTasks.keySet(), launched);
 
     failedToLaunch.forEach(taskId -> {
       // Task could not be scheduled.
       // TODO(maxim): Now that preemption slots are searched asynchronously, consider
       // retrying a launch attempt within the current scheduling round IFF a reservation is
       // available.
-      maybePreemptFor(assignableTaskMap.get(taskId), aggregate, store);
+      maybePreemptFor(assignableTasks.get(taskId), aggregate, store);
     });
     attemptsNoMatch.addAndGet(failedToLaunch.size());
 
-    // Return all successfully launched tasks as well as those weren't tried (not in PENDING).
-    return Sets.union(launched, Sets.difference(taskIds, assignableTaskMap.keySet()));
+    return result.build();
   }
 
   private void maybePreemptFor(
       IAssignedTask task,
       AttributeAggregate jobState,
-      Storage.MutableStoreProvider storeProvider) {
+      MutableStoreProvider storeProvider) {
 
     if (!reservations.getByValue(TaskGroupKey.from(task.getTask())).isEmpty()) {
       return;
