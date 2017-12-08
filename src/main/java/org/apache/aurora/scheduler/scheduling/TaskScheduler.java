@@ -21,6 +21,7 @@ import javax.annotation.Nullable;
 import org.apache.aurora.scheduler.events.PubsubEvent.EventSubscriber;
 import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
 import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
+import org.apache.aurora.scheduler.storage.entities.IJobKey;
 import org.apache.mesos.v1.Protos.OfferID;
 
 /**
@@ -38,7 +39,10 @@ public interface TaskScheduler extends EventSubscriber {
    */
   Map<String, MatchResult> findMatches(StoreProvider storeProvider, Set<String> taskIds);
 
-  Set<String> schedule(MutableStoreProvider storeProvider, Map<String, MatchResult> matches);
+  Set<String> schedule(
+      MutableStoreProvider storeProvider,
+      IJobKey job,
+      Map<String, MatchResult> matches);
 
   // TODO(wfarner): Capture a return value with the several states that a task may be in:
   //   - exists, and match found
@@ -72,6 +76,10 @@ public interface TaskScheduler extends EventSubscriber {
 
     public boolean hasOffer() {
       return offer != null;
+    }
+
+    public OfferID getOffer() {
+      return offer;
     }
   }
 }

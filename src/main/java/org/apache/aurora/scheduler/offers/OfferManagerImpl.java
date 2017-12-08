@@ -31,6 +31,7 @@ import org.apache.aurora.scheduler.filter.SchedulingFilter;
 import org.apache.aurora.scheduler.filter.SchedulingFilter.ResourceRequest;
 import org.apache.aurora.scheduler.mesos.Driver;
 import org.apache.mesos.v1.Protos;
+import org.apache.mesos.v1.Protos.OfferID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -153,6 +154,11 @@ public class OfferManagerImpl implements OfferManager {
   @Override
   public Optional<HostOffer> get(Protos.AgentID slaveId) {
     return hostOffers.get(slaveId);
+  }
+
+  @Override
+  public Optional<HostOffer> get(OfferID offerId) {
+    return hostOffers.get(offerId);
   }
 
   @Override

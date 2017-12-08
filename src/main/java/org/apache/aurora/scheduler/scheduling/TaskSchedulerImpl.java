@@ -15,13 +15,13 @@ package org.apache.aurora.scheduler.scheduling;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Qualifier;
 
@@ -47,9 +47,11 @@ import org.apache.aurora.scheduler.filter.SchedulingFilter;
 import org.apache.aurora.scheduler.preemptor.BiCache;
 import org.apache.aurora.scheduler.preemptor.Preemptor;
 import org.apache.aurora.scheduler.resources.ResourceBag;
+import org.apache.aurora.scheduler.scheduling.TaskAssigner.Proposal;
 import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
 import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
 import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
+import org.apache.aurora.scheduler.storage.entities.IJobKey;
 import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
 import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
 import org.apache.mesos.v1.Protos;
@@ -123,43 +125,6 @@ public class TaskSchedulerImpl implements TaskScheduler {
     }
   }
 
-  @Timed("task_schedule_attempt")
-  @Override
-  public Set<String> schedule(MutableStoreProvider store, Map<String, MatchResult> matches) {
-
-    Set<String> validIds = matches.entrySet().stream()
-        .filter(e -> e.getValue().isValid())
-        .map(Entry::getKey)
-        .collect(Collectors.toSet());
-
-    Map<String, IAssignedTask> validTasks =
-        Maps.uniqueIndex(
-            Iterables.transform(
-                store.getTaskStore().fetchTasks(Query.taskScoped(validIds).byStatus(PENDING)),
-                IScheduledTask::getAssignedTask),
-            IAssignedTask::getTaskId);
-
-    Map<String, IAssignedTask> tasksWithMatches = validTasks.entrySet().stream()
-        .filter(entry -> matches.get(entry.getKey()).hasOffer())
-        .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
-
-    ImmutableSet.Builder<String> scheduled = ImmutableSet.builder();
-
-    Map<String, IAssignedTask> tasksWithoutMatches = validTasks.entrySet().stream()
-        .filter(entry -> !matches.get(entry.getKey()).hasOffer())
-        .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
-    tasksWithoutMatches.values().forEach(task -> {
-      // Task could not be scheduled.
-      // TODO(maxim): Now that preemption slots are searched asynchronously, consider
-      // retrying a launch attempt within the current scheduling round IFF a reservation is
-      // available.
-      maybePreemptFor(task, aggregate, store);
-      attemptsNoMatch.incrementAndGet();
-    });
-
-    return scheduled.build();
-  }
-
   private Map<String, MatchResult> doFindMatches(StoreProvider store, Set<String> tasks) {
     ImmutableSet<String> taskIds = ImmutableSet.copyOf(tasks);
     String taskIdValues = Joiner.on(",").join(taskIds);
@@ -210,6 +175,51 @@ public class TaskSchedulerImpl implements TaskScheduler {
     attemptsFired.addAndGet(assignedTasks.size());
 
     return result;
+  }
+
+  @Timed("task_schedule_attempt")
+  @Override
+  public Set<String> schedule(
+      MutableStoreProvider store,
+      IJobKey job,
+      Map<String, MatchResult> matches) {
+
+    Preconditions.checkArgument(matches.values().stream().allMatch(MatchResult::isValid));
+
+    Map<String, IAssignedTask> tasks =
+        Maps.uniqueIndex(
+            Iterables.transform(
+                store.getTaskStore()
+                    .fetchTasks(Query.taskScoped(matches.keySet()).byStatus(PENDING)),
+                IScheduledTask::getAssignedTask),
+            IAssignedTask::getTaskId);
+
+    ImmutableSet.Builder<String> invalidOrScheduledTasks = ImmutableSet.builder();
+
+    invalidOrScheduledTasks.addAll(Sets.difference(matches.keySet(), tasks.keySet()));
+
+    Map<String, IAssignedTask> tasksWithMatches = tasks.entrySet().stream()
+        .filter(entry -> matches.get(entry.getKey()).hasOffer())
+        .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+
+    List<Proposal> proposals = tasksWithMatches.entrySet().stream()
+        .map(entry -> new Proposal(entry.getValue(), matches.get(entry.getKey()).getOffer()))
+        .collect(Collectors.toList());
+    invalidOrScheduledTasks.addAll(assigner.maybeAssign(store, proposals));
+
+    Map<String, IAssignedTask> tasksWithoutMatches = tasks.entrySet().stream()
+        .filter(entry -> !matches.get(entry.getKey()).hasOffer())
+        .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+    AttributeAggregate aggregate = AttributeAggregate.getJobActiveState(store, job);
+    tasksWithoutMatches.values().forEach(task -> {
+      // TODO(maxim): Now that preemption slots are searched asynchronously, consider
+      // retrying a launch attempt within the current scheduling round IFF a reservation is
+      // available.
+      maybePreemptFor(task, aggregate, store);
+      attemptsNoMatch.incrementAndGet();
+    });
+
+    return invalidOrScheduledTasks.build();
   }
 
   private void maybePreemptFor(

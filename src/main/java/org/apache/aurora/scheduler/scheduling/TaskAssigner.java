@@ -13,10 +13,13 @@
  */
 package org.apache.aurora.scheduler.scheduling;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.aurora.scheduler.base.TaskGroupKey;
 import org.apache.aurora.scheduler.filter.SchedulingFilter.ResourceRequest;
+import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
 import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
 import org.apache.mesos.v1.Protos;
 import org.apache.mesos.v1.Protos.OfferID;
@@ -42,13 +45,23 @@ public interface TaskAssigner {
       Iterable<IAssignedTask> tasks,
       Map<String, TaskGroupKey> preemptionReservations);
 
-  class ProposedAssignment {
+  Set<String> maybeAssign(MutableStoreProvider storeProvider, List<Proposal> proposals);
+
+  class Proposal {
     private final IAssignedTask task;
     private final Protos.OfferID offer;
 
-    public ProposedAssignment(IAssignedTask task, OfferID offer) {
+    public Proposal(IAssignedTask task, OfferID offer) {
       this.task = task;
       this.offer = offer;
+    }
+
+    public IAssignedTask getTask() {
+      return task;
+    }
+
+    public OfferID getOffer() {
+      return offer;
     }
   }
 }

@@ -18,6 +18,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicLong;
 
+import javax.annotation.Nullable;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
@@ -132,13 +134,19 @@ class HostOffers {
     }
   }
 
-  synchronized Optional<HostOffer> get(Protos.AgentID slaveId) {
-    HostOffer offer = offersBySlave.get(slaveId);
-    if (offer == null || globallyBannedOffers.contains(offer.getOffer().getId())) {
+  private synchronized Optional<HostOffer> unlessGloballyBanned(@Nullable HostOffer offer) {
+    if (offer != null && globallyBannedOffers.contains(offer.getOffer().getId())) {
       return Optional.absent();
     }
+    return Optional.fromNullable(offer);
+  }
 
-    return Optional.of(offer);
+  synchronized Optional<HostOffer> get(Protos.AgentID slaveId) {
+    return unlessGloballyBanned(offersBySlave.get(slaveId));
+  }
+
+  synchronized Optional<HostOffer> get(Protos.OfferID offerId) {
+    return unlessGloballyBanned(offersById.get(offerId));
   }
 
   /**

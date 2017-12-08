@@ -26,7 +26,6 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
 
 import org.apache.aurora.common.stats.StatsProvider;
 import org.apache.aurora.scheduler.TierManager;
@@ -36,6 +35,7 @@ import org.apache.aurora.scheduler.filter.SchedulingFilter.ResourceRequest;
 import org.apache.aurora.scheduler.mesos.MesosTaskFactory;
 import org.apache.aurora.scheduler.offers.HostOffer;
 import org.apache.aurora.scheduler.offers.OfferManager;
+import org.apache.aurora.scheduler.offers.OfferManager.LaunchException;
 import org.apache.aurora.scheduler.resources.ResourceManager;
 import org.apache.aurora.scheduler.resources.ResourceType;
 import org.apache.aurora.scheduler.state.StateManager;
@@ -216,12 +216,7 @@ public class TaskAssignerImpl implements TaskAssigner {
 
   @Timed("assigner_maybe_assign")
   @Override
-  public Set<String> maybeAssign(
-      MutableStoreProvider storeProvider,
-      List<ProposedAssignment> proposals,
-      TaskGroupKey groupKey,
-      Iterable<IAssignedTask> tasks,
-      Map<String, TaskGroupKey> preemptionReservations) {
+  public Set<String> maybeAssign(MutableStoreProvider storeProvider, List<Proposal> proposals) {
 
     // TODO(wfarner): Do we need to re-run the scheduling filter here?  The offer and task resources
     // are immutable, so the only potential drift is dynamic constraints (to date, only the limit
@@ -229,13 +224,29 @@ public class TaskAssignerImpl implements TaskAssigner {
     // probably not worth the extreme unlikelihood (and limited impact) of violating these
     // constraints.
 
-    // Attempt to launch the task using the chosen offer
-    HostOffer offer = optionalOffer.get();
-    launchUsingOffer(storeProvider,
-        revocable,
-        task,
-        offer,
-        assignmentResult);
+    ImmutableSet.Builder<String> results = ImmutableSet.builder();
+
+    proposals.forEach(proposal -> {
+      // Attempt to launch the task using the chosen offer
+      Optional<HostOffer> offer = offerManager.get(proposal.getOffer());
+      if (!offer.isPresent()) {
+        // The offer is no longer valid.
+        // TODO(wfarner): Need to signal this back to the caller.
+        return;
+      }
+      try {
+        launchUsingOffer(
+            storeProvider,
+            tierManager.getTier(proposal.getTask().getTask()).isRevocable(),
+            proposal.getTask().getTaskId(),
+            offer.get().getOffer(),
+            results);
+      } catch (LaunchException e) {
+        e.printStackTrace();
+      }
+    });
+
+    return results.build();
   }
 
   @Timed("assigner_find_matches")

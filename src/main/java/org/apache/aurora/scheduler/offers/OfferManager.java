@@ -68,6 +68,8 @@ public interface OfferManager extends EventSubscriber {
    */
   Optional<HostOffer> get(AgentID slaveId);
 
+  Optional<HostOffer> get(OfferID offerId);
+
   /**
    * Gets all offers that the scheduler is holding, excluding banned offers.
    *
