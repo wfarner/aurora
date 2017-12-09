@@ -203,7 +203,7 @@ public class TaskGroups implements EventSubscriber {
           // reduced write lock contention and non-parallel scheduling, which would not change
           // much code.
           CompletableFuture<Set<String>> result = batchWorker.execute(storeProvider ->
-              taskScheduler.schedule(storeProvider, matches));
+              taskScheduler.schedule(storeProvider, group.getKey().getTask().getJob(), matches));
 
           Set<String> scheduled;
           try {
