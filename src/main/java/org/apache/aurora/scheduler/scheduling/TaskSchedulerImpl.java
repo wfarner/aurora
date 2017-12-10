@@ -44,6 +44,7 @@ import org.apache.aurora.scheduler.configuration.executor.ExecutorSettings;
 import org.apache.aurora.scheduler.events.PubsubEvent;
 import org.apache.aurora.scheduler.filter.AttributeAggregate;
 import org.apache.aurora.scheduler.filter.SchedulingFilter;
+import org.apache.aurora.scheduler.filter.SchedulingFilter.ResourceRequest;
 import org.apache.aurora.scheduler.preemptor.BiCache;
 import org.apache.aurora.scheduler.preemptor.Preemptor;
 import org.apache.aurora.scheduler.resources.ResourceBag;
@@ -153,8 +154,6 @@ public class TaskSchedulerImpl implements TaskScheduler {
         taskIdValues);
     ITaskConfig task = assignedTasks.stream().findFirst().get().getTask();
 
-    AttributeAggregate aggregate = AttributeAggregate.getJobActiveState(store, task.getJob());
-
     // Valid Docker tasks can have a container but no executor config
     ResourceBag overhead = ResourceBag.EMPTY;
     if (task.isSetExecutorConfig()) {
@@ -163,10 +162,13 @@ public class TaskSchedulerImpl implements TaskScheduler {
               () -> new IllegalArgumentException("Cannot find executor configuration"));
     }
 
+    ResourceRequest resources = new SchedulingFilter.ResourceRequest(
+        task,
+        bagFromResources(task.getResources()).add(overhead),
+        AttributeAggregate.getJobActiveState(store, task.getJob()));
+
     Map<String, Protos.OfferID> matches = assigner.findMatches(
-        new SchedulingFilter.ResourceRequest(
-            task,
-            bagFromResources(task.getResources()).add(overhead), aggregate),
+        resources,
         TaskGroupKey.from(task),
         assignedTasks,
         reservations.asMap());
