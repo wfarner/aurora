@@ -33,6 +33,7 @@ import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
 import org.apache.aurora.scheduler.storage.Storage.NonVolatileStorage;
 import org.apache.aurora.scheduler.storage.TaskStore;
+import org.apache.aurora.scheduler.storage.durability.Persistence.Edit;
 import org.apache.aurora.scheduler.storage.durability.Persistence.PersistenceException;
 import org.slf4j.LoggerFactory;
 
@@ -151,7 +152,7 @@ public class DurableStorage implements NonVolatileStorage {
 
   @Override
   @Timed("scheduler_storage_start")
-  public synchronized void start(final MutateWork.NoResult.Quiet initializationLogic) {
+  public void start(final MutateWork.NoResult.Quiet initializationLogic) {
     writeLock.lock();
     try {
       // We recover directly into the forwarded system to avoid persisting replayed operations.
@@ -173,7 +174,7 @@ public class DurableStorage implements NonVolatileStorage {
   @Timed("scheduler_storage_recover")
   void recover(MutableStoreProvider stores) throws RecoveryFailedException {
     try {
-      try (Stream<Op> recovered = persistence.recover()) {
+      try (Stream<Edit> recovered = persistence.recover()) {
         Loader.load(stores, thriftBackfill, recovered);
       }
     } catch (PersistenceException e) {

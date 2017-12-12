@@ -37,7 +37,6 @@ import org.apache.aurora.scheduler.storage.log.LogManager.LogEntryHashFunction;
 import org.apache.aurora.scheduler.storage.log.LogManager.MaxEntrySize;
 import org.apache.aurora.scheduler.storage.log.SnapshotDeduplicator.SnapshotDeduplicatorImpl;
 import org.apache.aurora.scheduler.storage.log.SnapshotService.Settings;
-import org.apache.aurora.scheduler.storage.sql.DisabledDistributedSnapshotStore;
 
 /**
  * Bindings for scheduler distributed log based persistence.
@@ -74,7 +73,6 @@ public class LogPersistenceModule extends AbstractModule {
         bind(new TypeLiteral<Amount<Integer, Data>>() { }).annotatedWith(MaxEntrySize.class)
             .toInstance(options.maxLogEntrySize);
         bind(LogManager.class).in(Singleton.class);
-
         bind(LogPersistence.class).in(Singleton.class);
         bind(Persistence.class).to(LogPersistence.class);
         bind(SnapshotStore.class).to(SnapshotService.class);

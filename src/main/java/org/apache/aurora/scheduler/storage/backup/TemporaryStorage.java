@@ -28,6 +28,7 @@ import org.apache.aurora.scheduler.storage.Snapshotter;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
 import org.apache.aurora.scheduler.storage.durability.Loader;
+import org.apache.aurora.scheduler.storage.durability.Persistence.Edit;
 import org.apache.aurora.scheduler.storage.durability.ThriftBackfill;
 import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
 import org.apache.aurora.scheduler.storage.log.SnapshotStoreImpl;
@@ -86,7 +87,7 @@ interface TemporaryStorage {
       Snapshotter snapshotter = new SnapshotStoreImpl(buildInfo, clock);
 
       storage.write((NoResult.Quiet) stores -> {
-        Loader.load(stores, thriftBackfill, snapshotter.asStream(snapshot));
+        Loader.load(stores, thriftBackfill, snapshotter.asStream(snapshot).map(Edit::op));
       });
 
       return new TemporaryStorage() {

@@ -85,7 +85,7 @@ class SqlPersistence implements Persistence {
   }
 
   @Override
-  public Stream<Op> recover() throws PersistenceException {
+  public Stream<Edit> recover() throws PersistenceException {
     try {
       return doRecover();
     } catch (SQLException e) {
@@ -139,7 +139,7 @@ class SqlPersistence implements Persistence {
     }, false);
   }
 
-  private Stream<Op> doRecover() throws SQLException {
+  private Stream<Edit> doRecover() throws SQLException {
     createTable();
 
     // This routine requires some gymnastics to prevent resource leaks due to exceptions, while
@@ -166,15 +166,17 @@ class SqlPersistence implements Persistence {
         }
 
         ResultSet resultSet = statement.executeQuery(); //NOPMD
-        return stream(resultSet).onClose(() -> {
-          try {
-            resultSet.close();
-            statement.close();
-            connection.close();
-          } catch (SQLException e) {
-            throw new PersistenceException(e);
-          }
-        });
+        return stream(resultSet)
+            .map(Edit::op)
+            .onClose(() -> {
+              try {
+                resultSet.close();
+                statement.close();
+                connection.close();
+              } catch (SQLException e) {
+                throw new PersistenceException(e);
+              }
+            });
       } catch (SQLException | RuntimeException e) {
         statement.close();
         throw e;

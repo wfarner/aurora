@@ -86,7 +86,7 @@ class LogPersistence implements Persistence {
   }
 
   @Override
-  public Stream<Op> recover() throws PersistenceException {
+  public Stream<Edit> recover() throws PersistenceException {
     try {
       Iterator<LogEntry> entries = streamManager.readFromBeginning();
       Iterable<LogEntry> iterableEntries = () -> entries;
@@ -100,11 +100,13 @@ class LogPersistence implements Persistence {
                 Snapshot snapshot = entry.getSnapshot();
                 LOG.info("Applying snapshot taken on " + new Date(snapshot.getTimestamp()));
                 return Stream.concat(
-                    Stream.of(Op.resetStorage(true)),
-                    snapshotter.asStream(snapshot));
+                    Stream.of(Edit.deleteAll()),
+                    snapshotter.asStream(snapshot)
+                        .map(Edit::op));
 
               case TRANSACTION:
-                return entry.getTransaction().getOps().stream();
+                return entry.getTransaction().getOps().stream()
+                    .map(Edit::op);
 
               default:
                 throw new IllegalStateException("Unknown log entry type: " + entry.getSetField());
