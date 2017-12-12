@@ -69,8 +69,8 @@ public class LogPersistenceTest extends EasyMockTest {
 
     Injector injector = Guice.createInjector(
         new LogPersistenceModule(new Options()),
-        new MemStorageModule(Bindings.annotatedKeyFactory(Volatile.class)),
         new DurableStorageModule(),
+        new MemStorageModule(Bindings.annotatedKeyFactory(Volatile.class)),
         new TierModule(TaskTestUtil.TIER_CONFIG),
         new AbstractModule() {
           @Override

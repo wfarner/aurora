@@ -86,8 +86,8 @@ public class SnapshotServiceTest extends EasyMockTest {
     Injector injector = Guice.createInjector(
         new SchedulerServicesModule(),
         new LogPersistenceModule(options),
-        new MemStorageModule(Bindings.annotatedKeyFactory(Volatile.class)),
         new DurableStorageModule(),
+        new MemStorageModule(Bindings.annotatedKeyFactory(Volatile.class)),
         new TierModule(TaskTestUtil.TIER_CONFIG),
         new AbstractModule() {
           @Override
