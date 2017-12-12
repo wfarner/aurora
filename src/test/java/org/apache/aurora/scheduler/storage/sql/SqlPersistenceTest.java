@@ -54,6 +54,7 @@ import org.apache.aurora.gen.storage.SaveJobUpdateEvent;
 import org.apache.aurora.gen.storage.SaveQuota;
 import org.apache.aurora.gen.storage.SaveTasks;
 import org.apache.aurora.scheduler.storage.durability.Persistence;
+import org.apache.aurora.scheduler.storage.durability.Persistence.Edit;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -245,7 +246,7 @@ public class SqlPersistenceTest {
   }
 
   private <R> R closingRecover(Collector<Op, ?, R> collector) {
-    try (Stream<Op> recovered = persistence.recover()) {
+    try (Stream<Op> recovered = persistence.recover().map(Edit::getOp)) {
       return recovered.collect(collector);
     }
   }
