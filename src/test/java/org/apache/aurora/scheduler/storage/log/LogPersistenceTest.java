@@ -43,6 +43,7 @@ import org.apache.aurora.scheduler.log.Log.Entry;
 import org.apache.aurora.scheduler.log.Log.Stream;
 import org.apache.aurora.scheduler.storage.Snapshotter;
 import org.apache.aurora.scheduler.storage.Storage.Volatile;
+import org.apache.aurora.scheduler.storage.durability.DurableStorageModule;
 import org.apache.aurora.scheduler.storage.durability.Persistence;
 import org.apache.aurora.scheduler.storage.durability.Persistence.Edit;
 import org.apache.aurora.scheduler.storage.log.LogPersistenceModule.Options;
@@ -68,6 +69,7 @@ public class LogPersistenceTest extends EasyMockTest {
 
     Injector injector = Guice.createInjector(
         new LogPersistenceModule(new Options()),
+        new DurableStorageModule(),
         new MemStorageModule(Bindings.annotatedKeyFactory(Volatile.class)),
         new TierModule(TaskTestUtil.TIER_CONFIG),
         new AbstractModule() {
