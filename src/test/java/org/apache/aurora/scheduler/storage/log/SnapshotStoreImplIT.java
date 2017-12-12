@@ -53,6 +53,7 @@ import org.apache.aurora.scheduler.resources.ResourceBag;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
 import org.apache.aurora.scheduler.storage.durability.Loader;
+import org.apache.aurora.scheduler.storage.durability.Persistence.Edit;
 import org.apache.aurora.scheduler.storage.durability.ThriftBackfill;
 import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
 import org.apache.aurora.scheduler.storage.entities.IJobConfiguration;
@@ -93,7 +94,10 @@ public class SnapshotStoreImplIT {
   public void testBackfill() {
     setUpStore();
     storage.write((NoResult.Quiet) stores ->
-        Loader.load(stores, THRIFT_BACKFILL, snapshotter.asStream(makeNonBackfilled())));
+        Loader.load(
+            stores,
+            THRIFT_BACKFILL,
+            snapshotter.asStream(makeNonBackfilled()).map(Edit::op)));
 
     assertEquals(expected(), storage.write(snapshotter::from));
     assertSnapshotRestoreStats(1L);

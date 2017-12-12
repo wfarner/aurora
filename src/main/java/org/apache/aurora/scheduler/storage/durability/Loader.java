@@ -21,6 +21,7 @@ import org.apache.aurora.gen.storage.SaveJobInstanceUpdateEvent;
 import org.apache.aurora.gen.storage.SaveJobUpdateEvent;
 import org.apache.aurora.gen.storage.SaveQuota;
 import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
+import org.apache.aurora.scheduler.storage.durability.Persistence.Edit;
 import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
 import org.apache.aurora.scheduler.storage.entities.IJobInstanceUpdateEvent;
 import org.apache.aurora.scheduler.storage.entities.IJobKey;
@@ -42,13 +43,28 @@ public final class Loader {
    *
    * @param stores Stores to populate.
    * @param backfill Backfill mechanism to use.
-   * @param ops Operations to apply.
+   * @param edits Edits to apply.
    */
-  public static void load(MutableStoreProvider stores, ThriftBackfill backfill, Stream<Op> ops) {
-    ops.forEach(op -> load(stores, backfill, op));
+  public static void load(
+      MutableStoreProvider stores,
+      ThriftBackfill backfill,
+      Stream<Edit> edits) {
+
+    edits.forEach(op -> load(stores, backfill, op));
   }
 
-  private static void load(MutableStoreProvider stores, ThriftBackfill backfill, Op op) {
+  private static void load(MutableStoreProvider stores, ThriftBackfill backfill, Edit edit) {
+    if (edit.isDeleteAll()) {
+      LOG.info("Resetting storage");
+      stores.getCronJobStore().deleteJobs();
+      stores.getUnsafeTaskStore().deleteAllTasks();
+      stores.getQuotaStore().deleteQuotas();
+      stores.getAttributeStore().deleteHostAttributes();
+      stores.getJobUpdateStore().deleteAllUpdates();
+      return;
+    }
+
+    Op op = edit.getOp();
     switch (op.getSetField()) {
       case SAVE_FRAMEWORK_ID:
         stores.getSchedulerStore().saveFrameworkId(op.getSaveFrameworkId().getId());
@@ -125,15 +141,6 @@ public final class Loader {
       case REMOVE_JOB_UPDATE:
         stores.getJobUpdateStore().removeJobUpdates(
             IJobUpdateKey.setFromBuilders(op.getRemoveJobUpdate().getKeys()));
-        break;
-
-      case RESET_STORAGE:
-        LOG.info("Resetting storage");
-        stores.getCronJobStore().deleteJobs();
-        stores.getUnsafeTaskStore().deleteAllTasks();
-        stores.getQuotaStore().deleteQuotas();
-        stores.getAttributeStore().deleteHostAttributes();
-        stores.getJobUpdateStore().deleteAllUpdates();
         break;
 
       default:

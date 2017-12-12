@@ -44,6 +44,7 @@ import org.apache.aurora.scheduler.log.Log.Stream;
 import org.apache.aurora.scheduler.storage.Snapshotter;
 import org.apache.aurora.scheduler.storage.Storage.Volatile;
 import org.apache.aurora.scheduler.storage.durability.Persistence;
+import org.apache.aurora.scheduler.storage.durability.Persistence.Edit;
 import org.apache.aurora.scheduler.storage.log.LogStorageModule.Options;
 import org.apache.aurora.scheduler.storage.mem.MemStorageModule;
 import org.apache.aurora.scheduler.testing.FakeStatsProvider;
@@ -120,10 +121,10 @@ public class LogPersistenceTest extends EasyMockTest {
     persistence.prepare();
     assertEquals(
         ImmutableList.of(
-            saveA,
-            Op.resetStorage(true),
-            saveB,
-            saveC),
+            Edit.op(saveA),
+            Edit.deleteAll(),
+            Edit.op(saveB),
+            Edit.op(saveC)),
         persistence.recover().collect(Collectors.toList()));
   }
 

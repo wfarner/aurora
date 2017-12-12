@@ -150,7 +150,7 @@ public class DurableStorage implements NonVolatileStorage {
 
   @Override
   @Timed("scheduler_storage_start")
-  public synchronized void start(final MutateWork.NoResult.Quiet initializationLogic) {
+  public void start(final MutateWork.NoResult.Quiet initializationLogic) {
     writeLock.lock();
     try {
       // We recover directly into the forwarded system to avoid persisting replayed operations.
