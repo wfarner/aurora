@@ -82,6 +82,7 @@ import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
 import org.apache.aurora.scheduler.storage.entities.IServerInfo;
 import org.apache.aurora.scheduler.storage.log.EntrySerializer;
 import org.apache.aurora.scheduler.storage.log.LogPersistenceModule;
+import org.apache.aurora.scheduler.storage.log.SnapshotModule;
 import org.apache.aurora.scheduler.storage.log.SnapshotStoreImpl;
 import org.apache.aurora.scheduler.storage.log.testing.LogOpMatcher;
 import org.apache.aurora.scheduler.storage.log.testing.LogOpMatcher.StreamMatcher;
@@ -220,6 +221,7 @@ public class SchedulerIT extends BaseZooKeeperTest {
             .add(new TierModule(TaskTestUtil.TIER_CONFIG))
             .add(new DurableStorageModule())
             .add(new LogPersistenceModule(new LogPersistenceModule.Options()))
+            .add(new SnapshotModule(new SnapshotModule.Options()))
             .add(new ServiceDiscoveryModule(zkClientConfig, SERVERSET_PATH))
             .add(testModule)
             .build()

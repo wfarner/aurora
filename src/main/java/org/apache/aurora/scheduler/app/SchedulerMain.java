@@ -62,6 +62,7 @@ import org.apache.aurora.scheduler.storage.backup.BackupModule;
 import org.apache.aurora.scheduler.storage.durability.DurableStorageModule;
 import org.apache.aurora.scheduler.storage.entities.IServerInfo;
 import org.apache.aurora.scheduler.storage.log.LogPersistenceModule;
+import org.apache.aurora.scheduler.storage.log.SnapshotModule;
 import org.apache.aurora.scheduler.storage.log.SnapshotStoreImpl;
 import org.apache.aurora.scheduler.storage.mem.MemStorageModule;
 import org.apache.aurora.scheduler.storage.sql.SqlPersistenceModule;
@@ -254,7 +255,8 @@ public class SchedulerMain {
     } else if (options.mesosLog.isEnabled()) {
       persistenceModule = Modules.combine(
           new MesosLogStreamModule(options.mesosLog, FlaggedZooKeeperConfig.create(options.zk)),
-          new LogPersistenceModule(options.logPersistence));
+          new LogPersistenceModule(options.logPersistence),
+          new SnapshotModule(options.snapshot));
     } else if (options.sqlPersistence.isEnabled()) {
       persistenceModule = SqlPersistenceModule.fromOptions(options.sqlPersistence);
     } else {

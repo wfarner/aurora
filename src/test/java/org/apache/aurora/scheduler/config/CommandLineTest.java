@@ -171,7 +171,7 @@ public class CommandLineTest {
     expected.updater.enableAffinity = true;
     expected.updater.affinityExpiration = TEST_TIME;
     expected.state.taskAssignerModules = ImmutableList.of(NoopModule.class);
-    expected.logPersistence.snapshotInterval = TEST_TIME;
+    expected.snapshot.snapshotInterval = TEST_TIME;
     expected.logPersistence.maxLogEntrySize = TEST_DATA;
     expected.backup.backupInterval = TEST_TIME;
     expected.backup.maxSavedBackups = 42;

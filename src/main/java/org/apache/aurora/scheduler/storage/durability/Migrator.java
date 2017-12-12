@@ -60,9 +60,13 @@ import org.slf4j.LoggerFactory;
 /**
  * A utility to migrate the contents of one persistence implementation into another.
  */
-public class Migrator {
+public final class Migrator {
 
   private static final Logger LOG = LoggerFactory.getLogger(Migrator.class);
+
+  private Migrator() {
+    // Main-only class.
+  }
 
   private static void requireEmpty(Persistence persistence) {
     try (Stream<Edit> edits = persistence.recover()) {
@@ -114,7 +118,7 @@ public class Migrator {
             if (batch.size() == batchSize) {
               saveBatch.run();
             }
-      });
+          });
     } catch (PersistenceException e) {
       throw new RuntimeException(e);
     }
