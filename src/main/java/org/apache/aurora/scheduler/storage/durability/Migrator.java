@@ -16,7 +16,6 @@ package org.apache.aurora.scheduler.storage.durability;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
@@ -50,6 +49,7 @@ import org.apache.aurora.scheduler.discovery.FlaggedZooKeeperConfig;
 import org.apache.aurora.scheduler.discovery.ServiceDiscoveryBindings;
 import org.apache.aurora.scheduler.log.mesos.MesosLogStreamModule;
 import org.apache.aurora.scheduler.storage.Snapshotter;
+import org.apache.aurora.scheduler.storage.durability.Persistence.Edit;
 import org.apache.aurora.scheduler.storage.durability.Persistence.PersistenceException;
 import org.apache.aurora.scheduler.storage.log.LogPersistenceModule;
 import org.apache.aurora.scheduler.storage.log.SnapshotStoreImpl;
@@ -65,9 +65,8 @@ public class Migrator {
   private static final Logger LOG = LoggerFactory.getLogger(Migrator.class);
 
   private static void requireEmpty(Persistence persistence) {
-    try (Stream<Op> ops = persistence.recover()) {
-      Optional<Op> first = ops.findFirst();
-      if (first.isPresent()) {
+    try (Stream<Edit> edits = persistence.recover()) {
+      if (edits.findFirst().isPresent()) {
         throw new IllegalStateException("Refusing to recover into non-empty persistence");
       }
     }
@@ -92,8 +91,13 @@ public class Migrator {
     AtomicBoolean dataBegin = new AtomicBoolean(false);
     try {
       from.recover()
-          .filter(op -> {
-            if (op.isSetResetStorage()) {
+          .filter(edit -> {
+            if (edit.isDeleteAll()) {
+              // Suppress any storage reset instructions.
+              // Persistence implementations may recover with these, but do not support persisting
+              // them.  As a result, we require that the recovery source produces a reset
+              // instruction at the beginning of the stream, if at all.
+
               if (dataBegin.get()) {
                 throw new IllegalStateException(
                     "A storage reset instruction arrived after the beginning of data");
@@ -104,12 +108,12 @@ public class Migrator {
             }
             return true;
           })
-          .forEach(op -> {
-        count.incrementAndGet();
-        batch.add(op);
-        if (batch.size() == batchSize) {
-          saveBatch.run();
-        }
+          .forEach(edit -> {
+            count.incrementAndGet();
+            batch.add(edit.getOp());
+            if (batch.size() == batchSize) {
+              saveBatch.run();
+            }
       });
     } catch (PersistenceException e) {
       throw new RuntimeException(e);
