@@ -13,7 +13,6 @@
  */
 package org.apache.aurora.scheduler.storage.durability;
 
-import java.util.EnumSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
@@ -167,16 +166,13 @@ public class DurableStorageTest extends EasyMockTest {
     // Populate all Op types.
     buildReplayOps();
 
+    storageUtil.expectStoreAccesses();
+
     control.replay();
 
     durableStorage.prepare();
     durableStorage.start(initializationLogic);
     assertTrue(initialized.get());
-
-    // Assert all Transaction types have handlers defined.
-    assertEquals(
-        EnumSet.allOf(Op._Fields.class),
-        EnumSet.copyOf(durableStorage.buildTransactionReplayActions().keySet()));
   }
 
   private void buildReplayOps() throws Exception {
@@ -202,6 +198,14 @@ public class DurableStorageTest extends EasyMockTest {
     SaveTasks saveTasks = new SaveTasks(ImmutableSet.of(actualTask));
     builder.add(Op.saveTasks(saveTasks));
     storageUtil.taskStore.saveTasks(ImmutableSet.of(expectedTask));
+
+    // Side-effects from a storage reset, caused by a snapshot.
+    builder.add(Op.resetStorage(true));
+    storageUtil.jobStore.deleteJobs();
+    storageUtil.taskStore.deleteAllTasks();
+    storageUtil.quotaStore.deleteQuotas();
+    storageUtil.attributeStore.deleteHostAttributes();
+    storageUtil.jobUpdateStore.deleteAllUpdates();
 
     RemoveTasks removeTasks = new RemoveTasks(ImmutableSet.of("taskId1"));
     builder.add(Op.removeTasks(removeTasks));

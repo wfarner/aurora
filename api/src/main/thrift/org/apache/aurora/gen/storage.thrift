@@ -109,6 +109,9 @@ union Op {
   16: SaveJobInstanceUpdateEvent saveJobInstanceUpdateEvent
   17: PruneJobUpdateHistory pruneJobUpdateHistory
   18: RemoveJobUpdates removeJobUpdate
+
+  // Used internally in the scheduler, not meant to be persisted.
+  19: bool resetStorage
 }
 
 // The current schema version ID.  This should be incremented each time the
