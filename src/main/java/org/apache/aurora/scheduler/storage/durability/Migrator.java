@@ -17,6 +17,7 @@ import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
@@ -69,6 +70,7 @@ public final class Migrator {
   }
 
   private static void requireEmpty(Persistence persistence) {
+    LOG.info("Ensuring recovery destination is empty");
     try (Stream<Edit> edits = persistence.recover()) {
       if (edits.findFirst().isPresent()) {
         throw new IllegalStateException("Refusing to recover into non-empty persistence");
@@ -81,9 +83,10 @@ public final class Migrator {
 
     long start = System.nanoTime();
     AtomicLong count = new AtomicLong();
+    AtomicInteger batchNumber = new AtomicInteger();
     List<Op> batch = Lists.newArrayListWithExpectedSize(batchSize);
     Runnable saveBatch = () -> {
-      LOG.info("Saving batch");
+      LOG.info("Saving batch " + batchNumber.incrementAndGet());
       try {
         to.persist(batch.stream());
       } catch (PersistenceException e) {
@@ -117,6 +120,7 @@ public final class Migrator {
             batch.add(edit.getOp());
             if (batch.size() == batchSize) {
               saveBatch.run();
+              LOG.info("Fetching batch");
             }
           });
     } catch (PersistenceException e) {

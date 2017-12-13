@@ -403,6 +403,9 @@ dependencies {
   compile "org.eclipse.jetty:jetty-servlets:${jettyDep}"
   compile 'org.quartz-scheduler:quartz:2.2.2'
 
+  // TODO(wfarner): DO NOT COMMIT WITH THIS
+  compile 'mysql:mysql-connector-java:5.1.45'
+
   testCompile 'com.sun.jersey:jersey-client:1.19'
   testCompile "junit:junit:${junitRev}"
   testCompile "org.powermock:powermock-module-junit4:1.6.4"
