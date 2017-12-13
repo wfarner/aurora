@@ -103,17 +103,19 @@ class SqlPersistence implements Persistence {
   }
 
   private void createTable() throws SQLException {
+    String schema;
+    try {
+      schema = Resources.toString(
+          Resources.getResource(getClass(), "schema.sql"),
+          Charsets.UTF_8);
+    } catch (IOException e) {
+      throw new PersistenceException("Failed to read schema", e);
+    }
+
     try (
         Connection connection = dataSource.getConnection();
         Statement statement = connection.createStatement()) {
-      String schema;
-      try {
-        schema = Resources.toString(
-            Resources.getResource(getClass(), "schema.sql"),
-            Charsets.UTF_8);
-      } catch (IOException e) {
-        throw new PersistenceException("Failed to create schema", e);
-      }
+
       statement.execute(schema);
     }
   }
@@ -144,7 +146,7 @@ class SqlPersistence implements Persistence {
 
     // This routine requires some gymnastics to prevent resource leaks due to exceptions, while
     // using java.util.stream APIs to convert the ResultSet to a stream (which prevent us from using
-    // try-with-resources.  As a result, we use several NOPMD markers to suppress lint warnings.
+    // try-with-resources).  As a result, we use several NOPMD markers to suppress lint warnings.
 
     Connection connection = dataSource.getConnection(); //NOPMD
     try {
@@ -177,13 +179,13 @@ class SqlPersistence implements Persistence {
                 throw new PersistenceException(e);
               }
             });
-      } catch (SQLException | RuntimeException e) {
+      } catch (Throwable t) {
         statement.close();
-        throw e;
+        throw t;
       }
-    } catch (SQLException | RuntimeException e) {
+    } catch (Throwable t) {
       connection.close();
-      throw e;
+      throw t;
     }
   }
 
