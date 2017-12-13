@@ -54,7 +54,7 @@ import org.apache.aurora.gen.storage.SaveQuota;
 import org.apache.aurora.gen.storage.SaveTasks;
 import org.apache.aurora.scheduler.storage.durability.Persistence;
 import org.apache.aurora.scheduler.storage.sql.SqlPersistence.Mode;
-import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.commons.lang.RandomStringUtils;
 
 public class Trial {
 
@@ -242,6 +242,7 @@ public class Trial {
 
     config.setDriverClassName("com.mysql.jdbc.Driver");
     config.setUsername("aurora");
+    config.setPassword("aurora");
 
     HikariDataSource dataSource = new HikariDataSource(config);
 
