@@ -13,33 +13,35 @@
  */
 package org.apache.aurora.scheduler.storage.backup;
 
-import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.util.stream.Stream;
 
-import javax.inject.Inject;
-
 import org.apache.aurora.gen.storage.Op;
-import org.apache.aurora.gen.storage.Snapshot;
+import org.apache.aurora.scheduler.storage.Snapshotter;
 import org.apache.aurora.scheduler.storage.durability.Persistence;
-import org.apache.thrift.TException;
-import org.apache.thrift.protocol.TBinaryProtocol;
-import org.apache.thrift.transport.TIOStreamTransport;
 
 import static java.util.Objects.requireNonNull;
 
 /**
  * A persistence implementation to be used as a migration source.
  */
-class BackupMigrationSource implements Persistence {
+public class BackupReader implements Persistence {
 
   private final File backupFile;
+  private final Snapshotter snapshotter;
 
-  @Inject
-  BackupMigrationSource(File backupFile) {
+  public BackupReader(File backupFile, Snapshotter snapshotter) {
     this.backupFile = requireNonNull(backupFile);
+    this.snapshotter = requireNonNull(snapshotter);
+  }
+
+  @Override
+  public Stream<Edit> recover() throws PersistenceException {
+    if (!backupFile.exists()) {
+      throw new PersistenceException("Backup " + backupFile + " does not exist.");
+    }
+
+    return snapshotter.asStream(Recovery.load(backupFile)).map(Edit::op);
   }
 
   @Override
@@ -48,28 +50,12 @@ class BackupMigrationSource implements Persistence {
   }
 
   @Override
-  public Stream<Op> recover() throws PersistenceException {
-    if (!backupFile.exists()) {
-      throw new PersistenceException("Backup " + backupFile + " does not exist.");
-    }
-
-    Snapshot snapshot = new Snapshot();
-    try {
-      TBinaryProtocol prot = new TBinaryProtocol(
-          new TIOStreamTransport(new BufferedInputStream(new FileInputStream(backupFile))));
-      snapshot.read(prot);
-    } catch (TException e) {
-      throw new PersistenceException("Failed to decode backup " + e, e);
-    } catch (IOException e) {
-      throw new PersistenceException("Failed to read backup " + e, e);
-    }
-
-    // TODO(wfarner): Waiting on https://reviews.apache.org/r/64286/ to get
-    // Snapshotter#asStream
+  public void close() {
+    // no-op
   }
 
   @Override
   public void persist(Stream<Op> records) {
-    throw new UnsupportedOperationException();
+    throw new UnsupportedOperationException("Backups are read-only");
   }
 }

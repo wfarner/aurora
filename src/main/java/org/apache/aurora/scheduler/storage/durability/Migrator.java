@@ -13,6 +13,7 @@
  */
 package org.apache.aurora.scheduler.storage.durability;
 
+import java.io.File;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +51,7 @@ import org.apache.aurora.scheduler.discovery.FlaggedZooKeeperConfig;
 import org.apache.aurora.scheduler.discovery.ServiceDiscoveryBindings;
 import org.apache.aurora.scheduler.log.mesos.MesosLogStreamModule;
 import org.apache.aurora.scheduler.storage.Snapshotter;
+import org.apache.aurora.scheduler.storage.backup.BackupReader;
 import org.apache.aurora.scheduler.storage.durability.Persistence.Edit;
 import org.apache.aurora.scheduler.storage.durability.Persistence.PersistenceException;
 import org.apache.aurora.scheduler.storage.log.LogPersistenceModule;
@@ -188,9 +190,32 @@ public final class Migrator {
     }
   }
 
+  private static class BackupMigrationInput implements MigrationEndpoint {
+    @Parameters(separators = "=")
+    private static class Options {
+      @Parameter(names = "-backup", description = "Backup file to load")
+      File backup;
+    }
+
+    private final Options options = new Options();
+
+    @Override
+    public Iterable<Object> getOptions() {
+      return ImmutableList.of(options);
+    }
+
+    @Override
+    public Persistence create() {
+      return new BackupReader(
+          options.backup,
+          new SnapshotStoreImpl(new BuildInfo(), Clock.SYSTEM_CLOCK));
+    }
+  }
+
   enum Endpoint {
     SQL(new SqlMigrationInput()),
-    LOG(new LogMigrationInput());
+    LOG(new LogMigrationInput()),
+    BACKUP(new BackupMigrationInput());
 
     private final MigrationEndpoint impl;
 
@@ -204,19 +229,22 @@ public final class Migrator {
     @Parameter(names = "-from",
         required = true,
         description = "Persistence to read state from")
-    public Endpoint from;
+    Endpoint from;
 
     @Parameter(names = "-to",
         required = true,
         description = "Persistence to write recovered state into")
-    public Endpoint to;
+    Endpoint to;
 
     @Parameter(names = "-batch-size",
         description = "Write in batches of this may ops.")
-    public int batchSize = 50;
+    int batchSize = 50;
+
+    @Parameter(names = "--help", description = "Print usage", help = true)
+    boolean help;
   }
 
-  private static void configure(Options options, String... args) {
+  private static JCommander configure(Options options, String... args) {
     JCommander.Builder builder = JCommander.newBuilder().programName(Migrator.class.getName());
     builder.addConverterFactory(new IStringConverterFactory() {
       private Map<Class<?>, Class<? extends IStringConverter<?>>> classConverters =
@@ -240,11 +268,16 @@ public final class Migrator {
 
     JCommander parser = builder.build();
     parser.parse(args);
+    return parser;
   }
 
   public static void main(String[] args) {
     Options options = new Options();
-    configure(options, args);
+    JCommander parser = configure(options, args);
+    if (options.help) {
+      parser.usage();
+      System.exit(1);
+    }
 
     LOG.info("Migrating from " + options.from + " to " + options.to);
     Persistence from = options.from.impl.create();
