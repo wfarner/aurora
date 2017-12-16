@@ -26,7 +26,8 @@ import org.junit.Test;
 
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class UpdateAgentReserverImplTest extends EasyMockTest {
   private UpdateAgentReserver reserver;
@@ -59,9 +60,11 @@ public class UpdateAgentReserverImplTest extends EasyMockTest {
   }
 
   @Test
-  public void testGetReservations() {
+  public void testIsReserved() {
     expect(cache.getByValue(AGENT_ID)).andReturn(ImmutableSet.of(INSTANCE_KEY));
+    expect(cache.getByValue(AGENT_ID)).andReturn(ImmutableSet.of());
     control.replay();
-    assertEquals(ImmutableSet.of(INSTANCE_KEY), reserver.getReservations(AGENT_ID));
+    assertTrue(reserver.isReserved(AGENT_ID));
+    assertFalse(reserver.isReserved(AGENT_ID));
   }
 }

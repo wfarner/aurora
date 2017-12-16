@@ -14,9 +14,7 @@
 package org.apache.aurora.scheduler.updater;
 
 import java.util.Optional;
-import java.util.Set;
 
-import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 
 import org.apache.aurora.scheduler.preemptor.BiCache;
@@ -57,13 +55,13 @@ public interface UpdateAgentReserver {
   Optional<String> getAgent(IInstanceKey key);
 
   /**
-   * Get all reservations for a given agent id. Useful for skipping over the agent between the
+   * Checks whether an agent is currently reserved. Useful for skipping over the agent between the
    * reserve/release window.
    *
    * @param agentId The agent id to look up reservations for.
    * @return A set of keys reserved for that agent.
    */
-  Set<IInstanceKey> getReservations(String agentId);
+  boolean isReserved(String agentId);
 
   /**
    * Implementation of the update reserver backed by a BiCache (the same mechanism we use for
@@ -90,8 +88,9 @@ public interface UpdateAgentReserver {
       cache.remove(key, agentId);
     }
 
-    public Set<IInstanceKey> getReservations(String agentId) {
-      return cache.getByValue(agentId);
+    @Override
+    public boolean isReserved(String agentId) {
+      return !cache.getByValue(agentId).isEmpty();
     }
 
     @Override
@@ -120,8 +119,8 @@ public interface UpdateAgentReserver {
     }
 
     @Override
-    public Set<IInstanceKey> getReservations(String agentId) {
-      return ImmutableSet.of();
+    public boolean isReserved(String agentId) {
+      return false;
     }
   }
 }

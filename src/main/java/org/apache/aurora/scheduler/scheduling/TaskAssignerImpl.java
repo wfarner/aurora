@@ -22,7 +22,6 @@ import javax.annotation.Nullable;
 import javax.inject.Inject;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 
@@ -123,15 +122,13 @@ public class TaskAssignerImpl implements TaskAssigner {
       boolean revocable,
       ResourceRequest resourceRequest,
       IAssignedTask task,
-      HostOffer offer,
-      ImmutableSet.Builder<String> assignmentResult) throws OfferManager.LaunchException {
+      HostOffer offer) throws OfferManager.LaunchException {
 
     String taskId = task.getTaskId();
     Protos.TaskInfo taskInfo = assign(storeProvider, offer.getOffer(), taskId, revocable);
     resourceRequest.getJobState().updateAttributeAggregate(offer.getAttributes());
     try {
       offerManager.launchTask(offer.getOffer().getId(), taskInfo);
-      assignmentResult.add(taskId);
     } catch (OfferManager.LaunchException e) {
       LOG.warn("Failed to launch task.", e);
       launchFailures.incrementAndGet();
@@ -165,7 +162,7 @@ public class TaskAssignerImpl implements TaskAssigner {
     static final ReservationStatus NOT_READY = new ReservationStatus(true, null);
 
     static ReservationStatus ready(HostOffer offer) {
-      return new ReservationStatus(true, offer);
+      return new ReservationStatus(true, requireNonNull(offer));
     }
 
     boolean isTaskReserving() {
@@ -197,7 +194,6 @@ public class TaskAssignerImpl implements TaskAssigner {
         revocable);
     if (offer.isPresent()) {
       LOG.info("Used update reservation for {} on {}", key, agentId.get());
-      // TODO(wfarner): Make this implicit when getAgent() returns a value.
       updateAgentReserver.release(agentId.get(), key);
       return ReservationStatus.ready(offer.get());
     } else {
@@ -213,17 +209,17 @@ public class TaskAssignerImpl implements TaskAssigner {
    * Determine whether or not the offer is reserved for a different task via preemption or
    * update affinity.
    */
-  @SuppressWarnings("PMD.UselessParentheses")  // TODO(jly): PMD bug, remove when upgrade from 5.5.3
-  private boolean isAgentReserved(HostOffer offer,
-                                  TaskGroupKey groupKey,
-                                  Map<String, TaskGroupKey> preemptionReservations) {
+  private boolean isAgentReserved(
+      HostOffer offer,
+      TaskGroupKey groupKey,
+      Map<String, TaskGroupKey> preemptionReservations) {
 
     String agentId = offer.getOffer().getAgentId().getValue();
-    Optional<TaskGroupKey> reservedGroup = Optional.ofNullable(
-        preemptionReservations.get(agentId));
+    boolean reservedForPreemption = Optional.ofNullable(preemptionReservations.get(agentId))
+        .map(group -> !group.equals(groupKey))
+        .orElse(false);
 
-    return (reservedGroup.isPresent() && !reservedGroup.get().equals(groupKey))
-        || !updateAgentReserver.getReservations(agentId).isEmpty();
+    return reservedForPreemption || updateAgentReserver.isReserved(agentId);
   }
 
   @Timed("assigner_maybe_assign")
@@ -240,7 +236,7 @@ public class TaskAssignerImpl implements TaskAssigner {
     }
 
     boolean revocable = tierManager.getTier(groupKey.getTask()).isRevocable();
-    ImmutableSet.Builder<String> assignmentResult = ImmutableSet.builder();
+    ImmutableSet.Builder<String> assigned = ImmutableSet.builder();
 
     // Assign the rest of the non-reserved tasks
     for (IAssignedTask task : tasks) {
@@ -267,21 +263,15 @@ public class TaskAssignerImpl implements TaskAssigner {
           continue;
         }
 
-        // Attempt to launch the task using the chosen offer
-        HostOffer offer = chosenOffer.get();
-        launchUsingOffer(
-            storeProvider,
-            revocable,
-            resourceRequest,
-            task,
-            offer,
-            assignmentResult);
+        // Attempt to launch the task
+        launchUsingOffer(storeProvider, revocable, resourceRequest, task, chosenOffer.get());
+        assigned.add(task.getTaskId());
       } catch (OfferManager.LaunchException e) {
         // Any launch exception causes the scheduling round to terminate for this TaskGroup.
         break;
       }
     }
 
-    return assignmentResult.build();
+    return assigned.build();
   }
 }
