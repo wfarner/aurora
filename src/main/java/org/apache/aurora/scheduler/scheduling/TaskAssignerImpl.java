@@ -13,6 +13,7 @@
  */
 package org.apache.aurora.scheduler.scheduling;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -22,6 +23,7 @@ import javax.annotation.Nullable;
 import javax.inject.Inject;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 
@@ -33,6 +35,7 @@ import org.apache.aurora.scheduler.filter.SchedulingFilter.ResourceRequest;
 import org.apache.aurora.scheduler.mesos.MesosTaskFactory;
 import org.apache.aurora.scheduler.offers.HostOffer;
 import org.apache.aurora.scheduler.offers.OfferManager;
+import org.apache.aurora.scheduler.offers.OfferManager.LaunchException;
 import org.apache.aurora.scheduler.resources.ResourceManager;
 import org.apache.aurora.scheduler.resources.ResourceType;
 import org.apache.aurora.scheduler.state.StateManager;
@@ -122,14 +125,14 @@ public class TaskAssignerImpl implements TaskAssigner {
       boolean revocable,
       ResourceRequest resourceRequest,
       IAssignedTask task,
-      HostOffer offer) throws OfferManager.LaunchException {
+      HostOffer offer) throws LaunchException {
 
     String taskId = task.getTaskId();
     Protos.TaskInfo taskInfo = assign(storeProvider, offer.getOffer(), taskId, revocable);
     resourceRequest.getJobState().updateAttributeAggregate(offer.getAttributes());
     try {
       offerManager.launchTask(offer.getOffer().getId(), taskInfo);
-    } catch (OfferManager.LaunchException e) {
+    } catch (LaunchException e) {
       LOG.warn("Failed to launch task.", e);
       launchFailures.incrementAndGet();
 
@@ -222,6 +225,58 @@ public class TaskAssignerImpl implements TaskAssigner {
     return reservedForPreemption || updateAgentReserver.isReserved(agentId);
   }
 
+  private static class SchedulingMatch {
+    final IAssignedTask task;
+    final HostOffer offer;
+
+    private SchedulingMatch(IAssignedTask task, HostOffer offer) {
+      this.task = task;
+      this.offer = offer;
+    }
+  }
+
+  private List<SchedulingMatch> findMatches(
+      ResourceRequest resourceRequest,
+      TaskGroupKey groupKey,
+      Iterable<IAssignedTask> tasks,
+      boolean revocable,
+      Map<String, TaskGroupKey> preemptionReservations) {
+
+    ImmutableList.Builder<SchedulingMatch> matches = ImmutableList.builder();
+
+    if (Iterables.isEmpty(tasks)) {
+      return matches.build();
+    }
+
+    for (IAssignedTask task : tasks) {
+      ReservationStatus reservation = getReservation(task, resourceRequest, revocable);
+      Optional<HostOffer> chosenOffer;
+      if (reservation.isReady()) {
+        chosenOffer = Optional.of(reservation.getOffer());
+      } else if (reservation.isTaskReserving()) {
+        continue;
+      } else {
+        // Get all offers that will satisfy the given ResourceRequest and that are not reserved
+        // for updates or preemption
+        Iterable<HostOffer> matchingOffers = Iterables.filter(
+            offerManager.getAllMatching(groupKey, resourceRequest, revocable),
+            o -> !isAgentReserved(o, groupKey, preemptionReservations));
+
+        // Determine which is the optimal offer to select for the given request
+        chosenOffer = offerSelector.select(matchingOffers, resourceRequest);
+      }
+
+      // If no offer is chosen, continue to the next task
+      if (!chosenOffer.isPresent()) {
+        continue;
+      }
+
+      matches.add(new SchedulingMatch(task, chosenOffer.get()));
+    }
+
+    return matches.build();
+  }
+
   @Timed("assigner_maybe_assign")
   @Override
   public Set<String> maybeAssign(
@@ -238,35 +293,13 @@ public class TaskAssignerImpl implements TaskAssigner {
     boolean revocable = tierManager.getTier(groupKey.getTask()).isRevocable();
     ImmutableSet.Builder<String> assigned = ImmutableSet.builder();
 
-    // Assign the rest of the non-reserved tasks
-    for (IAssignedTask task : tasks) {
+    for (SchedulingMatch match
+        : findMatches(resourceRequest, groupKey, tasks, revocable, preemptionReservations)) {
+
       try {
-        ReservationStatus reservation = getReservation(task, resourceRequest, revocable);
-        Optional<HostOffer> chosenOffer;
-        if (reservation.isReady()) {
-          chosenOffer = Optional.of(reservation.getOffer());
-        } else if (reservation.isTaskReserving()) {
-          continue;
-        } else {
-          // Get all offers that will satisfy the given ResourceRequest and that are not reserved
-          // for updates or preemption
-          Iterable<HostOffer> matchingOffers = Iterables.filter(
-              offerManager.getAllMatching(groupKey, resourceRequest, revocable),
-              o -> !isAgentReserved(o, groupKey, preemptionReservations));
-
-          // Determine which is the optimal offer to select for the given request
-          chosenOffer = offerSelector.select(matchingOffers, resourceRequest);
-        }
-
-        // If no offer is chosen, continue to the next task
-        if (!chosenOffer.isPresent()) {
-          continue;
-        }
-
-        // Attempt to launch the task
-        launchUsingOffer(storeProvider, revocable, resourceRequest, task, chosenOffer.get());
-        assigned.add(task.getTaskId());
-      } catch (OfferManager.LaunchException e) {
+        launchUsingOffer(storeProvider, revocable, resourceRequest, match.task, match.offer);
+        assigned.add(match.task.getTaskId());
+      } catch (LaunchException e) {
         // Any launch exception causes the scheduling round to terminate for this TaskGroup.
         break;
       }
