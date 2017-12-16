@@ -16,14 +16,10 @@ package org.apache.aurora.scheduler.updater;
 import com.google.common.collect.ImmutableSet;
 
 import org.apache.aurora.common.testing.easymock.EasyMockTest;
-import org.apache.aurora.gen.Resource;
-import org.apache.aurora.gen.TaskConfig;
 import org.apache.aurora.scheduler.base.InstanceKeys;
 import org.apache.aurora.scheduler.base.JobKeys;
-import org.apache.aurora.scheduler.base.TaskGroupKey;
 import org.apache.aurora.scheduler.preemptor.BiCache;
 import org.apache.aurora.scheduler.storage.entities.IInstanceKey;
-import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
 import org.apache.aurora.scheduler.updater.UpdateAgentReserver.UpdateAgentReserverImpl;
 import org.junit.Before;
 import org.junit.Test;
@@ -39,16 +35,6 @@ public class UpdateAgentReserverImplTest extends EasyMockTest {
   private static final String AGENT_ID = "agent";
   private static final IInstanceKey INSTANCE_KEY =
       InstanceKeys.from(JobKeys.from("role", "env", "name"), 1);
-
-  private TaskGroupKey getTaskGroup(IInstanceKey key) {
-    return TaskGroupKey.from(ITaskConfig.build(
-        new TaskConfig()
-            .setJob(key.getJobKey().newBuilder())
-            .setResources(ImmutableSet.of(
-                Resource.numCpus(1.0),
-                Resource.ramMb(1L),
-                Resource.diskMb(1L)))));
-  }
 
   @Before
   public void setUp() {

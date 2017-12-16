@@ -150,27 +150,26 @@ public class TaskAssignerImpl implements TaskAssigner {
     }
   }
 
-  private static class ReservationStatus {
-    final boolean taskRequiresReservation;
+  private static final class ReservationStatus {
+    final boolean taskReserving;
 
     @Nullable
     final HostOffer offer;
 
-    private ReservationStatus(boolean taskRequiresReservation, @Nullable HostOffer offer) {
-      this.taskRequiresReservation = taskRequiresReservation;
+    private ReservationStatus(boolean taskReserving, @Nullable HostOffer offer) {
+      this.taskReserving = taskReserving;
       this.offer = offer;
     }
 
     static final ReservationStatus NOT_RESERVING = new ReservationStatus(false, null);
     static final ReservationStatus NOT_READY = new ReservationStatus(true, null);
 
-
     static ReservationStatus ready(HostOffer offer) {
       return new ReservationStatus(true, offer);
     }
 
-    boolean taskRequiresReservation() {
-      return taskRequiresReservation;
+    boolean isTaskReserving() {
+      return taskReserving;
     }
 
     boolean isReady() {
@@ -182,7 +181,7 @@ public class TaskAssignerImpl implements TaskAssigner {
     }
   }
 
-  private ReservationStatus tryFindReservation(
+  private ReservationStatus getReservation(
       IAssignedTask task,
       ResourceRequest resourceRequest,
       boolean revocable) {
@@ -246,18 +245,18 @@ public class TaskAssignerImpl implements TaskAssigner {
     // Assign the rest of the non-reserved tasks
     for (IAssignedTask task : tasks) {
       try {
-        ReservationStatus reservation = tryFindReservation(task, resourceRequest, revocable);
+        ReservationStatus reservation = getReservation(task, resourceRequest, revocable);
         Optional<HostOffer> chosenOffer;
         if (reservation.isReady()) {
           chosenOffer = Optional.of(reservation.getOffer());
-        } else if (reservation.taskRequiresReservation()) {
+        } else if (reservation.isTaskReserving()) {
           continue;
         } else {
           // Get all offers that will satisfy the given ResourceRequest and that are not reserved
           // for updates or preemption
-          FluentIterable<HostOffer> matchingOffers = FluentIterable
-              .from(offerManager.getAllMatching(groupKey, resourceRequest, revocable))
-              .filter(o -> !isAgentReserved(o, groupKey, preemptionReservations));
+          Iterable<HostOffer> matchingOffers = Iterables.filter(
+              offerManager.getAllMatching(groupKey, resourceRequest, revocable),
+              o -> !isAgentReserved(o, groupKey, preemptionReservations));
 
           // Determine which is the optimal offer to select for the given request
           chosenOffer = offerSelector.select(matchingOffers, resourceRequest);
