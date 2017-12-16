@@ -323,7 +323,6 @@ public class TaskSchedulerImplTest extends EasyMockTest {
         store -> store.getUnsafeTaskStore().saveTasks(ImmutableSet.of(taskA, taskB)));
 
     expectAsMap(NO_RESERVATION);
-    // TODO(wfarner): use expectAssigned
     expect(assigner.maybeAssign(
         EasyMock.anyObject(),
         eq(new ResourceRequest(taskA.getAssignedTask().getTask(), bag(taskA), empty())),
