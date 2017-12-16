@@ -33,9 +33,9 @@ import org.apache.aurora.scheduler.base.Tasks;
 import org.apache.aurora.scheduler.filter.AttributeAggregate;
 import org.apache.aurora.scheduler.filter.SchedulingFilter.ResourceRequest;
 import org.apache.aurora.scheduler.mesos.MesosTaskFactory;
+import org.apache.aurora.scheduler.mesos.TaskExecutors;
 import org.apache.aurora.scheduler.offers.HostOffer;
 import org.apache.aurora.scheduler.offers.OfferManager;
-import org.apache.aurora.scheduler.resources.ResourceBag;
 import org.apache.aurora.scheduler.state.StateChangeResult;
 import org.apache.aurora.scheduler.state.StateManager;
 import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
@@ -145,9 +145,9 @@ public class TaskAssignerImplTest extends EasyMockTest {
         statsProvider,
         offerSelector);
     aggregate = empty();
-    resourceRequest = new ResourceRequest(
+    resourceRequest = ResourceRequest.fromTask(
         TASK.getAssignedTask().getTask(),
-        ResourceBag.EMPTY,
+        TaskExecutors.NO_OVERHEAD_EXECUTOR,
         aggregate);
   }
 

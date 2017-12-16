@@ -21,8 +21,10 @@ import java.util.Set;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 
+import org.apache.aurora.scheduler.configuration.executor.ExecutorSettings;
 import org.apache.aurora.scheduler.offers.HostOffer;
 import org.apache.aurora.scheduler.resources.ResourceBag;
+import org.apache.aurora.scheduler.resources.ResourceManager;
 import org.apache.aurora.scheduler.storage.entities.IConstraint;
 import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
 import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
@@ -307,10 +309,29 @@ public interface SchedulingFilter {
     private final ResourceBag request;
     private final AttributeAggregate jobState;
 
-    public ResourceRequest(ITaskConfig task, ResourceBag request, AttributeAggregate jobState) {
+    private ResourceRequest(ITaskConfig task, ResourceBag request, AttributeAggregate jobState) {
       this.task = task;
       this.request = request;
       this.jobState = jobState;
+    }
+
+    public static ResourceRequest fromTask(
+        ITaskConfig task,
+        ExecutorSettings executorSettings,
+        AttributeAggregate jobState) {
+
+      return new ResourceRequest(
+          task,
+          ResourceManager.bagFromTask(task, executorSettings),
+          jobState);
+    }
+
+    @VisibleForTesting
+    public static ResourceRequest taskOnly(ITaskConfig task) {
+      return new ResourceRequest(
+          task,
+          ResourceManager.bagFromResources(task.getResources()),
+          AttributeAggregate.empty());
     }
 
     public Iterable<IConstraint> getConstraints() {

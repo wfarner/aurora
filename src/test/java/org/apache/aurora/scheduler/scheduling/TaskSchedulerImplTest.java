@@ -44,8 +44,6 @@ import org.apache.aurora.scheduler.events.PubsubEventModule;
 import org.apache.aurora.scheduler.filter.SchedulingFilter.ResourceRequest;
 import org.apache.aurora.scheduler.preemptor.BiCache;
 import org.apache.aurora.scheduler.preemptor.Preemptor;
-import org.apache.aurora.scheduler.resources.ResourceBag;
-import org.apache.aurora.scheduler.resources.ResourceManager;
 import org.apache.aurora.scheduler.state.PubsubTestUtil;
 import org.apache.aurora.scheduler.storage.Storage;
 import org.apache.aurora.scheduler.storage.Storage.MutateWork.NoResult;
@@ -127,21 +125,13 @@ public class TaskSchedulerImplTest extends EasyMockTest {
         ImmutableSet.of(task));
   }
 
-  private ResourceBag bag(IScheduledTask task) {
-    return ResourceManager.bagFromResources(task.getAssignedTask().getTask().getResources())
-        .add(THERMOS_EXECUTOR.getExecutorOverhead(task.getAssignedTask()
-            .getTask()
-            .getExecutorConfig()
-            .getName()).get());
-  }
-
   private IExpectationSetters<Set<String>> expectAssigned(
       IScheduledTask task,
       Map<String, TaskGroupKey> reservationMap) {
 
     return expect(assigner.maybeAssign(
         storageUtil.mutableStoreProvider,
-        new ResourceRequest(task.getAssignedTask().getTask(), bag(task), empty()),
+        ResourceRequest.fromTask(task.getAssignedTask().getTask(), THERMOS_EXECUTOR, empty()),
         TaskGroupKey.from(task.getAssignedTask().getTask()),
         ImmutableSet.of(task.getAssignedTask()),
         reservationMap));
@@ -325,7 +315,7 @@ public class TaskSchedulerImplTest extends EasyMockTest {
     expectAsMap(NO_RESERVATION);
     expect(assigner.maybeAssign(
         EasyMock.anyObject(),
-        eq(new ResourceRequest(taskA.getAssignedTask().getTask(), bag(taskA), empty())),
+        eq(ResourceRequest.fromTask(taskA.getAssignedTask().getTask(), THERMOS_EXECUTOR, empty())),
         eq(TaskGroupKey.from(taskA.getAssignedTask().getTask())),
         eq(ImmutableSet.of(taskA.getAssignedTask())),
         eq(NO_RESERVATION))).andReturn(SCHEDULED_RESULT);

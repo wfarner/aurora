@@ -15,7 +15,6 @@ package org.apache.aurora.scheduler.scheduling;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
-import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -28,8 +27,8 @@ import javax.inject.Qualifier;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.common.eventbus.Subscribe;
 
@@ -43,7 +42,6 @@ import org.apache.aurora.scheduler.filter.AttributeAggregate;
 import org.apache.aurora.scheduler.filter.SchedulingFilter.ResourceRequest;
 import org.apache.aurora.scheduler.preemptor.BiCache;
 import org.apache.aurora.scheduler.preemptor.Preemptor;
-import org.apache.aurora.scheduler.resources.ResourceBag;
 import org.apache.aurora.scheduler.storage.Storage.MutableStoreProvider;
 import org.apache.aurora.scheduler.storage.Storage.StoreProvider;
 import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
@@ -59,7 +57,6 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static java.util.Objects.requireNonNull;
 
 import static org.apache.aurora.gen.ScheduleStatus.PENDING;
-import static org.apache.aurora.scheduler.resources.ResourceManager.bagFromResources;
 
 /**
  * An asynchronous task scheduler.  Scheduling of tasks is performed on a delay, where each task
@@ -116,19 +113,6 @@ public class TaskSchedulerImpl implements TaskScheduler {
     }
   }
 
-  private static ITaskConfig getTaskGroup(Collection<IAssignedTask> tasks) {
-    Set<ITaskConfig> groups = tasks.stream()
-        .collect(Collectors.groupingBy(IAssignedTask::getTask))
-        .keySet();
-
-    Preconditions.checkState(
-        groups.size() == 1,
-        "Found multiple task groups for %s",
-        tasks);
-
-    return groups.stream().findFirst().get();
-  }
-
   private Map<String, IAssignedTask> fetchTasks(StoreProvider store, Set<String> ids) {
     Map<String, IAssignedTask> tasks = store.getTaskStore()
         .fetchTasks(Query.taskScoped(ids).byStatus(PENDING))
@@ -146,21 +130,6 @@ public class TaskSchedulerImpl implements TaskScheduler {
     return tasks;
   }
 
-  private ResourceRequest taskResources(ITaskConfig task, AttributeAggregate jobState) {
-    // Valid Docker tasks can have a container but no executor config
-    ResourceBag overhead = ResourceBag.EMPTY;
-    if (task.isSetExecutorConfig()) {
-      overhead = executorSettings.getExecutorOverhead(task.getExecutorConfig().getName())
-          .orElseThrow(
-              () -> new IllegalArgumentException("Cannot find executor configuration"));
-    }
-
-    return new ResourceRequest(
-        task,
-        bagFromResources(task.getResources()).add(overhead),
-        jobState);
-  }
-
   private Set<String> scheduleTasks(MutableStoreProvider store, Set<String> ids) {
     LOG.debug("Attempting to schedule tasks {}", ids);
     Map<String, IAssignedTask> tasksById = fetchTasks(store, ids);
@@ -170,21 +139,25 @@ public class TaskSchedulerImpl implements TaskScheduler {
       return ids;
     }
 
-    ITaskConfig task = getTaskGroup(tasksById.values());
+    // Prepare scheduling context for the tasks
+    ITaskConfig task = Iterables.getOnlyElement(tasksById.values().stream()
+        .map(IAssignedTask::getTask)
+        .collect(Collectors.toSet()));
     AttributeAggregate aggregate = AttributeAggregate.getJobActiveState(store, task.getJob());
 
+    // Attempt to schedule using available resources.
     Set<String> launched = assigner.maybeAssign(
         store,
-        taskResources(task, aggregate),
+        ResourceRequest.fromTask(task, executorSettings, aggregate),
         TaskGroupKey.from(task),
         ImmutableSet.copyOf(tasksById.values()),
         reservations.asMap());
 
     attemptsFired.addAndGet(tasksById.size());
-    Set<String> unassigned = Sets.difference(tasksById.keySet(), launched);
 
+    // Fall back to preemption for tasks not scheduled above.
+    Set<String> unassigned = Sets.difference(tasksById.keySet(), launched);
     unassigned.forEach(taskId -> {
-      // Task could not be scheduled.
       // TODO(maxim): Now that preemption slots are searched asynchronously, consider
       // retrying a launch attempt within the current scheduling round IFF a reservation is
       // available.
