@@ -144,8 +144,6 @@ public class TaskAssignerImplTest extends EasyMockTest {
 
   @Test
   public void testAssignNoTasks() {
-    expect(updateAgentReserver.getAgent(INSTANCE_KEY)).andReturn(Optional.of(SLAVE_ID));
-
     control.replay();
 
     assertEquals(
@@ -155,11 +153,11 @@ public class TaskAssignerImplTest extends EasyMockTest {
 
   @Test
   public void testAssignmentClearedOnError() throws Exception {
-    expect(updateAgentReserver.isReserved(anyString())).andReturn(false);
-    expect(updateAgentReserver.getAgent(anyObject())).andReturn(Optional.empty()).anyTimes();
+    expect(updateAgentReserver.isReserved(anyString())).andReturn(false).atLeastOnce();
+    expect(updateAgentReserver.getAgent(anyObject())).andReturn(Optional.empty()).atLeastOnce();
 
     expect(offerManager.getAllMatching(GROUP_KEY, resourceRequest, false))
-        .andReturn(ImmutableSet.of(OFFER, OFFER_2)).times(2);
+        .andReturn(ImmutableSet.of(OFFER, OFFER_2)).atLeastOnce();
     offerManager.launchTask(MESOS_OFFER.getId(), TASK_INFO);
     expectLastCall().andThrow(new OfferManager.LaunchException("expected"));
     expectAssignTask(MESOS_OFFER);

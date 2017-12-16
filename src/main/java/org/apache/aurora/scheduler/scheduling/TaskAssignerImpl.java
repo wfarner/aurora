@@ -229,9 +229,9 @@ public class TaskAssignerImpl implements TaskAssigner {
     final IAssignedTask task;
     final HostOffer offer;
 
-    private SchedulingMatch(IAssignedTask task, HostOffer offer) {
-      this.task = task;
-      this.offer = offer;
+    SchedulingMatch(IAssignedTask task, HostOffer offer) {
+      this.task = requireNonNull(task);
+      this.offer = requireNonNull(offer);
     }
   }
 

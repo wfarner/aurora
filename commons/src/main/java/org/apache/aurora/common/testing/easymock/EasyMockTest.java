@@ -26,6 +26,9 @@ import org.easymock.Capture;
 import org.easymock.EasyMock;
 import org.easymock.IMocksControl;
 import org.junit.Before;
+import org.junit.Rule;
+import org.junit.rules.TestWatcher;
+import org.junit.runner.Description;
 
 import static org.easymock.EasyMock.createControl;
 
@@ -38,6 +41,14 @@ import static org.easymock.EasyMock.createControl;
 public abstract class EasyMockTest extends TearDownTestCase {
   protected IMocksControl control;
 
+  @Rule
+  public final TestWatcher verifyControl = new TestWatcher() {
+    @Override
+    protected void succeeded(Description description) {
+      control.verify();
+    }
+  };
+
   /**
    * Creates an EasyMock {@link #control} for tests to use that will be automatically
    * {@link IMocksControl#verify() verified} on tear down.
@@ -45,7 +56,6 @@ public abstract class EasyMockTest extends TearDownTestCase {
   @Before
   public final void setupEasyMock() {
     control = createControl();
-    addTearDown(() -> control.verify());
   }
 
   /**
