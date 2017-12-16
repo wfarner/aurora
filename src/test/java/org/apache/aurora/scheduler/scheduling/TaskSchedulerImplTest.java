@@ -148,7 +148,7 @@ public class TaskSchedulerImplTest extends EasyMockTest {
   }
 
   @Test
-  public void testSchedule() throws Exception {
+  public void testSchedule() {
     storageUtil.expectOperations();
 
     expectAsMap(NO_RESERVATION);
@@ -164,7 +164,7 @@ public class TaskSchedulerImplTest extends EasyMockTest {
   }
 
   @Test
-  public void testScheduleNoTask() throws Exception {
+  public void testScheduleNoTask() {
     storageUtil.expectOperations();
     storageUtil.expectTaskFetch(
         Query.taskScoped(Tasks.id(TASK_A)).byStatus(PENDING),
@@ -178,7 +178,7 @@ public class TaskSchedulerImplTest extends EasyMockTest {
   }
 
   @Test
-  public void testSchedulePartial() throws Exception {
+  public void testSchedulePartial() {
     storageUtil.expectOperations();
 
     String taskB = "b";
@@ -214,7 +214,7 @@ public class TaskSchedulerImplTest extends EasyMockTest {
   }
 
   @Test
-  public void testReservation() throws Exception {
+  public void testReservation() {
     storageUtil.expectOperations();
 
     // No reservation available in preemptor
@@ -254,7 +254,7 @@ public class TaskSchedulerImplTest extends EasyMockTest {
   }
 
   @Test
-  public void testReservationUnusable() throws Exception {
+  public void testReservationUnusable() {
     storageUtil.expectOperations();
 
     expectTaskStillPendingQuery(TASK_A);
@@ -271,7 +271,7 @@ public class TaskSchedulerImplTest extends EasyMockTest {
   }
 
   @Test
-  public void testReservationRemoved() throws Exception {
+  public void testReservationRemoved() {
     storageUtil.expectOperations();
 
     expectTaskStillPendingQuery(TASK_A);
@@ -288,14 +288,14 @@ public class TaskSchedulerImplTest extends EasyMockTest {
   }
 
   @Test
-  public void testNonPendingIgnored() throws Exception {
+  public void testNonPendingIgnored() {
     control.replay();
 
     eventSink.post(TaskStateChange.transition(TASK_A, RUNNING));
   }
 
   @Test
-  public void testPendingDeletedHandled() throws Exception {
+  public void testPendingDeletedHandled() {
     reservations.remove(SLAVE_ID, TaskGroupKey.from(TASK_A.getAssignedTask().getTask()));
 
     control.replay();
@@ -323,6 +323,7 @@ public class TaskSchedulerImplTest extends EasyMockTest {
         store -> store.getUnsafeTaskStore().saveTasks(ImmutableSet.of(taskA, taskB)));
 
     expectAsMap(NO_RESERVATION);
+    // TODO(wfarner): use expectAssigned
     expect(assigner.maybeAssign(
         EasyMock.anyObject(),
         eq(new ResourceRequest(taskA.getAssignedTask().getTask(), bag(taskA), empty())),
@@ -337,7 +338,7 @@ public class TaskSchedulerImplTest extends EasyMockTest {
   }
 
   @Test
-  public void testScheduleThrows() throws Exception {
+  public void testScheduleThrows() {
     storageUtil.expectOperations();
 
     expectAsMap(NO_RESERVATION);
@@ -370,17 +371,17 @@ public class TaskSchedulerImplTest extends EasyMockTest {
     reservations.put(slaveId, TaskGroupKey.from(task.getAssignedTask().getTask()));
   }
 
-  private IExpectationSetters<?> expectGetReservation(IScheduledTask task, String slaveId) {
-    return expect(reservations.getByValue(TaskGroupKey.from(task.getAssignedTask().getTask())))
+  private void expectGetReservation(IScheduledTask task, String slaveId) {
+    expect(reservations.getByValue(TaskGroupKey.from(task.getAssignedTask().getTask())))
         .andReturn(ImmutableSet.of(slaveId));
   }
 
-  private IExpectationSetters<?> expectNoReservation(IScheduledTask task) {
-    return expect(reservations.getByValue(TaskGroupKey.from(task.getAssignedTask().getTask())))
+  private void expectNoReservation(IScheduledTask task) {
+    expect(reservations.getByValue(TaskGroupKey.from(task.getAssignedTask().getTask())))
         .andReturn(ImmutableSet.of());
   }
 
-  private IExpectationSetters<?> expectAsMap(Map<String, TaskGroupKey> map) {
-    return expect(reservations.asMap()).andReturn(map);
+  private void expectAsMap(Map<String, TaskGroupKey> map) {
+    expect(reservations.asMap()).andReturn(map);
   }
 }

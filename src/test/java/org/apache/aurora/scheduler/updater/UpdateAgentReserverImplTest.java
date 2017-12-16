@@ -13,7 +13,6 @@
  */
 package org.apache.aurora.scheduler.updater;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
 import org.apache.aurora.common.testing.easymock.EasyMockTest;
@@ -32,8 +31,6 @@ import org.junit.Test;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 public class UpdateAgentReserverImplTest extends EasyMockTest {
   private UpdateAgentReserver reserver;
@@ -81,27 +78,4 @@ public class UpdateAgentReserverImplTest extends EasyMockTest {
     control.replay();
     assertEquals(ImmutableSet.of(INSTANCE_KEY), reserver.getReservations(AGENT_ID));
   }
-
-  @Test
-  public void testHasReservations() {
-    IInstanceKey instanceKey2 = InstanceKeys.from(JobKeys.from("role", "env", "name"), 2);
-    IInstanceKey instanceKey3 = InstanceKeys.from(JobKeys.from("role2", "env2", "name2"), 1);
-    expect(cache.asMap())
-        .andReturn(ImmutableMap.of(
-            INSTANCE_KEY,
-            AGENT_ID,
-            instanceKey2,
-            AGENT_ID,
-            instanceKey3,
-            "different-agent")).anyTimes();
-    control.replay();
-    assertTrue(reserver.hasReservations(getTaskGroup(INSTANCE_KEY)));
-    assertTrue(reserver.hasReservations(getTaskGroup(instanceKey2)));
-    assertTrue(reserver.hasReservations(getTaskGroup(instanceKey3)));
-    assertTrue(reserver.hasReservations(
-        getTaskGroup(InstanceKeys.from(JobKeys.from("role", "env", "name"), 3))));
-    assertFalse(reserver.hasReservations(
-        getTaskGroup(InstanceKeys.from(JobKeys.from("not", "in", "map"), 1))));
-  }
-
 }

@@ -125,7 +125,7 @@ public class TaskAssignerImplTest extends EasyMockTest {
   private UpdateAgentReserver updateAgentReserver;
 
   @Before
-  public void setUp() throws Exception {
+  public void setUp() {
     storeProvider = createMock(MutableStoreProvider.class);
     taskFactory = createMock(MesosTaskFactory.class);
     stateManager = createMock(StateManager.class);
@@ -152,7 +152,7 @@ public class TaskAssignerImplTest extends EasyMockTest {
   }
 
   @Test
-  public void testAssignNoTasks() throws Exception {
+  public void testAssignNoTasks() {
     control.replay();
 
     assertEquals(
@@ -198,7 +198,7 @@ public class TaskAssignerImplTest extends EasyMockTest {
   }
 
   @Test
-  public void testAssignmentSkippedForReservedSlave() throws Exception {
+  public void testAssignmentSkippedForReservedSlave() {
     expectNoUpdateReservations(0);
     expect(tierManager.getTier(TASK.getAssignedTask().getTask())).andReturn(DEV_TIER);
     expect(offerManager.getAllMatching(GROUP_KEY, resourceRequest, false))
@@ -257,7 +257,6 @@ public class TaskAssignerImplTest extends EasyMockTest {
 
   @Test
   public void testAssignToReservedAgent() throws Exception {
-    expect(updateAgentReserver.hasReservations(GROUP_KEY)).andReturn(true);
     expect(updateAgentReserver.getAgent(INSTANCE_KEY)).andReturn(Optional.of(SLAVE_ID));
     updateAgentReserver.release(SLAVE_ID, INSTANCE_KEY);
     expect(offerManager.getMatching(MESOS_OFFER.getAgentId(), resourceRequest, false))
@@ -284,8 +283,7 @@ public class TaskAssignerImplTest extends EasyMockTest {
   }
 
   @Test
-  public void testAssignReservedAgentWhenOfferNotReady() throws Exception {
-    expect(updateAgentReserver.hasReservations(GROUP_KEY)).andReturn(true);
+  public void testAssignReservedAgentWhenOfferNotReady() {
     expect(updateAgentReserver.getAgent(INSTANCE_KEY)).andReturn(Optional.of(SLAVE_ID));
     expect(offerManager.getMatching(MESOS_OFFER.getAgentId(), resourceRequest, false))
         .andReturn(Optional.empty());
@@ -309,7 +307,6 @@ public class TaskAssignerImplTest extends EasyMockTest {
   public void testAssignWithMixOfReservedAndNotReserved() throws Exception {
     expect(tierManager.getTier(TASK.getAssignedTask().getTask())).andReturn(DEV_TIER);
 
-    expect(updateAgentReserver.hasReservations(GROUP_KEY)).andReturn(true);
     expect(updateAgentReserver.getAgent(INSTANCE_KEY)).andReturn(Optional.of(SLAVE_ID));
     updateAgentReserver.release(SLAVE_ID, INSTANCE_KEY);
     expect(offerManager.getMatching(MESOS_OFFER.getAgentId(), resourceRequest, false))
@@ -366,7 +363,7 @@ public class TaskAssignerImplTest extends EasyMockTest {
   }
 
   private void expectNoUpdateReservations(int offers) {
-    expect(updateAgentReserver.hasReservations(anyObject())).andReturn(false);
+    expect(updateAgentReserver.getAgent(anyObject())).andReturn(Optional.empty());
     for (int i = 0; i < offers; i++) {
       expect(updateAgentReserver.getReservations(anyString())).andReturn(ImmutableSet.of());
     }

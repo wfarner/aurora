@@ -18,6 +18,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -149,62 +150,64 @@ public class TaskAssignerImpl implements TaskAssigner {
     }
   }
 
-  private Iterable<IAssignedTask> maybeAssignReserved(
-      Iterable<IAssignedTask> tasks,
-      Storage.MutableStoreProvider storeProvider,
-      boolean revocable,
+  private static class ReservationStatus {
+    final boolean taskRequiresReservation;
+
+    @Nullable
+    final HostOffer offer;
+
+    private ReservationStatus(boolean taskRequiresReservation, @Nullable HostOffer offer) {
+      this.taskRequiresReservation = taskRequiresReservation;
+      this.offer = offer;
+    }
+
+    static final ReservationStatus NOT_RESERVING = new ReservationStatus(false, null);
+    static final ReservationStatus NOT_READY = new ReservationStatus(true, null);
+
+
+    static ReservationStatus ready(HostOffer offer) {
+      return new ReservationStatus(true, offer);
+    }
+
+    boolean taskRequiresReservation() {
+      return taskRequiresReservation;
+    }
+
+    boolean isReady() {
+      return offer != null;
+    }
+
+    HostOffer getOffer() {
+      return requireNonNull(offer);
+    }
+  }
+
+  private ReservationStatus tryFindReservation(
+      IAssignedTask task,
       ResourceRequest resourceRequest,
-      TaskGroupKey groupKey,
-      ImmutableSet.Builder<String> assignmentResult) {
+      boolean revocable) {
 
-    if (!updateAgentReserver.hasReservations(groupKey)) {
-      return tasks;
+    IInstanceKey key = InstanceKeys.from(task.getTask().getJob(), task.getInstanceId());
+    Optional<String> agentId = updateAgentReserver.getAgent(key);
+    if (!agentId.isPresent()) {
+      return ReservationStatus.NOT_RESERVING;
     }
-
-    // Data structure to record which tasks should be excluded from the regular (non-reserved)
-    // scheduling loop. This is important because we release reservations once they are used,
-    // so we need to record them separately to avoid them being double-scheduled.
-    ImmutableSet.Builder<IInstanceKey> excludeBuilder = ImmutableSet.builder();
-
-    for (IAssignedTask task : tasks) {
-      IInstanceKey key = InstanceKeys.from(task.getTask().getJob(), task.getInstanceId());
-      Optional<String> maybeAgentId = updateAgentReserver.getAgent(key);
-      if (maybeAgentId.isPresent()) {
-        excludeBuilder.add(key);
-        Optional<HostOffer> offer = offerManager.getMatching(
-            Protos.AgentID.newBuilder().setValue(maybeAgentId.get()).build(),
-            resourceRequest,
-            revocable);
-        if (offer.isPresent()) {
-          try {
-            // The offer can still be veto'd because of changed constraints, or because the
-            // Scheduler hasn't been updated by Mesos yet...
-            launchUsingOffer(storeProvider,
-                revocable,
-                resourceRequest,
-                task,
-                offer.get(),
-                assignmentResult);
-            LOG.info("Used update reservation for {} on {}", key, maybeAgentId.get());
-            updateAgentReserver.release(maybeAgentId.get(), key);
-          } catch (OfferManager.LaunchException e) {
-            updateAgentReserver.release(maybeAgentId.get(), key);
-          }
-        } else {
-          LOG.info(
-              "Tried to reuse offer on {} for {}, but was not ready yet.",
-              maybeAgentId.get(),
-              key);
-        }
-      }
+    Optional<HostOffer> offer = offerManager.getMatching(
+        Protos.AgentID.newBuilder().setValue(agentId.get()).build(),
+        resourceRequest,
+        revocable);
+    if (offer.isPresent()) {
+      LOG.info("Used update reservation for {} on {}", key, agentId.get());
+      // TODO(wfarner): Make this implicit when getAgent() returns a value.
+      updateAgentReserver.release(agentId.get(), key);
+      return ReservationStatus.ready(offer.get());
+    } else {
+      LOG.info(
+          "Tried to reuse offer on {} for {}, but was not ready yet.",
+          agentId.get(),
+          key);
+      return ReservationStatus.NOT_READY;
     }
-
-    // Return only the tasks that didn't have reservations. Offers on agents that were reserved
-    // might not have been seen by Aurora yet, so we need to wait until the reservation expires
-    // before giving up and falling back to the first-fit algorithm.
-    Set<IInstanceKey> toBeExcluded = excludeBuilder.build();
-    return Iterables.filter(tasks, t -> !toBeExcluded.contains(
-        InstanceKeys.from(t.getTask().getJob(), t.getInstanceId())));
   }
 
   /**
@@ -240,35 +243,35 @@ public class TaskAssignerImpl implements TaskAssigner {
     boolean revocable = tierManager.getTier(groupKey.getTask()).isRevocable();
     ImmutableSet.Builder<String> assignmentResult = ImmutableSet.builder();
 
-    // Assign tasks reserved for a specific agent (e.g. for update affinity)
-    Iterable<IAssignedTask> nonReservedTasks = maybeAssignReserved(
-        tasks,
-        storeProvider,
-        revocable,
-        resourceRequest,
-        groupKey,
-        assignmentResult);
-
     // Assign the rest of the non-reserved tasks
-    for (IAssignedTask task : nonReservedTasks) {
+    for (IAssignedTask task : tasks) {
       try {
-        // Get all offers that will satisfy the given ResourceRequest and that are not reserved
-        // for updates or preemption
-        FluentIterable<HostOffer> matchingOffers = FluentIterable
-            .from(offerManager.getAllMatching(groupKey, resourceRequest, revocable))
-            .filter(o -> !isAgentReserved(o, groupKey, preemptionReservations));
+        ReservationStatus reservation = tryFindReservation(task, resourceRequest, revocable);
+        Optional<HostOffer> chosenOffer;
+        if (reservation.isReady()) {
+          chosenOffer = Optional.of(reservation.getOffer());
+        } else if (reservation.taskRequiresReservation()) {
+          continue;
+        } else {
+          // Get all offers that will satisfy the given ResourceRequest and that are not reserved
+          // for updates or preemption
+          FluentIterable<HostOffer> matchingOffers = FluentIterable
+              .from(offerManager.getAllMatching(groupKey, resourceRequest, revocable))
+              .filter(o -> !isAgentReserved(o, groupKey, preemptionReservations));
 
-        // Determine which is the optimal offer to select for the given request
-        Optional<HostOffer> optionalOffer = offerSelector.select(matchingOffers, resourceRequest);
+          // Determine which is the optimal offer to select for the given request
+          chosenOffer = offerSelector.select(matchingOffers, resourceRequest);
+        }
 
         // If no offer is chosen, continue to the next task
-        if (!optionalOffer.isPresent()) {
+        if (!chosenOffer.isPresent()) {
           continue;
         }
 
         // Attempt to launch the task using the chosen offer
-        HostOffer offer = optionalOffer.get();
-        launchUsingOffer(storeProvider,
+        HostOffer offer = chosenOffer.get();
+        launchUsingOffer(
+            storeProvider,
             revocable,
             resourceRequest,
             task,
