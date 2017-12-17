@@ -148,7 +148,12 @@ public class TaskAssignerImplTest extends EasyMockTest {
 
     assertEquals(
         NO_ASSIGNMENT,
-        assigner.maybeAssign(storeProvider, null, null, ImmutableSet.of(), null));
+        assigner.maybeAssign(
+            storeProvider,
+            resourceRequest,
+            GROUP_KEY,
+            ImmutableSet.of(),
+            NO_RESERVATION));
   }
 
   @Test

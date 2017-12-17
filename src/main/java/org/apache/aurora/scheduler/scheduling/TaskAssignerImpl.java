@@ -238,23 +238,19 @@ public class TaskAssignerImpl implements TaskAssigner {
   private List<SchedulingMatch> findMatches(
       ResourceRequest resourceRequest,
       TaskGroupKey groupKey,
-      Iterable<IAssignedTask> tasks,
+      Set<IAssignedTask> tasks,
       boolean revocable,
       Map<String, TaskGroupKey> preemptionReservations) {
 
     ImmutableList.Builder<SchedulingMatch> matches = ImmutableList.builder();
 
-    if (Iterables.isEmpty(tasks)) {
-      return matches.build();
-    }
-
-    for (IAssignedTask task : tasks) {
+    tasks.forEach(task -> {
       ReservationStatus reservation = getReservation(task, resourceRequest, revocable);
       Optional<HostOffer> chosenOffer;
       if (reservation.isReady()) {
         chosenOffer = Optional.of(reservation.getOffer());
       } else if (reservation.isTaskReserving()) {
-        continue;
+        return;
       } else {
         // Get all offers that will satisfy the given ResourceRequest and that are not reserved
         // for updates or preemption
@@ -268,11 +264,11 @@ public class TaskAssignerImpl implements TaskAssigner {
 
       // If no offer is chosen, continue to the next task
       if (!chosenOffer.isPresent()) {
-        continue;
+        return;
       }
 
       matches.add(new SchedulingMatch(task, chosenOffer.get()));
-    }
+    });
 
     return matches.build();
   }
@@ -283,12 +279,8 @@ public class TaskAssignerImpl implements TaskAssigner {
       Storage.MutableStoreProvider storeProvider,
       ResourceRequest resourceRequest,
       TaskGroupKey groupKey,
-      Iterable<IAssignedTask> tasks,
+      Set<IAssignedTask> tasks,
       Map<String, TaskGroupKey> preemptionReservations) {
-
-    if (Iterables.isEmpty(tasks)) {
-      return ImmutableSet.of();
-    }
 
     boolean revocable = tierManager.getTier(groupKey.getTask()).isRevocable();
     ImmutableSet.Builder<String> assigned = ImmutableSet.builder();
