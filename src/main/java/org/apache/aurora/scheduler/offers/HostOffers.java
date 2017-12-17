@@ -35,6 +35,7 @@ import org.apache.aurora.scheduler.filter.SchedulingFilter.UnusedResource;
 import org.apache.aurora.scheduler.filter.SchedulingFilter.Veto;
 import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
 import org.apache.mesos.v1.Protos;
+import org.apache.mesos.v1.Protos.AgentID;
 
 import static java.util.Objects.requireNonNull;
 
@@ -46,7 +47,7 @@ class HostOffers {
   private final Set<HostOffer> offers;
 
   private final Map<Protos.OfferID, HostOffer> offersById = Maps.newHashMap();
-  private final Map<Protos.AgentID, HostOffer> offersBySlave = Maps.newHashMap();
+  private final Map<AgentID, HostOffer> offersBySlave = Maps.newHashMap();
   private final Map<String, HostOffer> offersByHost = Maps.newHashMap();
 
   // Keep track of offer->groupKey mappings that will never be matched to avoid redundant
@@ -132,7 +133,7 @@ class HostOffers {
     }
   }
 
-  synchronized Optional<HostOffer> get(Protos.AgentID slaveId) {
+  synchronized Optional<HostOffer> get(AgentID slaveId) {
     HostOffer offer = offersBySlave.get(slaveId);
     if (offer == null || globallyBannedOffers.contains(offer.getOffer().getId())) {
       return Optional.empty();
@@ -154,22 +155,14 @@ class HostOffers {
         .toSet();
   }
 
-  synchronized Optional<HostOffer> getMatching(Protos.AgentID slaveId,
-                                               ResourceRequest resourceRequest,
-                                               boolean revocable) {
-
-    Optional<HostOffer> optionalOffer = get(slaveId);
-    if (optionalOffer.isPresent()) {
-      HostOffer offer = optionalOffer.get();
-
-      if (isGloballyBanned(offer)
-          || isVetoed(offer, resourceRequest, revocable, Optional.empty())) {
-
+  synchronized Optional<HostOffer> getMatching(AgentID slaveId, ResourceRequest resourceRequest) {
+    return get(slaveId).flatMap(offer -> {
+      if (isGloballyBanned(offer) || isVetoed(offer, resourceRequest, Optional.empty())) {
         return Optional.empty();
+      } else {
+        return Optional.of(offer);
       }
-    }
-
-    return optionalOffer;
+    });
   }
 
   /**
@@ -182,14 +175,13 @@ class HostOffers {
    * @return The offers a given task group can use.
    */
   synchronized Iterable<HostOffer> getAllMatching(TaskGroupKey groupKey,
-                                                  ResourceRequest resourceRequest,
-                                                  boolean revocable) {
+                                                  ResourceRequest resourceRequest) {
 
     return Iterables.unmodifiableIterable(FluentIterable.from(offers)
         .filter(o -> !isGloballyBanned(o))
         .filter(o -> !isStaticallyBanned(o, groupKey))
         .filter(HostOffer::hasCpuAndMem)
-        .filter(o -> !isVetoed(o, resourceRequest, revocable, Optional.of(groupKey))));
+        .filter(o -> !isVetoed(o, resourceRequest, Optional.of(groupKey))));
   }
 
   private synchronized boolean isGloballyBanned(HostOffer offer) {
@@ -207,11 +199,10 @@ class HostOffers {
    */
   private boolean isVetoed(HostOffer offer,
                            ResourceRequest resourceRequest,
-                           boolean revocable,
                            Optional<TaskGroupKey> groupKey) {
 
     vetoEvaluatedOffers.incrementAndGet();
-    UnusedResource unusedResource = new UnusedResource(offer, revocable);
+    UnusedResource unusedResource = new UnusedResource(offer, resourceRequest.isRevocable());
     Set<Veto> vetoes = schedulingFilter.filter(unusedResource, resourceRequest);
     if (!vetoes.isEmpty()) {
       if (groupKey.isPresent() && Veto.identifyGroup(vetoes) == SchedulingFilter.VetoGroup.STATIC) {

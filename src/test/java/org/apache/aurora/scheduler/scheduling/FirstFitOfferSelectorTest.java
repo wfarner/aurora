@@ -16,6 +16,7 @@ package org.apache.aurora.scheduler.scheduling;
 import com.google.common.collect.ImmutableList;
 
 import org.apache.aurora.common.testing.easymock.EasyMockTest;
+import org.apache.aurora.scheduler.base.TaskTestUtil;
 import org.apache.aurora.scheduler.offers.HostOffer;
 import org.apache.aurora.scheduler.storage.entities.IAssignedTask;
 import org.junit.Before;
@@ -30,7 +31,8 @@ import static org.junit.Assert.assertFalse;
 public class FirstFitOfferSelectorTest extends EasyMockTest {
 
   private static final IAssignedTask TASK = makeTask("id", JOB).getAssignedTask();
-  private static final ResourceRequest EMPTY_REQUEST = ResourceRequest.taskOnly(TASK.getTask());
+  private static final ResourceRequest EMPTY_REQUEST =
+      TaskTestUtil.toResourceRequest(TASK.getTask());
 
   private OfferSelector firstFitOfferSelector;
 

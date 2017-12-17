@@ -47,6 +47,8 @@ import org.apache.aurora.scheduler.configuration.ConfigurationManager;
 import org.apache.aurora.scheduler.configuration.ConfigurationManager.ConfigurationManagerSettings;
 import org.apache.aurora.scheduler.configuration.executor.ExecutorConfig;
 import org.apache.aurora.scheduler.configuration.executor.ExecutorSettings;
+import org.apache.aurora.scheduler.filter.AttributeAggregate;
+import org.apache.aurora.scheduler.filter.SchedulingFilter.ResourceRequest;
 import org.apache.aurora.scheduler.storage.durability.ThriftBackfill;
 import org.apache.aurora.scheduler.storage.entities.IJobKey;
 import org.apache.aurora.scheduler.storage.entities.IScheduledTask;
@@ -236,5 +238,13 @@ public final class TaskTestUtil {
         new org.apache.aurora.gen.TierConfig("preemptible", DEV_TIER.toMap()),
         new org.apache.aurora.gen.TierConfig("revocable", REVOCABLE_TIER.toMap())
     );
+  }
+
+  public static ResourceRequest toResourceRequest(ITaskConfig task) {
+    return ResourceRequest.fromTask(
+        task,
+        EXECUTOR_SETTINGS,
+        AttributeAggregate.empty(),
+        TIER_MANAGER);
   }
 }

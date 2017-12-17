@@ -45,6 +45,7 @@ import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
 
 import static java.util.Objects.requireNonNull;
 
+import static org.apache.aurora.scheduler.base.TaskTestUtil.TIER_MANAGER;
 import static org.apache.aurora.scheduler.resources.ResourceBag.EMPTY;
 import static org.apache.aurora.scheduler.resources.ResourceBag.IS_MESOS_REVOCABLE;
 import static org.apache.aurora.scheduler.resources.ResourceManager.bagFromMesosResources;
@@ -228,7 +229,7 @@ public interface PreemptionVictimFilter {
 
         Set<Veto> vetoes = schedulingFilter.filter(
             new UnusedResource(totalResource, attributes.get(), unavailability),
-            ResourceRequest.fromTask(pendingTask, executorSettings, jobState));
+            ResourceRequest.fromTask(pendingTask, executorSettings, jobState, TIER_MANAGER));
 
         if (vetoes.isEmpty()) {
           return Optional.of(ImmutableSet.copyOf(toPreemptTasks));

@@ -134,12 +134,15 @@ public class TaskAssignerImplTest extends EasyMockTest {
         stateManager,
         taskFactory,
         offerManager,
-        TaskTestUtil.TIER_MANAGER,
         updateAgentReserver,
         statsProvider,
         offerSelector);
     aggregate = empty();
-    resourceRequest = ResourceRequest.fromTask(TASK.getTask(), NO_OVERHEAD_EXECUTOR, aggregate);
+    resourceRequest = ResourceRequest.fromTask(
+        TASK.getTask(),
+        NO_OVERHEAD_EXECUTOR,
+        aggregate,
+        TaskTestUtil.TIER_MANAGER);
   }
 
   @Test
@@ -161,7 +164,7 @@ public class TaskAssignerImplTest extends EasyMockTest {
     expect(updateAgentReserver.isReserved(anyString())).andReturn(false).atLeastOnce();
     expect(updateAgentReserver.getAgent(anyObject())).andReturn(Optional.empty()).atLeastOnce();
 
-    expect(offerManager.getAllMatching(GROUP_KEY, resourceRequest, false))
+    expect(offerManager.getAllMatching(GROUP_KEY, resourceRequest))
         .andReturn(ImmutableSet.of(OFFER, OFFER_2)).atLeastOnce();
     offerManager.launchTask(MESOS_OFFER.getId(), TASK_INFO);
     expectLastCall().andThrow(new OfferManager.LaunchException("expected"));
@@ -197,7 +200,7 @@ public class TaskAssignerImplTest extends EasyMockTest {
   @Test
   public void testAssignmentSkippedForReservedSlave() {
     expectNoUpdateReservations(0);
-    expect(offerManager.getAllMatching(GROUP_KEY, resourceRequest, false))
+    expect(offerManager.getAllMatching(GROUP_KEY, resourceRequest))
         .andReturn(ImmutableSet.of(OFFER));
 
     control.replay();
@@ -219,7 +222,7 @@ public class TaskAssignerImplTest extends EasyMockTest {
     // and permissive in task->slave direction. In other words, a task with a slave reservation
     // should still be tried against other unreserved slaves.
     expectNoUpdateReservations(1);
-    expect(offerManager.getAllMatching(GROUP_KEY, resourceRequest, false))
+    expect(offerManager.getAllMatching(GROUP_KEY, resourceRequest))
         .andReturn(ImmutableSet.of(OFFER_2, OFFER));
     expectAssignTask(OFFER_2.getOffer());
     expect(taskFactory.createFrom(TASK, OFFER_2.getOffer(), false))
@@ -254,7 +257,7 @@ public class TaskAssignerImplTest extends EasyMockTest {
   public void testAssignToReservedAgent() throws Exception {
     expect(updateAgentReserver.getAgent(INSTANCE_KEY)).andReturn(Optional.of(SLAVE_ID));
     updateAgentReserver.release(SLAVE_ID, INSTANCE_KEY);
-    expect(offerManager.getMatching(MESOS_OFFER.getAgentId(), resourceRequest, false))
+    expect(offerManager.getMatching(MESOS_OFFER.getAgentId(), resourceRequest))
         .andReturn(Optional.of(OFFER));
     expectAssignTask(MESOS_OFFER);
     offerManager.launchTask(MESOS_OFFER.getId(), TASK_INFO);
@@ -279,7 +282,7 @@ public class TaskAssignerImplTest extends EasyMockTest {
   @Test
   public void testAssignReservedAgentWhenOfferNotReady() {
     expect(updateAgentReserver.getAgent(INSTANCE_KEY)).andReturn(Optional.of(SLAVE_ID));
-    expect(offerManager.getMatching(MESOS_OFFER.getAgentId(), resourceRequest, false))
+    expect(offerManager.getMatching(MESOS_OFFER.getAgentId(), resourceRequest))
         .andReturn(Optional.empty());
     expectLastCall();
 
@@ -300,7 +303,7 @@ public class TaskAssignerImplTest extends EasyMockTest {
   public void testAssignWithMixOfReservedAndNotReserved() throws Exception {
     expect(updateAgentReserver.getAgent(INSTANCE_KEY)).andReturn(Optional.of(SLAVE_ID));
     updateAgentReserver.release(SLAVE_ID, INSTANCE_KEY);
-    expect(offerManager.getMatching(MESOS_OFFER.getAgentId(), resourceRequest, false))
+    expect(offerManager.getMatching(MESOS_OFFER.getAgentId(), resourceRequest))
         .andReturn(Optional.of(OFFER));
     expectAssignTask(MESOS_OFFER);
     offerManager.launchTask(MESOS_OFFER.getId(), TASK_INFO);
@@ -315,7 +318,7 @@ public class TaskAssignerImplTest extends EasyMockTest {
         .setAgentId(MESOS_OFFER.getAgentId())
         .build();
     expect(updateAgentReserver.getAgent(InstanceKeys.from(JOB, 9999))).andReturn(Optional.empty());
-    expect(offerManager.getAllMatching(GROUP_KEY, resourceRequest, false))
+    expect(offerManager.getAllMatching(GROUP_KEY, resourceRequest))
         .andReturn(ImmutableSet.of(OFFER));
     expect(updateAgentReserver.isReserved(OFFER.getOffer().getAgentId().getValue()))
         .andReturn(false);

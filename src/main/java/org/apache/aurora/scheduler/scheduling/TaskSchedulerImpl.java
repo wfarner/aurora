@@ -34,6 +34,7 @@ import com.google.common.eventbus.Subscribe;
 
 import org.apache.aurora.common.inject.TimedInterceptor.Timed;
 import org.apache.aurora.common.stats.Stats;
+import org.apache.aurora.scheduler.TierManager;
 import org.apache.aurora.scheduler.base.Query;
 import org.apache.aurora.scheduler.base.TaskGroupKey;
 import org.apache.aurora.scheduler.configuration.executor.ExecutorSettings;
@@ -79,6 +80,7 @@ public class TaskSchedulerImpl implements TaskScheduler {
   private final TaskAssigner assigner;
   private final Preemptor preemptor;
   private final ExecutorSettings executorSettings;
+  private final TierManager tierManager;
   private final BiCache<String, TaskGroupKey> reservations;
 
   private final AtomicLong attemptsFired = Stats.exportLong("schedule_attempts_fired");
@@ -90,11 +92,13 @@ public class TaskSchedulerImpl implements TaskScheduler {
       TaskAssigner assigner,
       Preemptor preemptor,
       ExecutorSettings executorSettings,
+      TierManager tierManager,
       BiCache<String, TaskGroupKey> reservations) {
 
     this.assigner = requireNonNull(assigner);
     this.preemptor = requireNonNull(preemptor);
     this.executorSettings = requireNonNull(executorSettings);
+    this.tierManager = requireNonNull(tierManager);
     this.reservations = requireNonNull(reservations);
   }
 
@@ -148,7 +152,7 @@ public class TaskSchedulerImpl implements TaskScheduler {
     // Attempt to schedule using available resources.
     Set<String> launched = assigner.maybeAssign(
         store,
-        ResourceRequest.fromTask(task, executorSettings, aggregate),
+        ResourceRequest.fromTask(task, executorSettings, aggregate, tierManager),
         TaskGroupKey.from(task),
         ImmutableSet.copyOf(tasksById.values()),
         reservations.asMap());

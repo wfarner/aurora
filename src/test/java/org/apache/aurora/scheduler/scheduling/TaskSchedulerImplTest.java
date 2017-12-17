@@ -31,6 +31,7 @@ import org.apache.aurora.common.stats.StatsProvider;
 import org.apache.aurora.common.testing.easymock.EasyMockTest;
 import org.apache.aurora.common.util.Clock;
 import org.apache.aurora.gen.ScheduledTask;
+import org.apache.aurora.scheduler.TierManager;
 import org.apache.aurora.scheduler.async.AsyncModule.AsyncExecutor;
 import org.apache.aurora.scheduler.base.JobKeys;
 import org.apache.aurora.scheduler.base.Query;
@@ -60,6 +61,7 @@ import org.junit.Test;
 import static org.apache.aurora.gen.ScheduleStatus.PENDING;
 import static org.apache.aurora.gen.ScheduleStatus.RUNNING;
 import static org.apache.aurora.gen.ScheduleStatus.THROTTLED;
+import static org.apache.aurora.scheduler.base.TaskTestUtil.TIER_MANAGER;
 import static org.apache.aurora.scheduler.filter.AttributeAggregate.empty;
 import static org.apache.aurora.scheduler.mesos.TestExecutorSettings.THERMOS_EXECUTOR;
 import static org.easymock.EasyMock.eq;
@@ -103,7 +105,7 @@ public class TaskSchedulerImplTest extends EasyMockTest {
         new AbstractModule() {
           @Override
           protected void configure() {
-
+            bind(TierManager.class).toInstance(TIER_MANAGER);
             bind(Executor.class).annotatedWith(AsyncExecutor.class)
                 .toInstance(MoreExecutors.directExecutor());
             bind(new TypeLiteral<BiCache<String, TaskGroupKey>>() { }).toInstance(reservations);
@@ -131,7 +133,11 @@ public class TaskSchedulerImplTest extends EasyMockTest {
 
     return expect(assigner.maybeAssign(
         storageUtil.mutableStoreProvider,
-        ResourceRequest.fromTask(task.getAssignedTask().getTask(), THERMOS_EXECUTOR, empty()),
+        ResourceRequest.fromTask(
+            task.getAssignedTask().getTask(),
+            THERMOS_EXECUTOR,
+            empty(),
+            TIER_MANAGER),
         TaskGroupKey.from(task.getAssignedTask().getTask()),
         ImmutableSet.of(task.getAssignedTask()),
         reservationMap));
@@ -315,7 +321,11 @@ public class TaskSchedulerImplTest extends EasyMockTest {
     expectAsMap(NO_RESERVATION);
     expect(assigner.maybeAssign(
         EasyMock.anyObject(),
-        eq(ResourceRequest.fromTask(taskA.getAssignedTask().getTask(), THERMOS_EXECUTOR, empty())),
+        eq(ResourceRequest.fromTask(
+            taskA.getAssignedTask().getTask(),
+            THERMOS_EXECUTOR,
+            empty(),
+            TIER_MANAGER)),
         eq(TaskGroupKey.from(taskA.getAssignedTask().getTask())),
         eq(ImmutableSet.of(taskA.getAssignedTask())),
         eq(NO_RESERVATION))).andReturn(SCHEDULED_RESULT);

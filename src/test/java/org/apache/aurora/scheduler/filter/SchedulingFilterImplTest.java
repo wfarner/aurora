@@ -38,6 +38,7 @@ import org.apache.aurora.gen.TaskConstraint;
 import org.apache.aurora.gen.ValueConstraint;
 import org.apache.aurora.gen.apiConstants;
 import org.apache.aurora.scheduler.base.JobKeys;
+import org.apache.aurora.scheduler.base.TaskTestUtil;
 import org.apache.aurora.scheduler.filter.SchedulingFilter.ResourceRequest;
 import org.apache.aurora.scheduler.filter.SchedulingFilter.UnusedResource;
 import org.apache.aurora.scheduler.filter.SchedulingFilter.Veto;
@@ -55,6 +56,7 @@ import org.junit.Test;
 import static org.apache.aurora.gen.Resource.diskMb;
 import static org.apache.aurora.gen.Resource.numCpus;
 import static org.apache.aurora.gen.Resource.ramMb;
+import static org.apache.aurora.scheduler.base.TaskTestUtil.TIER_MANAGER;
 import static org.apache.aurora.scheduler.configuration.ConfigurationManager.DEDICATED_ATTRIBUTE;
 import static org.apache.aurora.scheduler.filter.AttributeAggregate.empty;
 import static org.apache.aurora.scheduler.mesos.TaskExecutors.NO_OVERHEAD_EXECUTOR;
@@ -134,22 +136,22 @@ public class SchedulingFilterImplTest extends EasyMockTest {
         none,
         defaultFilter.filter(
             new UnusedResource(DEFAULT_OFFER, hostA),
-            ResourceRequest.taskOnly(noPortTask)));
+            TaskTestUtil.toResourceRequest(noPortTask)));
     assertEquals(
         none,
         defaultFilter.filter(
             new UnusedResource(DEFAULT_OFFER, hostA),
-            ResourceRequest.taskOnly(onePortTask)));
+            TaskTestUtil.toResourceRequest(onePortTask)));
     assertEquals(
         none,
         defaultFilter.filter(
             new UnusedResource(DEFAULT_OFFER, hostA),
-            ResourceRequest.taskOnly(twoPortTask)));
+            TaskTestUtil.toResourceRequest(twoPortTask)));
     assertEquals(
         ImmutableSet.of(veto(PORTS, 1)),
         defaultFilter.filter(
             new UnusedResource(DEFAULT_OFFER, hostA),
-            ResourceRequest.taskOnly(threePortTask)));
+            TaskTestUtil.toResourceRequest(threePortTask)));
   }
 
   @Test
@@ -242,7 +244,7 @@ public class SchedulingFilterImplTest extends EasyMockTest {
 
     assertEquals(
         ImmutableSet.of(Veto.maintenance("draining")),
-        defaultFilter.filter(unusedResource, ResourceRequest.taskOnly(task)));
+        defaultFilter.filter(unusedResource, TaskTestUtil.toResourceRequest(task)));
   }
 
   @Test
@@ -265,7 +267,7 @@ public class SchedulingFilterImplTest extends EasyMockTest {
 
     assertEquals(
         ImmutableSet.of(),
-        defaultFilter.filter(unusedResource, ResourceRequest.taskOnly(task)));
+        defaultFilter.filter(unusedResource, TaskTestUtil.toResourceRequest(task)));
   }
 
   @Test
@@ -461,7 +463,7 @@ public class SchedulingFilterImplTest extends EasyMockTest {
         ImmutableSet.of(),
         defaultFilter.filter(
             new UnusedResource(DEFAULT_OFFER, hostA),
-            ResourceRequest.taskOnly(task)));
+            TaskTestUtil.toResourceRequest(task)));
 
     Constraint jvmNegated = jvmConstraint.deepCopy();
     jvmNegated.getConstraint().getValue().setNegated(true);
@@ -573,7 +575,7 @@ public class SchedulingFilterImplTest extends EasyMockTest {
         expected,
         defaultFilter.filter(
             new UnusedResource(DEFAULT_OFFER, hostAttributes),
-            ResourceRequest.taskOnly(task))
+            TaskTestUtil.toResourceRequest(task))
             .isEmpty());
 
     Constraint negated = constraint.deepCopy();
@@ -583,7 +585,7 @@ public class SchedulingFilterImplTest extends EasyMockTest {
         !expected,
         defaultFilter.filter(
             new UnusedResource(DEFAULT_OFFER, hostAttributes),
-            ResourceRequest.fromTask(negatedTask, NO_OVERHEAD_EXECUTOR, aggregate))
+            ResourceRequest.fromTask(negatedTask, NO_OVERHEAD_EXECUTOR, aggregate, TIER_MANAGER))
             .isEmpty());
     return task;
   }
@@ -614,7 +616,7 @@ public class SchedulingFilterImplTest extends EasyMockTest {
         ImmutableSet.copyOf(vetoes),
         defaultFilter.filter(
             new UnusedResource(DEFAULT_OFFER, hostAttributes),
-            ResourceRequest.fromTask(task, NO_OVERHEAD_EXECUTOR, jobState)));
+            ResourceRequest.fromTask(task, NO_OVERHEAD_EXECUTOR, jobState, TIER_MANAGER)));
   }
 
   private static IHostAttributes hostAttributes(
